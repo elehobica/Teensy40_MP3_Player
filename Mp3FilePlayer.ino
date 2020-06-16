@@ -15,15 +15,10 @@
 
 
 // GUItool: begin automatically generated code
-AudioPlaySdMp3           playMp31;       //xy=154,78
-MyAudioOutputI2S           i2s1;           //xy=334,89
-AudioMixer4              mix0;
-AudioMixer4              mix1;
-AudioConnection          patchCord0(playMp31, 0, mix0, 0);
-AudioConnection          patchCord1(playMp31, 1, mix1, 0);
-AudioConnection          patchCord2(mix0, 0, i2s1, 0);
-AudioConnection          patchCord3(mix1, 0, i2s1, 1);
-// GUItool: end automatically generated code
+AudioPlaySdMp3           playMp3;
+MyAudioOutputI2S         i2s1;
+AudioConnection          patchCord0(playMp3, 0, i2s1, 0);
+AudioConnection          patchCord1(playMp3, 1, i2s1, 1);
 
 void setup() {
   Serial.begin(9600);
@@ -41,8 +36,6 @@ void setup() {
       delay(500);
     }
   }
-  mix0.gain(0, 1.0);
-  mix1.gain(0, 1.0);
 }
 
 void playFile(const char *filename)
@@ -52,10 +45,10 @@ void playFile(const char *filename)
 
   // Start playing the file.  This sketch continues to
   // run while the file plays.
-  playMp31.play(filename);
+  playMp3.play(filename);
 
   // Simply wait for the file to finish playing.
-  while (playMp31.isPlaying()) {
+  while (playMp3.isPlaying()) {
     // uncomment these lines if your audio shield
     // has the optional volume pot soldered
     //float vol = analogRead(15);
@@ -64,20 +57,20 @@ void playFile(const char *filename)
 
 #if 0	
 	 Serial.print("Max Usage: ");
-	 Serial.print(playMp31.processorUsageMax());
+	 Serial.print(playMp3.processorUsageMax());
 	 Serial.print("% Audio, ");
-	 Serial.print(playMp31.processorUsageMaxDecoder());	 	 
+	 Serial.print(playMp3.processorUsageMaxDecoder());
 	 Serial.print("% Decoding max, ");
 	 
-	 Serial.print(playMp31.processorUsageMaxSD());	 
+	 Serial.print(playMp3.processorUsageMaxSD());
 	 Serial.print("% SD max, ");
 	 	 
-	 Serial.print(AudioProcessorUsageMax());	 
+	 Serial.print(AudioProcessorUsageMax());
 	 Serial.println("% All");
 	 
 	 AudioProcessorUsageMaxReset();
-	 playMp31.processorUsageMaxReset();
-	 playMp31.processorUsageMaxResetDecoder();
+	 playMp3.processorUsageMaxReset();
+	 playMp3.processorUsageMaxResetDecoder();
 #endif 
 	 
 	 delay(250);
@@ -86,8 +79,8 @@ void playFile(const char *filename)
 
 
 void loop() {
-  playFile("ForTag.mp3");	
   playFile("Tom.mp3");
-  playFile("Foreverm.mp3");
+  playFile("02 - Rock 'n' Roll Damnation.mp3");
+  playFile("03 - Guns for Hire.mp3");
   delay(500);
 }
