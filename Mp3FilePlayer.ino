@@ -11,11 +11,11 @@
 #include <SD.h>
 
 #include <play_sd_mp3.h>
+#include "my_play_sd_mp3.h"
 #include "my_output_i2s.h"
 
-
 // GUItool: begin automatically generated code
-AudioPlaySdMp3           playMp3;
+MyAudioPlaySdMp3         playMp3;
 MyAudioOutputI2S         i2s1;
 AudioConnection          patchCord0(playMp3, 0, i2s1, 0);
 AudioConnection          patchCord1(playMp3, 1, i2s1, 1);
@@ -25,7 +25,7 @@ void setup() {
 
   // Audio connections require memory to work.  For more
   // detailed information, see the MemoryAndCpuUsage example
-  AudioMemory(5);
+  AudioMemory(20);
 
   //SPI.setMOSI(7);
   //SPI.setSCK(14);
