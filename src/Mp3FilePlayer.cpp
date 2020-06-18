@@ -5,6 +5,7 @@
 //
 // This example code is in the public domain.
 
+#include <my_Audio.h>
 #include <Wire.h>
 #include <SdFat.h>
 #include <sdios.h>
