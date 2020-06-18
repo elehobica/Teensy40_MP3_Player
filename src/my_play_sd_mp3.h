@@ -43,7 +43,7 @@
 
 #include "my_codecs.h"
 #include "AudioStream.h"
-#include "spi_interrupt.h"
+//#include "spi_interrupt.h"
 #include "mp3/mp3dec.h"
 
 class MyAudioPlaySdMp3 : public MyAudioCodec

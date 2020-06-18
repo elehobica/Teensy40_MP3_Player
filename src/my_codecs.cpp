@@ -40,7 +40,7 @@
 #include "my_codecs.h"
 
 #include "common/assembly.h"
-#include "SD.h"
+//#include "SD.h"
 
 void MyCodecFile::serflashinit(void)
 {
@@ -54,13 +54,14 @@ void MyCodecFile::serflashinit(void)
 	SPI.setMISO(12);
 	SPI.setSCK(14);
 #endif		
-	SPI.begin();
-	spisettings = SPISettings(SPICLOCK , MSBFIRST, SPI_MODE0);
+	//SPI.begin();
+	//spisettings = SPISettings(SPICLOCK , MSBFIRST, SPI_MODE0);
 }
 
 //__attribute__ ((optimize("O2")))
 inline void MyCodecFile::readserflash(uint8_t* buffer, const size_t position, const size_t bytes)
 {//flash_spi.h has no such function.
+    /*
 	SPI.beginTransaction(spisettings);
 	digitalWriteFast(SERFLASH_CS, LOW);
 	SPI.transfer(0x0b);//CMD_READ_HIGH_SPEED
@@ -73,6 +74,7 @@ inline void MyCodecFile::readserflash(uint8_t* buffer, const size_t position, co
 	}
 	digitalWriteFast(SERFLASH_CS, HIGH);
 	SPI.endTransaction();
+    */
 }
 
 size_t MyCodecFile::fread(uint8_t buffer[],size_t bytes)
@@ -88,7 +90,7 @@ size_t MyCodecFile::fread(uint8_t buffer[],size_t bytes)
 	return bytes;
 }
 
-size_t MyCodecFile::fillReadBuffer(File file, uint8_t *sd_buf, uint8_t *data, size_t dataLeft, size_t sd_bufsize)
+size_t MyCodecFile::fillReadBuffer(uint8_t *sd_buf, uint8_t *data, size_t dataLeft, size_t sd_bufsize)
 {//TODO: Sync to 512-Byte blocks, if possible
 
 	memmove(sd_buf, data, dataLeft);
@@ -141,7 +143,6 @@ size_t MyCodecFile::fillReadBuffer(uint8_t *data, size_t dataLeft)
 }
 */
 
-/*
 //Skip ID3-Tags at the beginning of the file.
 //http://id3.org/id3v2.4.0-structure
 size_t skipID3(uint8_t *sd_buf)
@@ -161,7 +162,6 @@ size_t skipID3(uint8_t *sd_buf)
 	}
 	else return 0;
 }
-*/
 
 
 bool MyAudioCodec::pause(const bool paused)

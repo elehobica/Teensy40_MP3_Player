@@ -123,7 +123,7 @@ int MyAudioPlaySdMp3::play(void)
 	} else size_id3 = 0;
 
 	//Fill buffer from the beginning with fresh data
-	sd_left = fillReadBuffer(file, sd_buf, sd_buf, sd_left, MP3_SD_BUF_SIZE);
+	sd_left = fillReadBuffer(sd_buf, sd_buf, sd_left, MP3_SD_BUF_SIZE);
 
 	if (!sd_left) {
 		lastError = ERR_CODEC_FILE_NOT_FOUND;
@@ -252,7 +252,7 @@ void my_decodeMp3(void)
 	case 0:
 		{
 
-			o->sd_left = o->fillReadBuffer( o->file, o->sd_buf, o->sd_p, o->sd_left, MP3_SD_BUF_SIZE);
+			o->sd_left = o->fillReadBuffer(o->sd_buf, o->sd_p, o->sd_left, MP3_SD_BUF_SIZE);
 			if (!o->sd_left) { eof = true; goto mp3end; }
 			o->sd_p = o->sd_buf;
 

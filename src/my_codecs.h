@@ -45,8 +45,20 @@
 
 #include <Arduino.h>
 #include <AudioStream.h>
-#include <spi_interrupt.h>
-#include <SD.h>
+//#include <spi_interrupt.h>
+#include <SdFat.h>
+#include <sdios.h>
+
+// SD_FAT_TYPE = 0 for SdFat/File as defined in SdFatConfig.h,
+// 1 for FAT16/FAT32, 2 for exFAT, 3 for FAT16/FAT32 and exFAT.
+#define SD_FAT_TYPE 3
+
+#if SD_FAT_TYPE == 3
+//SdFs sd;
+//FsFile file;
+#else  // SD_FAT_TYPE
+#error Invalid SD_FAT_TYPE
+#endif  // SD_FAT_TYPE
 
 #define ERR_CODEC_NONE				0
 #define ERR_CODEC_FILE_NOT_FOUND    1
@@ -84,15 +96,15 @@ class MyCodecFile
 {
 public:
 
-	bool fopen(const char *filename) {ftype=my_codec_file; AudioStartUsingSPI(); fptr=NULL; file=SD.open(filename); _fsize=file.size(); _fposition=0; return file != 0;} //FILE
+	bool fopen(const char *filename) {ftype=my_codec_file; fptr=NULL; file.open(filename, O_RDONLY); _fsize=file.fileSize(); _fposition=0; return 1;} //FILE
 	bool fopen(const uint8_t*p, const size_t size) {ftype=my_codec_flash; fptr=(uint8_t*)p; _fsize=size; _fposition=0; return true;} //FLASH
-	bool fopen(const size_t p, const size_t size) {ftype=my_codec_serflash; offset=p; _fsize=size; _fposition=0; AudioStartUsingSPI(); serflashinit(); return true;} //SERIAL FLASH
+	bool fopen(const size_t p, const size_t size) {ftype=my_codec_serflash; offset=p; _fsize=size; _fposition=0; serflashinit(); return true;} //SERIAL FLASH
 	void fclose(void)
 	{
 		_fsize=_fposition=0; fptr=NULL;
-		if (ftype==my_codec_file) {file.close(); AudioStopUsingSPI();}
+		if (ftype==my_codec_file) {file.close();}
 		else
-		if (ftype==my_codec_serflash) {AudioStopUsingSPI();}
+		if (ftype==my_codec_serflash) {}
 		ftype=my_codec_none;
 	}
 	bool f_eof(void) {return _fposition >= _fsize;}
@@ -103,7 +115,7 @@ public:
 
 	uint8_t *allocBuffer(size_t size) { rdbufsize = size;  bufptr = (uint8_t *) calloc(size,1); return bufptr;}
 	void freeBuffer(void){ if (bufptr !=NULL) {free(bufptr);bufptr = NULL; } rdbufsize = 0;}
-	size_t fillReadBuffer(File file, uint8_t *sd_buf, uint8_t *data, size_t dataLeft, size_t sd_bufsize);
+	size_t fillReadBuffer(uint8_t *sd_buf, uint8_t *data, size_t dataLeft, size_t sd_bufsize);
 	//size_t fillReadBuffer(uint8_t *data, size_t dataLeft);
 
 protected:
@@ -112,11 +124,9 @@ protected:
 	void serflashinit(void);
 	void readserflash(uint8_t* buffer, const size_t position, const size_t bytes);
 
-	SPISettings spisettings;
-
 	my_codec_filetype ftype;
 
-	File file;
+    FsFile file;
 	union {
 		uint8_t* fptr;
 		size_t offset;
