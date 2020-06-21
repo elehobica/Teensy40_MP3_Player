@@ -5,10 +5,8 @@
 //
 // This example code is in the public domain.
 
-#include <my_Audio.h>
 #include <Wire.h>
 #include <SdFat.h>
-#include <sdios.h>
 
 #include "my_play_sd_mp3.h"
 #include "my_output_i2s.h"
@@ -17,8 +15,13 @@
 // 1 for FAT16/FAT32, 2 for exFAT, 3 for FAT16/FAT32 and exFAT.
 #define SD_FAT_TYPE 3
 
-#if SD_FAT_TYPE == 3
+#if SD_FAT_TYPE == 2
+SdExFat sd;
+ExFile dir;
+ExFile file;
+#elif SD_FAT_TYPE == 3
 SdFs sd;
+FsFile dir;
 FsFile file;
 #else  // SD_FAT_TYPE
 #error Invalid SD_FAT_TYPE
@@ -47,7 +50,7 @@ AudioConnection          patchCord0(playMp3, 0, i2s1, 0);
 AudioConnection          patchCord1(playMp3, 1, i2s1, 1);
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
 
   // Initialize the SD.
   if (!sd.begin(SD_CONFIG)) {
@@ -57,6 +60,20 @@ void setup() {
       delay(500);
     }
   }
+  /*
+  if (!sd.volumeBegin()) {
+    while (1) {
+      Serial.println("volumeBegin failed");
+      delay(500);
+    }
+  }
+  if (!dir.open("/")){
+    while (1) {
+      Serial.println("dir.open failed");
+      delay(500);
+    }
+  }
+  */
   Serial.println("SD card OK");
 
   // Audio connections require memory to work.  For more
@@ -105,8 +122,11 @@ void playFile(const char *filename)
 
 
 void loop() {
+  playFile("ForTag.mp3");
+  playFile("01 - Shoot to Thrill.mp3");
   playFile("Tom.mp3");
   playFile("02 - Rock 'n' Roll Damnation.mp3");
+  playFile("Foreverm.mp3");
   playFile("03 - Guns for Hire.mp3");
   delay(500);
 }

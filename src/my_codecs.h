@@ -47,18 +47,10 @@
 #include <AudioStream.h>
 //#include <spi_interrupt.h>
 #include <SdFat.h>
-#include <sdios.h>
 
 // SD_FAT_TYPE = 0 for SdFat/File as defined in SdFatConfig.h,
 // 1 for FAT16/FAT32, 2 for exFAT, 3 for FAT16/FAT32 and exFAT.
 #define SD_FAT_TYPE 3
-
-#if SD_FAT_TYPE == 3
-//SdFs sd;
-//FsFile file;
-#else  // SD_FAT_TYPE
-#error Invalid SD_FAT_TYPE
-#endif  // SD_FAT_TYPE
 
 #define ERR_CODEC_NONE				0
 #define ERR_CODEC_FILE_NOT_FOUND    1
@@ -108,7 +100,7 @@ public:
 		ftype=my_codec_none;
 	}
 	bool f_eof(void) {return _fposition >= _fsize;}
-	bool fseek(const size_t position) {_fposition=position;if (ftype==my_codec_file) return file.seek(_fposition)!=0; else return _fposition <= _fsize;}
+	bool fseek(const size_t position) {_fposition=position;if (ftype==my_codec_file) return file.seekSet(_fposition)!=0; else return _fposition <= _fsize;}
 	size_t fposition(void) {return _fposition;}
 	size_t fsize(void) {return _fsize;}
 	size_t fread(uint8_t buffer[],size_t bytes);
@@ -126,7 +118,16 @@ protected:
 
 	my_codec_filetype ftype;
 
-    FsFile file;
+#if SD_FAT_TYPE == 2
+	SdExFat sd;
+	ExFile file;
+#elif SD_FAT_TYPE == 3
+	SdFs sd;
+	FsFile file;
+#else  // SD_FAT_TYPE
+#error Invalid SD_FAT_TYPE
+#endif  // SD_FAT_TYPE
+
 	union {
 		uint8_t* fptr;
 		size_t offset;

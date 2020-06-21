@@ -212,7 +212,7 @@ static cid_t m_cid;
 static csd_t m_csd;
 //==============================================================================
 #define DBG_TRACE Serial.print("TRACE."); Serial.println(__LINE__); delay(200);
-#define USE_DEBUG_MODE 0
+#define USE_DEBUG_MODE 1
 #if USE_DEBUG_MODE
 #define DBG_IRQSTAT() if (SDHC_IRQSTAT) {Serial.print(__LINE__);\
         Serial.print(" IRQSTAT "); Serial.println(SDHC_IRQSTAT, HEX);}
@@ -658,7 +658,8 @@ bool SdioCard::begin(SdioConfig sdioConfig) {
   uint8_t status[64];
   if (cardCMD6(0X00FFFFFF, status) && (2 & status[13]) &&
       cardCMD6(0X80FFFFF1, status) && (status[16] & 0XF) == 1) {
-    kHzSdClk = 50000;
+    //kHzSdClk = 50000;
+    kHzSdClk = 25000; // ignore High Speed mode for stable transfer
   } else {
     kHzSdClk = 25000;
   }
