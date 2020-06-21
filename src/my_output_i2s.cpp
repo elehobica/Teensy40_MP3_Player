@@ -43,29 +43,43 @@ DMAMEM __attribute__((aligned(32))) static uint32_t i2s_tx_buffer[AUDIO_BLOCK_SA
 #include "utility/imxrt_hw.h"
 #endif
 
-#define VOLUME 1024 // 256 ~ 65536: no bit drop, 1 ~ 255: with bit drop 
+uint8_t MyAudioOutputI2S::volume = 65; // 0 ~ 100;
 
-void my_memcpy_tointerleaveLR(int32_t *dst, const int16_t *srcL, const int16_t *srcR)
+static const uint32_t vol_table[101] = {
+    0, 4, 8, 12, 16, 20, 24, 27, 29, 31, 
+    34, 37, 40, 44, 48, 52, 57, 61, 67, 73, 
+    79, 86, 94, 102, 111, 120, 131, 142, 155, 168, 
+    183, 199, 217, 236, 256, 279, 303, 330, 359, 390, // vol_table[34] = 256;
+    424, 462, 502, 546, 594, 646, 703, 764, 831, 904, 
+    983, 1069, 1163, 1265, 1376, 1496, 1627, 1770, 1925, 2094, 
+    2277, 2476, 2693, 2929, 3186, 3465, 3769, 4099, 4458, 4849, 
+    5274, 5736, 6239, 6785, 7380, 8026, 8730, 9495, 10327, 11232, 
+    12216, 13286, 14450, 15716, 17093, 18591, 20220, 21992, 23919, 26015, 
+    28294, 30773, 33470, 36403, 39592, 43061, 46835, 50938, 55402, 60256, 
+    65536
+};
+
+void my_memcpy_tointerleaveLR(int8_t vol, int32_t *dst, const int16_t *srcL, const int16_t *srcR)
 {
     for (int i = 0; i < AUDIO_BLOCK_SAMPLES/2; i++) {
-        dst[i*2+0] = (int32_t) srcL[i] * VOLUME;
-        dst[i*2+1] = (int32_t) srcR[i] * VOLUME;
+        dst[i*2+0] = (int32_t) srcL[i] * vol_table[vol];
+        dst[i*2+1] = (int32_t) srcR[i] * vol_table[vol];
     }
 }
 
-void my_memcpy_tointerleaveL(int32_t *dst, const int16_t *srcL)
+void my_memcpy_tointerleaveL(int8_t vol, int32_t *dst, const int16_t *srcL)
 {
     for (int i = 0; i < AUDIO_BLOCK_SAMPLES/2; i++) {
-        dst[i*2+0] = (int32_t) srcL[i] * VOLUME;
+        dst[i*2+0] = (int32_t) srcL[i] * vol_table[vol];
         dst[i*2+1] = 0;
     }
 }
 
-void my_memcpy_tointerleaveR(int32_t *dst, const int16_t *srcR)
+void my_memcpy_tointerleaveR(int8_t vol, int32_t *dst, const int16_t *srcR)
 {
     for (int i = 0; i < AUDIO_BLOCK_SAMPLES/2; i++) {
         dst[i*2+0] = 0;
-        dst[i*2+1] = (int32_t) srcR[i] * VOLUME;
+        dst[i*2+1] = (int32_t) srcR[i] * vol_table[vol];
     }
 }
 
@@ -127,7 +141,6 @@ void MyAudioOutputI2S::begin(void)
 	dma.attachInterrupt(isr);
 }
 
-
 void MyAudioOutputI2S::isr(void)
 {
 #if defined(KINETISK) || defined(__IMXRT1062__)
@@ -158,16 +171,16 @@ void MyAudioOutputI2S::isr(void)
 
 	if (blockL && blockR) {
 		//memcpy_tointerleaveLR(dest, blockL->data + offsetL, blockR->data + offsetR);
-		my_memcpy_tointerleaveLR(dest, blockL->data + offsetL, blockR->data + offsetR); // Audio sample 16bit -> 32bit
+		my_memcpy_tointerleaveLR(volume, dest, blockL->data + offsetL, blockR->data + offsetR); // Audio sample 16bit -> 32bit
 		offsetL += AUDIO_BLOCK_SAMPLES / 2;
 		offsetR += AUDIO_BLOCK_SAMPLES / 2;
 	} else if (blockL) {
 		//memcpy_tointerleaveL(dest, blockL->data + offsetL);
-		my_memcpy_tointerleaveL(dest, blockL->data + offsetL); // Audio sample 16bit -> 32bit
+		my_memcpy_tointerleaveL(volume, dest, blockL->data + offsetL); // Audio sample 16bit -> 32bit
 		offsetL += AUDIO_BLOCK_SAMPLES / 2;
 	} else if (blockR) {
 		//memcpy_tointerleaveR(dest, blockR->data + offsetR);
-		my_memcpy_tointerleaveR(dest, blockR->data + offsetR); // Audio sample 16bit -> 32bit
+		my_memcpy_tointerleaveR(volume, dest, blockR->data + offsetR); // Audio sample 16bit -> 32bit
 		offsetR += AUDIO_BLOCK_SAMPLES / 2;
 	} else {
 		//memset(dest,0,AUDIO_BLOCK_SAMPLES * 2);
@@ -263,9 +276,6 @@ void MyAudioOutputI2S::isr(void)
 #endif
 }
 
-
-
-
 void MyAudioOutputI2S::update(void)
 {
 	// null audio device: discard all incoming data
@@ -312,6 +322,16 @@ void MyAudioOutputI2S::update(void)
 			release(tmp);
 		}
 	}
+}
+
+void MyAudioOutputI2S::volume_up(void)
+{
+    if (volume < 100) volume++;
+}
+
+void MyAudioOutputI2S::volume_down(void)
+{
+    if (volume > 0) volume--;
 }
 
 #if defined(KINETISK) || defined(KINETISL)
