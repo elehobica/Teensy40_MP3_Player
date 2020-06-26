@@ -7,9 +7,14 @@
 
 #include <Wire.h>
 #include <SdFat.h>
+#include <Adafruit_GFX.h>    // Core graphics library
+#include <Adafruit_ST7735.h> // Hardware-specific library for ST7735
+//#include <Fonts/FreeMono9pt7b.h>
+#include "Nimbus_Sans_L_Regular_Condensed_12.h"
 
 #include "my_play_sd_mp3.h"
 #include "my_output_i2s.h"
+#include "ff_util.h"
 
 // SD_FAT_TYPE = 0 for SdFat/File as defined in SdFatConfig.h,
 // 1 for FAT16/FAT32, 2 for exFAT, 3 for FAT16/FAT32 and exFAT.
@@ -52,6 +57,12 @@ const uint8_t SD_CS_PIN = SDCARD_SS_PIN;
 uint8_t button_prv[NUM_BTN_HISTORY] = {}; // initialized as HP_BUTTON_OPEN
 
 IntervalTimer myTimer;
+
+// LCD (ST7735, 1.8", 128x160pix)
+#define TFT_CS        10
+#define TFT_RST        9 // Or set to -1 and connect to Arduino RESET pin
+#define TFT_DC         8
+Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
 
 MyAudioPlaySdMp3         playMp3;
 MyAudioOutputI2S         i2s1;
@@ -112,9 +123,23 @@ void tick_100ms(void)
   }
 }
 
+void tftPrintTest() {
+  tft.setTextWrap(false);
+  tft.fillScreen(ST77XX_BLACK);
+  tft.setCursor(0, 30);
+  tft.setTextColor(ST77XX_GREEN);
+  tft.setTextSize(1);
+  tft.println("Hello World!");
+}
+
 void setup() {
   Serial.begin(115200);
   myTimer.begin(tick_100ms, 100000);
+
+  // LCD Initialize
+  tft.initR(INITR_BLACKTAB);      // Init ST7735S chip, black tab
+  tft.fillScreen(ST77XX_BLACK);
+  //tftPrintTest();
 
   // Initialize the SD.
   if (!sd.begin(SD_CONFIG)) {
@@ -125,6 +150,40 @@ void setup() {
     }
   }
   Serial.println("SD card OK");
+
+/*
+  dir.open("/");
+  while (file = dir.openNextFile()) {
+    char str[256];
+    file.getName(str, sizeof(str));
+    Serial.println(file.dirIndex());
+    Serial.println(str);
+  }
+  */
+  
+  file_menu_open_dir("/");
+  tft.setTextWrap(false);
+  tft.fillScreen(ST77XX_BLACK);
+  tft.setTextColor(ST77XX_WHITE);
+  //tft.setFont(&FreeMono9pt7b);
+  tft.setFont(&Nimbus_Sans_L_Regular_Condensed_12);
+  tft.setTextSize(1);
+  for (int i = 0; i < 10; i++) {
+    tft.setCursor(0, i*16+11);
+    tft.println(file_menu_get_fname_ptr(i));
+  }
+  
+  //Serial.println(file_menu_get_size());
+  //Serial.println(file_menu_open_dir("AC-DC"));
+
+  /*
+  dir.open("/");
+  while (file.openNext(&dir, O_RDONLY)) {
+    char str[256];
+    file.getName(str, sizeof(str));
+    Serial.println(str);
+  }
+  */
 
   // Audio connections require memory to work.  For more
   // detailed information, see the MemoryAndCpuUsage example
