@@ -168,9 +168,11 @@ void setup() {
   //tft.setFont(&FreeMono9pt7b);
   tft.setFont(&Nimbus_Sans_L_Regular_Condensed_12);
   tft.setTextSize(1);
+  char str[256];
   for (int i = 0; i < 10; i++) {
     tft.setCursor(0, i*16+11);
-    tft.println(file_menu_get_fname_ptr(i));
+    file_menu_get_fname(i, str, sizeof(str));
+    tft.println(str);
   }
   
   //Serial.println(file_menu_get_size());

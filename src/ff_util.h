@@ -7,9 +7,12 @@
 // 1 for FAT16/FAT32, 2 for exFAT, 3 for FAT16/FAT32 and exFAT.
 #define SD_FAT_TYPE 3
 
+#define FF_LFN_BUF		255 // Length of Long File Name of exFAT
+#define MAX_DEPTH_DIR	8	// Directory's Maximum Depth supported
+
+#define FFL_SZ 8			// number of charactors for fast index of file name
 #define TGT_DIRS    (1<<0)
 #define TGT_FILES   (1<<1)
-#define FFL_SZ 8
 
 /* File function return code (FRESULT) */
 
@@ -38,39 +41,13 @@ typedef enum {
 
 /* Type of path name strings on FatFs API */
 
-#ifndef _INC_TCHAR
-#define _INC_TCHAR
-
-#if FF_USE_LFN && FF_LFN_UNICODE == 1 	/* Unicode in UTF-16 encoding */
-typedef WCHAR TCHAR;
-#define _T(x) L ## x
-#define _TEXT(x) L ## x
-#elif FF_USE_LFN && FF_LFN_UNICODE == 2	/* Unicode in UTF-8 encoding */
-typedef char TCHAR;
-#define _T(x) u8 ## x
-#define _TEXT(x) u8 ## x
-#elif FF_USE_LFN && FF_LFN_UNICODE == 3	/* Unicode in UTF-32 encoding */
-typedef DWORD TCHAR;
-#define _T(x) U ## x
-#define _TEXT(x) U ## x
-#elif FF_USE_LFN && (FF_LFN_UNICODE < 0 || FF_LFN_UNICODE > 3)
-#error Wrong FF_LFN_UNICODE setting
-#else									/* ANSI/OEM code in SBCS/DBCS */
-typedef char TCHAR;
-#define _T(x) x
-#define _TEXT(x) x
-#endif
-
-#endif
-
-FRESULT file_menu_open_dir(const TCHAR *path);
+FRESULT file_menu_open_dir(const char *path);
 FRESULT file_menu_ch_dir(uint16_t order);
 void file_menu_close_dir(void);
 uint16_t file_menu_get_size(void);
 void file_menu_full_sort(void);
 void file_menu_sort_entry(uint16_t scope_start, uint16_t scope_end_1);
 FRESULT file_menu_get_fname(uint16_t order, char *str, uint16_t size);
-const TCHAR *file_menu_get_fname_ptr(uint16_t order);
 int file_menu_is_dir(uint16_t order);
 void file_menu_idle(void);
 
