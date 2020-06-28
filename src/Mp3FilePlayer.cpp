@@ -7,7 +7,6 @@
 
 #include <string.h>
 #include <Wire.h>
-//#include <SdFat.h>
 #include <Adafruit_GFX.h>    // Core graphics library
 #include <Adafruit_ST7735.h> // Hardware-specific library for ST7735
 //#include <Fonts/FreeMono9pt7b.h>
@@ -21,44 +20,6 @@
 
 char _str[256];
 FsBaseFile file;
-
-//SdFs sd;
-/*
-// SD_FAT_TYPE = 0 for SdFat/File as defined in SdFatConfig.h,
-// 1 for FAT16/FAT32, 2 for exFAT, 3 for FAT16/FAT32 and exFAT.
-#define SD_FAT_TYPE 3
-
-#if SD_FAT_TYPE == 2
-SdExFat sd;
-ExFile dir;
-ExFile file;
-#elif SD_FAT_TYPE == 3
-SdFs sd;
-FsFile dir;
-FsFile file;
-#else  // SD_FAT_TYPE
-#error Invalid SD_FAT_TYPE
-#endif  // SD_FAT_TYPE
-*/
-
-
-/*
-// SDCARD_SS_PIN is defined for the built-in SD on some boards.
-#ifndef SDCARD_SS_PIN
-const uint8_t SD_CS_PIN = SS;
-#else  // SDCARD_SS_PIN
-const uint8_t SD_CS_PIN = SDCARD_SS_PIN;
-#endif  // SDCARD_SS_PIN
-
-// Try to select the best SD card configuration.
-#if HAS_SDIO_CLASS
-#define SD_CONFIG SdioConfig(FIFO_SDIO)
-#elif ENABLE_DEDICATED_SPI
-#define SD_CONFIG SdSpiConfig(SD_CS_PIN, DEDICATED_SPI, SD_SCK_MHZ(16))
-#else  // HAS_SDIO_CLASS
-#define SD_CONFIG SdSpiConfig(SD_CS_PIN, SHARED_SPI, SD_SCK_MHZ(16))
-#endif  // HAS_SDIO_CLASS
-*/
 
 #define NUM_BTN_HISTORY   30
 #define HP_BUTTON_OPEN    0
@@ -77,17 +38,10 @@ IntervalTimer myTimer;
 #define TFT_DC         8
 Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
 
-//#define ST77XX_WHITE         	 0xFFFF
-//#define ST77XX_BLACK         	 0x0000
-//#define ST77XX_BLUE           	 0x001F
+// Additional Colors for ST77XX
 #define ST77XX_BRED       0XF81F
 #define ST77XX_GRED       0XFFE0
 #define ST77XX_GBLUE      0X07FF
-//#define ST77XX_RED           	 0xF800
-//#define ST77XX_MAGENTA       	 0xF81F
-//#define ST77XX_GREEN         	 0x07E0
-//#define ST77XX_CYAN          	 0x7FFF
-//#define ST77XX_YELLOW        	 0xFFE0
 #define ST77XX_BROWN      0XBC40
 #define ST77XX_BRRED      0XFC07
 #define ST77XX_GRAY       0X8430
@@ -345,18 +299,6 @@ void setup() {
   tft.setTextSize(1);
   //tftPrintTest();
 
-  /*
-  // Initialize the SD.
-  if (!sd.begin(SD_CONFIG)) {
-    // stop here, but print a message repetitively
-    while (1) {
-      Serial.println("Unable to access the SD card");
-      delay(500);
-    }
-  }
-  Serial.println("SD card OK");
-  */
-
   stack = stack_init();
   file_menu_open_root_dir();
 
@@ -364,24 +306,6 @@ void setup() {
   // detailed information, see the MemoryAndCpuUsage example
   AudioMemory(5);
 }
-
-#if 0	
-void playFile(const char *filename)
-{
-  Serial.print("Playing file: ");
-  Serial.println(filename);
-
-  // Start playing the file.  This sketch continues to
-  // run while the file plays.
-  playMp3.play(filename);
-
-  // Simply wait for the file to finish playing.
-  while (playMp3.isPlaying()) {
-    // uncomment these lines if your audio shield
-    // has the optional volume pot soldered
-    //float vol = analogRead(15);
-    //vol = vol / 1024;
-    // sgtl5000_1.volume(vol);
 
 #if 0	
 	 Serial.print("Max Usage: ");
@@ -399,11 +323,6 @@ void playFile(const char *filename)
 	 AudioProcessorUsageMaxReset();
 	 playMp3.processorUsageMaxReset();
 	 playMp3.processorUsageMaxResetDecoder();
-#endif 
-	 
-	 delay(250);
-  }
-}
 #endif 
 
 void loop() {
@@ -467,13 +386,6 @@ void loop() {
           idx_idle_count = 0;
         }
       }
-
-      //sd.chdir("AC-DC");
-      //sd.chdir("090v-For Those About to Rock (We Salute You) (Vinyl)/");
-      //sd.chdir("/AC-DC/090v-For Those About to Rock (We Salute You) (Vinyl)");
-      //playMp3.play("101a - For Those About To Rock (We Salute You).mp3");
-      //playMp3.play("AC-DC/090v-For Those About to Rock (We Salute You) (Vinyl)/101 - For Those About To Rock (We Salute You).mp3");
-      //playMp3.play("ForTag.mp3");
     /*
         file_menu_full_sort();
 
@@ -607,14 +519,5 @@ void loop() {
       }
     }
   }
-  delay(25);
-  /*
-  playFile("ForTag.mp3");
-  playFile("01 - Shoot to Thrill.mp3");
-  playFile("Tom.mp3");
-  playFile("02 - Rock 'n' Roll Damnation.mp3");
-  playFile("Foreverm.mp3");
-  playFile("03 - Guns for Hire.mp3");
-  delay(500);
-  */
+  delay(50);
 }
