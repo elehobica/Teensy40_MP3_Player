@@ -3,11 +3,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+static int path_depth = 0;					// preserve path depth because SdFat doesn't support relative directory
 #if SD_FAT_TYPE == 2
+static ExFile parent_dir[MAX_DEPTH_DIR]; 	// preserve parent directory
 static ExFile dir;
 static ExFile file;
 static ExFile file_temp;
 #elif SD_FAT_TYPE == 3
+static FsFile parent_dir[MAX_DEPTH_DIR]; 	// preserve parent directory
 static FsFile dir;
 static FsFile file;
 static FsFile file_temp;
@@ -32,9 +35,6 @@ const uint8_t SD_CS_PIN = SDCARD_SS_PIN;
 #endif  // HAS_SDIO_CLASS
 
 static char _str[256];	// for debug print
-
-static int path_depth = 0;							// preserve path depth because SdFat doesn't support relative directory
-static char path_info[MAX_DEPTH_DIR][FF_LFN_BUF]; 	// preserve path string
 
 static int target = TGT_DIRS | TGT_FILES; // TGT_DIRS, TGT_FILES
 static int16_t f_stat_cnt;
@@ -90,15 +90,12 @@ static int32_t my_strncmp(char *str1 , char *str2, int size)
 
 static FRESULT idx_f_stat(uint16_t idx,  FsBaseFile *file)
 {
-    /*
 	if (idx == 0) {
-        sd.chdir("..");
-        dir.rewind();
-        return dir.openNextFile();
+		*file = parent_dir[path_depth-1];
+        return FR_OK;
 	}
-    */
-	if (f_stat_cnt == 0 || f_stat_cnt == 1 || f_stat_cnt > idx) {
-        dir.rewind();
+	if (f_stat_cnt == 1 || f_stat_cnt > idx) {
+        dir.rewindDirectory();
 		f_stat_cnt = 1;
 	}
 	for (;;) {
@@ -178,23 +175,20 @@ static void idx_qsort_entry_list_by_range(uint16_t r_start, uint16_t r_end_1, ui
 		while (!get_sorted(end_1_next) && end_1_next < end_1) {
 			end_1_next++;
 		}
-		sprintf(_str, "partial %d %d %d", start_next, end_1_next, end_1);
-        Serial.println(_str);
+		sprintf(_str, "partial %d %d %d", start_next, end_1_next, end_1); Serial.println(_str);
 		idx_qsort_entry_list_by_range(r_start, r_end_1, start_next, end_1_next);
 		if (end_1_next < end_1) {
 			idx_qsort_entry_list_by_range(r_start, r_end_1, end_1_next, end_1);
 		}
 		return;
 	}
-	//sprintf(_str, "r_start %d r_end_1 %d start %d end_1 %d", r_start, r_end_1, start, end_1);
-    //Serial.println(_str);
+	//sprintf(_str, "r_start %d r_end_1 %d start %d end_1 %d", r_start, r_end_1, start, end_1); Serial.println(_str);
 	/* DEBUG
 	Serial.println();
 	for (int k = start; k < end_1; k++) {
 		idx_f_stat(entry_list[k], &file);
         file.getName(name, sizeof(name));
-		sprintf(_str, "before[%d] %d %s", k, entry_list[k], name);
-        Serial.println(_str);
+		sprintf(_str, "before[%d] %d %s", k, entry_list[k], name); Serial.println(_str);
 	}
 	*/
 	if (end_1 - start <= 2) {
@@ -203,8 +197,7 @@ static void idx_qsort_entry_list_by_range(uint16_t r_start, uint16_t r_end_1, ui
 		if (result == 0) {
 			result = my_strncmp(fast_fname_list[entry_list[start]], fast_fname_list[entry_list[start+1]], FFL_SZ);
 		}
-		//sprintf(_str, "fast_fname_list %s %s %d, %d\n\r", fast_fname_list[entry_list[0]], fast_fname_list[entry_list[1]], entry_list[0], entry_list[1]);
-        //Serial.println(_str);
+		//sprintf(_str, "fast_fname_list %s %s %d, %d", fast_fname_list[entry_list[0]], fast_fname_list[entry_list[1]], entry_list[0], entry_list[1]); Serial.println(_str);
 		if (result > 0) {
 			idx_entry_swap(start, start+1);
 		} else if (result < 0) {
@@ -230,8 +223,7 @@ static void idx_qsort_entry_list_by_range(uint16_t r_start, uint16_t r_end_1, ui
 		uint16_t key_idx = entry_list[start+(end_1-start)/2];
 		idx_f_stat(key_idx, &file_temp);
         file_temp.getName(name_temp, sizeof(name_temp));
-		//sprintf(_str, "key %s", name_temp); // DEBUG
-        //Serial.println(_str);
+		//sprintf(_str, "key %s", name_temp); Serial.println(_str); // DEBUG
 		while (1) {
 			// try fast_fname_list compare
 			result = get_is_file(entry_list[top]) - get_is_file(key_idx);
@@ -263,14 +255,12 @@ static void idx_qsort_entry_list_by_range(uint16_t r_start, uint16_t r_end_1, ui
 		for (int k = 0; k < top; k++) {
 			idx_f_stat(entry_list[k], &file);
             file.getName(name, sizeof(name));
-			sprintf(_str, "top[%d] %d %s", k, entry_list[k], name);
-            Serial.println(_str);
+			sprintf(_str, "top[%d] %d %s", k, entry_list[k], name); Serial.println(_str);
 		}
 		for (int k = top; k < max_entry_cnt; k++) {
 			idx_f_stat(entry_list[k], &file);
             file.getName(name, sizeof(name));
-			sprintf(_str, "bottom[%d] %d %s", k, entry_list[k], name);
-            Serial.println(_str);
+			sprintf(_str, "bottom[%d] %d %s", k, entry_list[k], name); Serial.println(_str);
 		}
 		*/
 		if ((r_start < top && r_end_1 > start) && !get_range_full_sorted(start, top)) {
@@ -293,8 +283,7 @@ static void idx_qsort_entry_list_by_range(uint16_t r_start, uint16_t r_end_1, ui
 static uint16_t idx_get_size(int target)
 {
 	int16_t cnt = 1;
-	// Rewind directory index
-    dir.rewind();
+    dir.rewindDirectory();
 	// Directory search completed with null character
 	for (;;) {
         file.openNext(&dir);
@@ -343,8 +332,7 @@ static void idx_sort_new(void)
 		/* DEBUG
 		char temp_str[5] = "    ";
 		strncpy(temp_str, fast_fname_list[i], 4);
-		sprintf(_str, "fast_fname_list[%d] = %4s, is_file = %d", i, temp_str, get_is_file(i));
-        Serial.println(_str);
+		sprintf(_str, "fast_fname_list[%d] = %4s, is_file = %d", i, temp_str, get_is_file(i)); Serial.println(_str);
 		*/
 	}
 }
@@ -364,6 +352,7 @@ static void idx_sort_delete(void)
 // For implicit sort all entries
 void file_menu_idle(void)
 {
+	const int range = 20;
 	static int up_down = 0;
 	uint16_t r_start = 0;
 	uint16_t r_end_1 = 0;
@@ -376,7 +365,7 @@ void file_menu_idle(void)
 			}
 			r_start--;
 			r_end_1 = r_start + 1;
-			while (get_range_full_unsorted(r_start, r_end_1) && r_end_1 <= max_entry_cnt && r_end_1 - r_start <= 5) {
+			while (get_range_full_unsorted(r_start, r_end_1) && r_end_1 <= max_entry_cnt && r_end_1 - r_start <= range) {
 				r_end_1++;
 			}
 			r_end_1--;
@@ -389,7 +378,7 @@ void file_menu_idle(void)
 				}
 				r_end_1++;
 				r_start = r_end_1 - 1;
-				while (get_range_full_unsorted(r_start, r_end_1) && r_start != 0 && r_end_1 - r_start <= 5) {
+				while (get_range_full_unsorted(r_start, r_end_1) && r_start != 0 && r_end_1 - r_start <= range) {
 					r_start--;
 				}				
 			}
@@ -398,9 +387,7 @@ void file_menu_idle(void)
 		break;
 	}
 	
-	sprintf(_str, "implicit sort %d %d\n\r", r_start, r_end_1);
-    Serial.println(_str);
-	Serial.println("implicit sort");
+	sprintf(_str, "implicit sort %d %d", r_start, r_end_1); Serial.println(_str);
 	idx_qsort_entry_list_by_range(r_start, r_end_1, 0, max_entry_cnt);
 }
 
@@ -415,8 +402,7 @@ void file_menu_sort_entry(uint16_t scope_start, uint16_t scope_end_1)
 	wing_start = (scope_start > wing) ? scope_start - wing : 0;
 	wing = (scope_end_1 - scope_start)*4 - (scope_start - wing_start);
 	wing_end_1 = (scope_end_1 + wing < max_entry_cnt) ? scope_end_1 + wing : max_entry_cnt;
-	//sprintf(_str, "scope_start %d %d %d %d", scope_start, scope_end_1, wing_start, wing_end_1);
-    //Serial.println(_str);
+	//sprintf(_str, "scope_start %d %d %d %d", scope_start, scope_end_1, wing_start, wing_end_1); Serial.println(_str);
 	if (!get_range_full_sorted(scope_start, scope_end_1)) {
 		idx_qsort_entry_list_by_range(wing_start, wing_end_1, 0, max_entry_cnt);
 	}
@@ -459,12 +445,9 @@ FRESULT file_menu_open_dir(const char *path)
 {
 	f_stat_cnt = 1;
 	last_order = 0;
-    strncpy(path_info[path_depth++], path, FF_LFN_BUF);
-    char full_path[258*8] = {};
-    for (int i = 0; i < path_depth; i++) {
-        strncat(full_path, path_info[i], FF_LFN_BUF);
-    }
-    if (dir.open(full_path)) {
+	path_depth = 0;
+    if (dir.open("/")) {
+		parent_dir[path_depth++] = dir;
 		idx_sort_new();
         return FR_OK;
 	} else {
@@ -474,29 +457,28 @@ FRESULT file_menu_open_dir(const char *path)
 
 FRESULT file_menu_ch_dir(uint16_t order)
 {
-    char name[FF_LFN_BUF];
-    bool res = false;
-	if (order < max_entry_cnt) {
-		idx_f_stat(entry_list[order], &file);
-        file.getName(name, sizeof(name));
-        dir.close();
-		sprintf(_str, "chdir %s", name);
-        Serial.println(_str);
-		//sd.chdir(name);
-        res = dir.open(".");
-		idx_sort_delete();
-	}
 	f_stat_cnt = 1;
 	last_order = 0;
-    //fr = dir.open(path);
-	//sd.chdir(path);
-    //fr = dir.open(".");
-	if (res) {
+	if (order == 0) {
+		if (path_depth > 0) {
+			idx_sort_delete();
+			dir = parent_dir[--path_depth];
+			idx_sort_new();
+		}
+	} else if (order < max_entry_cnt && path_depth < MAX_DEPTH_DIR - 1) {
+		FsFile new_dir;
+		idx_f_stat(entry_list[order], &file);
+		new_dir.open(&dir, file.dirIndex(), O_RDONLY);
+		//dir.close();
+		dir.rewindDirectory();
+		parent_dir[path_depth++] = dir;
+		idx_sort_delete();
+		dir = new_dir;
 		idx_sort_new();
-        return FR_OK;
 	} else {
         return FR_INVALID_PARAMETER;
-    }
+	}
+	return FR_OK;
 }
 
 void file_menu_close_dir(void)
@@ -505,8 +487,7 @@ void file_menu_close_dir(void)
 	for (int i = 0; i < max_entry_cnt; i++) {
 		char temp_str[5] = "    ";
 		strncpy(temp_str, fast_fname_list[i], 4);
-		sprintf(_str, "fast_fname_list[%d] = %4s", i, temp_str);
-        Serial.println(_str);
+		sprintf(_str, "fast_fname_list[%d] = %4s", i, temp_str); Serial.println(_str);
 	}
 	*/
 	idx_sort_delete();
