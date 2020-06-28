@@ -5,8 +5,9 @@
 //
 // This example code is in the public domain.
 
+#include <string.h>
 #include <Wire.h>
-#include <SdFat.h>
+//#include <SdFat.h>
 #include <Adafruit_GFX.h>    // Core graphics library
 #include <Adafruit_ST7735.h> // Hardware-specific library for ST7735
 //#include <Fonts/FreeMono9pt7b.h>
@@ -19,7 +20,10 @@
 #include "stack.h"
 
 char _str[256];
+FsBaseFile file;
 
+//SdFs sd;
+/*
 // SD_FAT_TYPE = 0 for SdFat/File as defined in SdFatConfig.h,
 // 1 for FAT16/FAT32, 2 for exFAT, 3 for FAT16/FAT32 and exFAT.
 #define SD_FAT_TYPE 3
@@ -35,7 +39,10 @@ FsFile file;
 #else  // SD_FAT_TYPE
 #error Invalid SD_FAT_TYPE
 #endif  // SD_FAT_TYPE
+*/
 
+
+/*
 // SDCARD_SS_PIN is defined for the built-in SD on some boards.
 #ifndef SDCARD_SS_PIN
 const uint8_t SD_CS_PIN = SS;
@@ -51,6 +58,7 @@ const uint8_t SD_CS_PIN = SDCARD_SS_PIN;
 #else  // HAS_SDIO_CLASS
 #define SD_CONFIG SdSpiConfig(SD_CS_PIN, SHARED_SPI, SD_SCK_MHZ(16))
 #endif  // HAS_SDIO_CLASS
+*/
 
 #define NUM_BTN_HISTORY   30
 #define HP_BUTTON_OPEN    0
@@ -108,7 +116,9 @@ int aud_req = 0;
 
 uint16_t idx_head = 0;
 uint16_t idx_column = 0;
+uint16_t idx_play_count = 0;
 uint16_t idx_idle_count = 0;
+uint16_t idx_play;
 
 uint8_t adc0_get_hp_button(void)
 {
@@ -156,7 +166,6 @@ int count_center_clicks(void)
 
 void idx_open(void)
 {
-  Serial.println("idx_open");
   if (idx_req_open != 1) {
     idx_req_open = 1;
   }
@@ -254,7 +263,7 @@ void tick_100ms(void)
     button_repeat_count = 0;
     center_clicks = count_center_clicks(); // must be called once per tick because button_prv[] status has changed
     if (center_clicks > 0) {
-      sprintf(_str, "clicks =  %d", center_clicks);
+      sprintf(_str, "center_clicks = %d", center_clicks);
       Serial.println(_str);
       if (mode == FileView) {
         if (center_clicks == 1) {
@@ -322,16 +331,21 @@ void tftPrintTest() {
 }
 
 void setup() {
-  int i;
-
   Serial.begin(115200);
   myTimer.begin(tick_100ms, 100000);
 
   // LCD Initialize
   tft.initR(INITR_BLACKTAB);      // Init ST7735S chip, black tab
   tft.fillScreen(ST77XX_BLACK);
+  tft.setTextWrap(false);
+  tft.fillScreen(ST77XX_BLACK);
+  tft.setTextColor(ST77XX_WHITE);
+  //tft.setFont(&FreeMono9pt7b);
+  tft.setFont(&Nimbus_Sans_L_Regular_Condensed_12);
+  tft.setTextSize(1);
   //tftPrintTest();
 
+  /*
   // Initialize the SD.
   if (!sd.begin(SD_CONFIG)) {
     // stop here, but print a message repetitively
@@ -341,51 +355,17 @@ void setup() {
     }
   }
   Serial.println("SD card OK");
-
-/*
-  dir.open("/");
-  while (file = dir.openNextFile()) {
-    char str[256];
-    file.getName(str, sizeof(str));
-    Serial.println(file.dirIndex());
-    Serial.println(str);
-  }
   */
-  
+
   stack = stack_init();
-  file_menu_open_dir("/");
-  tft.setTextWrap(false);
-  tft.fillScreen(ST77XX_BLACK);
-  tft.setTextColor(ST77XX_WHITE);
-  //tft.setFont(&FreeMono9pt7b);
-  tft.setFont(&Nimbus_Sans_L_Regular_Condensed_12);
-  tft.setTextSize(1);
-  //char str[256];
-  /*
-  for (int i = 0; i < 10; i++) {
-    tft.setCursor(0, i*16+11);
-    file_menu_get_fname(i, str, sizeof(str));
-    tft.println(str);
-  }
-  */
-  
-  //Serial.println(file_menu_get_size());
-  //Serial.println(file_menu_open_dir("AC-DC"));
-
-  /*
-  dir.open("/");
-  while (file.openNext(&dir, O_RDONLY)) {
-    char str[256];
-    file.getName(str, sizeof(str));
-    Serial.println(str);
-  }
-  */
+  file_menu_open_root_dir();
 
   // Audio connections require memory to work.  For more
   // detailed information, see the MemoryAndCpuUsage example
   AudioMemory(5);
 }
 
+#if 0	
 void playFile(const char *filename)
 {
   Serial.print("Playing file: ");
@@ -424,6 +404,7 @@ void playFile(const char *filename)
 	 delay(250);
   }
 }
+#endif 
 
 void loop() {
   int i;
@@ -457,7 +438,7 @@ void loop() {
           file_menu_ch_dir(idx_head+idx_column);
         } else { // Already in top directory
           file_menu_close_dir();
-          file_menu_open_dir("/"); // Root directory
+          file_menu_open_root_dir(); // Root directory
           item.head = 0;
           item.column = 0;
           stack_push(stack, &item);
@@ -472,6 +453,27 @@ void loop() {
       }
       idx_req = 1;
     } else { // File
+      file_menu_full_sort();
+      idx_play = idx_head + idx_column;
+      file_menu_get_fname(idx_play, str, sizeof(str));
+      char* ext_pos = strrchr(str, '.');
+      if (ext_pos) {
+        if (strncmp(ext_pos, ".mp3", 4) == 0) {
+          mode = Play;
+          Serial.println(str);
+          file_menu_get_obj(idx_play, &file);
+          playMp3.play(&file);
+          idx_play_count = 0;
+          idx_idle_count = 0;
+        }
+      }
+
+      //sd.chdir("AC-DC");
+      //sd.chdir("090v-For Those About to Rock (We Salute You) (Vinyl)/");
+      //sd.chdir("/AC-DC/090v-For Those About to Rock (We Salute You) (Vinyl)");
+      //playMp3.play("101a - For Those About To Rock (We Salute You).mp3");
+      //playMp3.play("AC-DC/090v-For Those About to Rock (We Salute You) (Vinyl)/101 - For Those About To Rock (We Salute You).mp3");
+      //playMp3.play("ForTag.mp3");
     /*
         file_menu_full_sort();
 
@@ -527,7 +529,7 @@ void loop() {
           for (i = 0; i < stack_count; i++) { // chdir to parent directory
               if (fs.fs_type == FS_EXFAT) { // This is for FatFs known bug for ".." in EXFAT
                   file_menu_close_dir();
-                  file_menu_open_dir("/"); // Root directory
+                  file_menu_open_root_dir(); // Root directory
               } else {
                   file_menu_ch_dir(0); // ".."
               }
@@ -578,10 +580,31 @@ void loop() {
     }
     idx_req = 0;
     idx_idle_count = 0;
-  } else { // if (mode == FileView)
-    idx_idle_count++;
-    if (idx_idle_count > 100) {
-        file_menu_idle();
+  } else {
+    if (mode == Play) {
+      if (!playMp3.isPlaying()) {
+        while (++idx_play < file_menu_get_size()) { // Play next file
+          file_menu_get_fname(idx_play, str, sizeof(str));
+          char* ext_pos = strrchr(str, '.');
+          if (!ext_pos) { continue; }
+          if (strncmp(ext_pos, ".mp3", 4) == 0) {
+            Serial.println(str);
+            file_menu_get_obj(idx_play, &file);
+            playMp3.play(&file);
+            break;
+          }
+        }
+        if (!playMp3.isPlaying()) {
+          mode = FileView;
+          idx_req = 1;
+          idx_idle_count = 0;
+        }
+      }
+    } else {// if (mode == FileView)
+      idx_idle_count++;
+      if (idx_idle_count > 100) {
+          file_menu_idle();
+      }
     }
   }
   delay(25);

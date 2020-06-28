@@ -3,13 +3,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-static int path_depth = 0;					// preserve path depth because SdFat doesn't support relative directory
 #if SD_FAT_TYPE == 2
+SdExFat sd;
 static ExFile parent_dir[MAX_DEPTH_DIR]; 	// preserve parent directory
 static ExFile dir;
 static ExFile file;
 static ExFile file_temp;
 #elif SD_FAT_TYPE == 3
+SdFs sd;
 static FsFile parent_dir[MAX_DEPTH_DIR]; 	// preserve parent directory
 static FsFile dir;
 static FsFile file;
@@ -34,6 +35,7 @@ const uint8_t SD_CS_PIN = SDCARD_SS_PIN;
 #define SD_CONFIG SdSpiConfig(SD_CS_PIN, SHARED_SPI, SD_SCK_MHZ(16))
 #endif  // HAS_SDIO_CLASS
 
+static int path_depth = 0;					// preserve path depth because SdFat doesn't support relative directory
 static char _str[256];	// for debug print
 
 static int target = TGT_DIRS | TGT_FILES; // TGT_DIRS, TGT_FILES
@@ -160,8 +162,8 @@ static void idx_qsort_entry_list_by_range(uint16_t r_start, uint16_t r_end_1, ui
 	int end_1_next;
 	const char *fno_ptr;
 	const char *fno_temp_ptr;
-    char name[FF_LFN_BUF];
-    char name_temp[FF_LFN_BUF];
+    char name[FF_LFN_BUF+1];
+    char name_temp[FF_LFN_BUF+1];
 	if (r_start < start) r_start = start;
 	if (r_end_1 > end_1) r_end_1 = end_1;
 	if (get_range_full_sorted(r_start, r_end_1)) return;
@@ -303,7 +305,7 @@ static uint16_t idx_get_size(int target)
 static void idx_sort_new(void)
 {
 	int i, k;
-    char name[FF_LFN_BUF];
+    char name[FF_LFN_BUF+1];
 	max_entry_cnt = idx_get_size(target);
 	entry_list = (uint16_t *) malloc(sizeof(uint16_t) * max_entry_cnt);
 	if (entry_list == NULL) Serial.println("malloc entry_list failed");
@@ -427,6 +429,19 @@ FRESULT file_menu_get_fname(uint16_t order, char *str, uint16_t size)
 	return FR_OK;
 }
 
+FRESULT file_menu_get_obj(uint16_t order, FsBaseFile *file)
+{
+	file_menu_sort_entry(order, order+5);
+	if (order >= max_entry_cnt) { return FR_INVALID_PARAMETER; }
+	if (order == 0) {
+		return FR_INVALID_PARAMETER;
+	} else {
+		idx_f_stat(entry_list[order], file);
+		last_order = order;
+	}
+	return FR_OK;
+}
+
 int file_menu_is_dir(uint16_t order)
 {
 	if (order < max_entry_cnt) {
@@ -441,11 +456,21 @@ uint16_t file_menu_get_size(void)
 	return max_entry_cnt;
 }
 
-FRESULT file_menu_open_dir(const char *path)
+FRESULT file_menu_open_root_dir()
 {
 	f_stat_cnt = 1;
 	last_order = 0;
 	path_depth = 0;
+	// Initialize the SD.
+	if (!sd.begin(SD_CONFIG)) {
+		// stop here, but print a message repetitively
+		while (1) {
+			Serial.println("Unable to access the SD card");
+			delay(500);
+		}
+        return FR_INVALID_PARAMETER;
+	}
+	Serial.println("SD card OK");
     if (dir.open("/")) {
 		parent_dir[path_depth++] = dir;
 		idx_sort_new();

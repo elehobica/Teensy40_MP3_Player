@@ -41,13 +41,14 @@ typedef enum {
 
 /* Type of path name strings on FatFs API */
 
-FRESULT file_menu_open_dir(const char *path);
+FRESULT file_menu_open_root_dir();
 FRESULT file_menu_ch_dir(uint16_t order);
 void file_menu_close_dir(void);
 uint16_t file_menu_get_size(void);
 void file_menu_full_sort(void);
 void file_menu_sort_entry(uint16_t scope_start, uint16_t scope_end_1);
 FRESULT file_menu_get_fname(uint16_t order, char *str, uint16_t size);
+FRESULT file_menu_get_obj(uint16_t order, FsBaseFile *file);
 int file_menu_is_dir(uint16_t order);
 void file_menu_idle(void);
 

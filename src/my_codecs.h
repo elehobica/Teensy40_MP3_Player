@@ -88,6 +88,7 @@ class MyCodecFile
 {
 public:
 
+	bool fopen(FsBaseFile *f) {ftype=my_codec_file; fptr=NULL; file = *f; _fsize=file.fileSize(); _fposition=0; return 1;} //FILE
 	bool fopen(const char *filename) {ftype=my_codec_file; fptr=NULL; file.open(filename, O_RDONLY); _fsize=file.fileSize(); _fposition=0; return 1;} //FILE
 	bool fopen(const uint8_t*p, const size_t size) {ftype=my_codec_flash; fptr=(uint8_t*)p; _fsize=size; _fposition=0; return true;} //FLASH
 	bool fopen(const size_t p, const size_t size) {ftype=my_codec_serflash; offset=p; _fsize=size; _fposition=0; serflashinit(); return true;} //SERIAL FLASH
@@ -118,15 +119,16 @@ protected:
 
 	my_codec_filetype ftype;
 
+	FsBaseFile file;
+	/*
 #if SD_FAT_TYPE == 2
-	SdExFat sd;
 	ExFile file;
 #elif SD_FAT_TYPE == 3
-	SdFs sd;
 	FsFile file;
 #else  // SD_FAT_TYPE
 #error Invalid SD_FAT_TYPE
 #endif  // SD_FAT_TYPE
+*/
 
 	union {
 		uint8_t* fptr;

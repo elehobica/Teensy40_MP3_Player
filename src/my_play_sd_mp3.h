@@ -50,6 +50,7 @@ class MyAudioPlaySdMp3 : public MyAudioCodec
 {
 public:
 	void stop(void);
+	int play(FsBaseFile *file) {stop();if (!fopen(file)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
 	int play(const char *filename) {stop();if (!fopen(filename)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
 	int play(const size_t p, const size_t size) {stop();if (!fopen(p,size)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
 	int play(const uint8_t*p, const size_t size) {stop();if (!fopen(p,size))  return ERR_CODEC_FILE_NOT_FOUND; return play();}
