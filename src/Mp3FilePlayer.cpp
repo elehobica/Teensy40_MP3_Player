@@ -11,6 +11,7 @@
 #include <Adafruit_ST7735.h> // Hardware-specific library for ST7735
 //#include <Fonts/FreeMono9pt7b.h>
 #include "Nimbus_Sans_L_Regular_Condensed_12.h"
+#include <SdFat.h>
 
 #include "my_play_sd_mp3.h"
 #include "my_output_i2s.h"
@@ -67,6 +68,7 @@ enum mode_enm mode = FileView;
 int idx_req = 1;
 int idx_req_open = 0;
 int aud_req = 0;
+bool aud_pause_flg = false;
 
 uint16_t idx_head = 0;
 uint16_t idx_column = 0;
@@ -208,6 +210,20 @@ void idx_fast_dec(void)
   }
 }
 
+void aud_pause(void)
+{
+    if (aud_req == 0) {
+        aud_req = 1;
+    }
+}
+
+void aud_stop(void)
+{
+    if (aud_req == 0) {
+        aud_req = 2;
+    }
+}
+
 void tick_100ms(void)
 {
   int i;
@@ -229,9 +245,9 @@ void tick_100ms(void)
         }
       } else if (mode == Play) {
         if (center_clicks == 1) {
-          //aud_pause();
+          aud_pause();
         } else if (center_clicks == 2) {
-          //aud_stop();
+          aud_stop();
         }
       }
     }
@@ -290,7 +306,6 @@ void setup() {
 
   // LCD Initialize
   tft.initR(INITR_BLACKTAB);      // Init ST7735S chip, black tab
-  tft.fillScreen(ST77XX_BLACK);
   tft.setTextWrap(false);
   tft.fillScreen(ST77XX_BLACK);
   tft.setTextColor(ST77XX_WHITE);
@@ -329,22 +344,15 @@ void loop() {
   int i;
   char str[256];
   if (aud_req == 1) {
-    /*
-    audio_pause();
+    playMp3.pause(aud_pause_flg);
+    aud_pause_flg = !aud_pause_flg;
     aud_req = 0;
-    */
   } else if (aud_req == 2) {
-    /*
-    audio_stop();
-    free(image0);
-    free(image1);
-    image0 = image1 = NULL;
+    playMp3.stop();
     mode = FileView;
-    LCD_Clear(BLACK);
-    BACK_COLOR=BLACK;
+    tft.fillScreen(ST77XX_BLACK);
     aud_req = 0;
     idx_req = 1;
-    */
   } else if (idx_req_open == 1) {
     if (file_menu_is_dir(idx_head+idx_column) > 0) { // Directory
       if (idx_head+idx_column > 0) { // normal directory
@@ -384,6 +392,7 @@ void loop() {
           playMp3.play(&file);
           idx_play_count = 0;
           idx_idle_count = 0;
+          aud_pause_flg = false;
         }
       }
     /*
@@ -470,7 +479,6 @@ void loop() {
   } else if (idx_req) {
     for (i = 0; i < NUM_IDX_ITEMS; i++) {
       if (idx_head+i >= file_menu_get_size()) {
-          //tft.println("   ");
           tft.fillRect(0, 16*i, 128, 16, ST77XX_BLACK);
           continue;
       }
