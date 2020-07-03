@@ -334,6 +334,11 @@ void MyAudioOutputI2S::volume_down(void)
     if (volume > 0) volume--;
 }
 
+uint8_t MyAudioOutputI2S::get_volume(void)
+{
+    return volume;
+}
+
 #if defined(KINETISK) || defined(KINETISL)
 // MCLK needs to be 48e6 / 1088 * 256 = 11.29411765 MHz -> 44.117647 kHz sample rate
 //

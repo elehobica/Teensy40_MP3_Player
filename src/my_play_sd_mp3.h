@@ -54,6 +54,7 @@ public:
 	int play(const char *filename) {stop();if (!fopen(filename)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
 	int play(const size_t p, const size_t size) {stop();if (!fopen(p,size)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
 	int play(const uint8_t*p, const size_t size) {stop();if (!fopen(p,size))  return ERR_CODEC_FILE_NOT_FOUND; return play();}
+	unsigned lengthMillis(void) {return max((fsize() - size_id3) * 8 / bitrate,  positionMillis());} // Override
 
 protected:
 	uint8_t			*sd_buf;

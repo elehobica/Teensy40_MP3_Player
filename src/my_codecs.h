@@ -120,15 +120,6 @@ protected:
 	my_codec_filetype ftype;
 
 	FsBaseFile file;
-	/*
-#if SD_FAT_TYPE == 2
-	ExFile file;
-#elif SD_FAT_TYPE == 3
-	FsFile file;
-#else  // SD_FAT_TYPE
-#error Invalid SD_FAT_TYPE
-#endif  // SD_FAT_TYPE
-*/
 
 	union {
 		uint8_t* fptr;
@@ -149,8 +140,10 @@ public:
 	MyAudioCodec(void) : AudioStream(0, NULL) {initVars();}
 	bool pause(const bool paused);
 	bool isPlaying(void) {return playing > 0;}
-	unsigned positionMillis(void) { return (AUDIO_SAMPLE_RATE_EXACT / 1000) * samples_played;}
-	unsigned lengthMillis(void) {return max(fsize() / (bitrate / 8 ) * 1000,  positionMillis());} //Ignores VBR
+	//unsigned positionMillis(void) { return (AUDIO_SAMPLE_RATE_EXACT / 1000) * samples_played;}
+	unsigned positionMillis(void) { return (unsigned) ((uint64_t) samples_played * 1000 / AUDIO_SAMPLE_RATE_EXACT);}
+	//unsigned lengthMillis(void) {return max(fsize() / (bitrate / 8 ) * 1000,  positionMillis());} //Ignores VBR
+	unsigned lengthMillis(void) {return max(fsize() * 8 / bitrate,  positionMillis());} //Ignores VBR
 	int channels(void) {return _channels;}
 	int bitRate(void) {return bitrate;}
 	void processorUsageMaxResetDecoder(void){__disable_irq();decode_cycles_max = decode_cycles_max_read = 0;__enable_irq();}
@@ -168,7 +161,7 @@ protected:
 	unsigned		samples_played;
 
 	unsigned short	_channels;
-	unsigned short	bitrate;
+	unsigned short	bitrate; // Kbps
 
 	volatile my_codec_playstate playing;
 

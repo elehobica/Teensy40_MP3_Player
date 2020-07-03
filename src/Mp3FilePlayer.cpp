@@ -69,6 +69,7 @@ int idx_req = 1;
 int idx_req_open = 0;
 int aud_req = 0;
 bool aud_pause_flg = false;
+bool vol_update = false;
 
 uint16_t idx_head = 0;
 uint16_t idx_column = 0;
@@ -224,6 +225,18 @@ void aud_stop(void)
     }
 }
 
+void volume_up(void)
+{
+    i2s1.volume_up();
+    vol_update = true;
+}
+
+void volume_down(void)
+{
+    i2s1.volume_down();
+    vol_update = true;
+}
+
 void tick_100ms(void)
 {
     int i;
@@ -256,13 +269,13 @@ void tick_100ms(void)
             if (mode == FileView) {
                 idx_dec();
             } else if (mode == Play) {
-                i2s1.volume_up();
+                volume_up();
             }
         } else if (button == HP_BUTTON_MINUS) {
             if (mode == FileView) {
                 idx_inc();
             } else if (mode == Play) {
-                i2s1.volume_down();
+                volume_down();
             }
         }
     }  else if (button_repeat_count == 10) { // long push
@@ -272,13 +285,13 @@ void tick_100ms(void)
             if (mode == FileView) {
                 idx_fast_dec();
             } else if (mode == Play) {
-                i2s1.volume_up();
+                volume_up();
             }
         } else if (button == HP_BUTTON_MINUS) {
             if (mode == FileView) {
                 idx_fast_inc();
             } else if (mode == Play) {
-                i2s1.volume_down();
+                volume_down();
             }
         }
     } else if (button == button_prv[0]) {
@@ -393,6 +406,9 @@ void loop() {
                     idx_play_count = 0;
                     idx_idle_count = 0;
                     aud_pause_flg = false;
+                    vol_update = true;
+                    tft.fillScreen(ST77XX_BLACK);
+                    tft.drawBitmap(16*0, 0, ICON16x16_VOLUME, 16, 16, ST77XX_GRAY);
                 }
             }
       /*
@@ -520,6 +536,26 @@ void loop() {
                   idx_idle_count = 0;
               }
             }
+            if (vol_update) {
+                tft.fillRect(16*1, 16*0, 16*2, 16, ST77XX_BLACK);
+                tft.setTextColor(ST77XX_GRAY);
+                tft.setCursor(16*1, 16*0+13);
+                tft.println((int) i2s1.get_volume());
+                vol_update = false;
+            }
+            tft.fillRect(16*0, 16*9, 16*8, 16, ST77XX_BLACK);
+            unsigned pos = playMp3.positionMillis()/1000;
+            unsigned len = playMp3.lengthMillis()/1000;
+            sprintf(_str, "%d:%02d / %d:%02d", pos/60, pos%60, len/60, len%60);
+            int16_t x0, y0;
+            uint16_t w, h;
+            tft.getTextBounds(_str, 0, 0, &x0, &y0, &w, &h); // get smallest rectanble
+            tft.setTextColor(ST77XX_GRAY);
+            tft.setCursor(128-w, 16*9+13); // align-right
+            tft.println(_str);
+            sprintf(_str, "%dKbps", playMp3.bitRate());
+            tft.setCursor(16*3, 16*0+13);
+            tft.println(_str);
         } else {// if (mode == FileView)
             idx_idle_count++;
             if (idx_idle_count > 100) {
