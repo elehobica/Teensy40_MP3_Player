@@ -487,5 +487,5 @@ void loop() {
         }
     }
     lcd.draw();
-    delay(100);
+    delay(50);
 }

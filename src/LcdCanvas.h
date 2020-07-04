@@ -72,10 +72,11 @@ public:
 	void setFormatText(const char *fmt, ...);
 	void setInt(int value);
 	void draw(Adafruit_ST7735 *tft);
+	static const int size = 256;
 protected:
 	uint16_t fgColor;
 	align_enm align;
-	char str[256];
+	char str[size];
 };
 
 //=================================
@@ -87,6 +88,40 @@ public:
 	IconTextBox(uint16_t pos_x, uint16_t pos_y, align_enm align = AlignLeft, uint16_t bgColor = ST77XX_BLACK) : IconBox(pos_x, pos_y), TextBox(pos_x+16, pos_y, align, bgColor) {}
 	void setFgColor(uint16_t fgColor) { IconBox::setFgColor(fgColor); TextBox::setFgColor(fgColor); }
 	void update() { IconBox::update(); TextBox::update(); }
+	void draw(Adafruit_ST7735 *tft);
+};
+
+//=================================
+// Definition of ScrollTextBox class < Box
+//=================================
+class ScrollTextBox : public Box
+{
+public:
+	ScrollTextBox(uint16_t pos_x, uint16_t pos_y, uint16_t bgColor = ST77XX_BLACK);
+	void setFgColor(uint16_t fgColor) { if (this->fgColor == fgColor) return; this->fgColor = fgColor; isUpdated = true;}
+	void setText(const char *str);
+	void draw(Adafruit_ST7735 *tft);
+	void setScroll(bool scr_en) { if (this->scr_en == scr_en) return; this->scr_en = scr_en; isUpdated = true; }
+	static const int size = 256;
+protected:
+	GFXcanvas1 *canvas;
+	uint16_t fgColor;
+	char str[size];
+private:
+	int16_t x_ofs;
+	uint16_t stay_count;
+	bool scr_en;
+};
+
+//=================================
+// Definition of IconScrollTextBox class < IconBox & ScrollTextBox
+//=================================
+class IconScrollTextBox : public IconBox, public ScrollTextBox
+{
+public:
+	IconScrollTextBox(uint16_t pos_x, uint16_t pos_y, align_enm align = AlignLeft, uint16_t bgColor = ST77XX_BLACK) : IconBox(pos_x, pos_y), ScrollTextBox(pos_x+16, pos_y, bgColor) {}
+	void setFgColor(uint16_t fgColor) { IconBox::setFgColor(fgColor); ScrollTextBox::setFgColor(fgColor); }
+	void update() { IconBox::update(); ScrollTextBox::update(); }
 	void draw(Adafruit_ST7735 *tft);
 };
 
@@ -110,11 +145,12 @@ public:
 
 protected:
 	mode_enm mode;
-	IconTextBox *fileItem[10];
+	IconScrollTextBox *fileItem[10];
 	IconBox *battery;
 	IconTextBox *volume;
 	TextBox *bitRate;
 	TextBox *playTime;
+	ScrollTextBox *title;
 	void drawFileView();
 	void drawPlay();
 };
