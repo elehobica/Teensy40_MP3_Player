@@ -33,7 +33,10 @@ void TextBox::draw(Adafruit_ST7735 *tft) {
     tft->setTextColor(fgColor);
     x_ofs = (align == AlignRight) ? -w0 : 0;
     tft->getTextBounds(str, pos_x+x_ofs, pos_y+TEXT_BASELINE_OFS_Y, &x0, &y0, &w0, &h0); // update next smallest rectangle
-    x_ofs = (align == AlignRight) ? -w0 : 0;
+    if (align == AlignCenter) {
+        tft->getTextBounds(str, pos_x-w0/2, pos_y+TEXT_BASELINE_OFS_Y, &x0, &y0, &w0, &h0); // adjust x in case of AlignCenter
+    }
+    x_ofs = (align == AlignRight) ? -w0 : (align == AlignCenter) ? -w0/2 : 0;
     tft->setCursor(pos_x+x_ofs, pos_y+TEXT_BASELINE_OFS_Y);
     tft->println(str);
 }
@@ -75,9 +78,9 @@ void LcdCanvas::init()
     volume = new IconTextBox(16*0, 16*0);
     volume->setFgColor(ST77XX_GRAY);
     volume->setIcon(ICON16x16_VOLUME);
-    bitRate = new TextBox(16*3, 16*0);
+    bitRate = new TextBox(16*4, 16*0, AlignCenter);
     bitRate->setFgColor(ST77XX_GRAY);
-    playTime = new TextBox(16*8-1, 16*9, ST77XX_BLACK, AlignRight);
+    playTime = new TextBox(16*8-1, 16*9, AlignRight);
     playTime->setFgColor(ST77XX_GRAY);
 }
 

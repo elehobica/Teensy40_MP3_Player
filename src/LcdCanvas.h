@@ -16,23 +16,15 @@
 
 #define TEXT_BASELINE_OFS_Y	13
 
-/*
-typedef struct _ListItem {
-	bool isDir;
-	char name[256];
-	bool isUpdated;
-	bool isFocused;
-} ListItem;
-*/
-
 typedef enum _mode_enm {
-    FileView = 0,
-    Play
+	FileView = 0,
+	Play
 } mode_enm;
 
 typedef enum _align_enm {
-    AlignLeft = 0,
-    AlignRight
+	AlignLeft = 0,
+	AlignRight,
+	AlignCenter
 } align_enm;
 
 class Box {
@@ -51,7 +43,7 @@ protected:
 class TextBox : public Box
 {
 public:
-	TextBox(uint16_t pos_x, uint16_t pos_y, uint16_t bgColor = ST77XX_BLACK, align_enm align = AlignLeft) : Box(pos_x, pos_y, bgColor) { this->align = align; fgColor = ST77XX_WHITE; }
+	TextBox(uint16_t pos_x, uint16_t pos_y, align_enm align = AlignLeft, uint16_t bgColor = ST77XX_BLACK) : Box(pos_x, pos_y, bgColor) { this->align = align; fgColor = ST77XX_WHITE; }
 	void setFgColor(uint16_t fgColor) { if (this->fgColor == fgColor) return; this->fgColor = fgColor; isUpdated = true;}
 	void setText(const char *str);
 	void setFormatText(const char *fmt, ...);
@@ -66,7 +58,7 @@ protected:
 class IconTextBox : public TextBox
 {
 public:
-	IconTextBox(uint16_t pos_x, uint16_t pos_y, uint16_t bgColor = ST77XX_BLACK, align_enm align = AlignLeft) : TextBox(pos_x+16, pos_y, bgColor, align) { icon = NULL; }
+	IconTextBox(uint16_t pos_x, uint16_t pos_y, uint16_t bgColor = ST77XX_BLACK, align_enm align = AlignLeft) : TextBox(pos_x+16, pos_y, align, bgColor) { icon = NULL; }
 	void setIcon(uint8_t *icon) { if (this->icon == icon) return; this->icon = icon; isUpdated = true; }
 	void draw(Adafruit_ST7735 *tft);
 protected:
