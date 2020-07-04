@@ -7,19 +7,14 @@
 
 #include <string.h>
 #include <Wire.h>
-#include <Adafruit_GFX.h>    // Core graphics library
-#include <Adafruit_ST7735.h> // Hardware-specific library for ST7735
-//#include <Fonts/FreeMono9pt7b.h>
-#include "Nimbus_Sans_L_Regular_Condensed_12.h"
 #include <SdFat.h>
 
+#include "LcdCanvas.h"
 #include "my_play_sd_mp3.h"
 #include "my_output_i2s.h"
 #include "ff_util.h"
-#include "iconfont.h"
 #include "stack.h"
 
-char _str[256];
 FsBaseFile file;
 
 #define NUM_BTN_HISTORY   30
@@ -37,15 +32,8 @@ IntervalTimer myTimer;
 #define TFT_CS        10
 #define TFT_RST        9 // Or set to -1 and connect to Arduino RESET pin
 #define TFT_DC         8
-Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
-
-// Additional Colors for ST77XX
-#define ST77XX_BRED       0XF81F
-#define ST77XX_GRED       0XFFE0
-#define ST77XX_GBLUE      0X07FF
-#define ST77XX_BROWN      0XBC40
-#define ST77XX_BRRED      0XFC07
-#define ST77XX_GRAY       0X8430
+//Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
+LcdCanvas lcd = LcdCanvas(TFT_CS, TFT_DC, TFT_RST);
 
 MyAudioPlaySdMp3         playMp3;
 MyAudioOutputI2S         i2s1;
@@ -56,20 +44,14 @@ stack_t *stack; // for change directory history
 stack_data_t item;
 int stack_count;
 
-enum mode_enm {
-    FileView = 0,
-    Play
-};
-
 // FileView Menu
-enum mode_enm mode = FileView;
+mode_enm mode = FileView;
 
 #define NUM_IDX_ITEMS         10
 int idx_req = 1;
 int idx_req_open = 0;
 int aud_req = 0;
 bool aud_pause_flg = false;
-bool vol_update = false;
 
 uint16_t idx_head = 0;
 uint16_t idx_column = 0;
@@ -123,118 +105,107 @@ int count_center_clicks(void)
 
 void idx_open(void)
 {
-    if (idx_req_open != 1) {
-        idx_req_open = 1;
-    }
+    if (idx_req_open == 1) { return; }
+    idx_req_open = 1;
 }
 
 void idx_close(void)
 {
-    if (idx_req_open != 1) {
-        idx_column = 0;
-        idx_head = 0;
-        idx_req_open = 1;
-    }
+    if (idx_req_open == 1) { return; }
+    idx_column = 0;
+    idx_head = 0;
+    idx_req_open = 1;
 }
 
 void idx_random_open(void)
 {
-    if (idx_req_open != 2) {
-        idx_req_open = 2;
-    }
+    if (idx_req_open == 2) { return; }
+    idx_req_open = 2;
 }
 
 void idx_inc(void)
 {
-    if (idx_req != 1) {
-        if (idx_head >= file_menu_get_size() - NUM_IDX_ITEMS && idx_column == NUM_IDX_ITEMS-1) return;
-        if (idx_head + idx_column + 1 >= file_menu_get_size()) return;
-        idx_req = 1;
-        idx_column++;
-        if (idx_column >= NUM_IDX_ITEMS) {
-            if (idx_head + NUM_IDX_ITEMS >= file_menu_get_size() - NUM_IDX_ITEMS) {
-                idx_column = NUM_IDX_ITEMS-1;
-                idx_head++;
-            } else {
-                idx_column = 0;
-                idx_head += NUM_IDX_ITEMS;
-            }
+    if (idx_req == 1) { return; }
+    if (idx_head >= file_menu_get_size() - NUM_IDX_ITEMS && idx_column == NUM_IDX_ITEMS-1) { return; }
+    if (idx_head + idx_column + 1 >= file_menu_get_size()) { return; }
+    idx_req = 1;
+    idx_column++;
+    if (idx_column >= NUM_IDX_ITEMS) {
+        if (idx_head + NUM_IDX_ITEMS >= file_menu_get_size() - NUM_IDX_ITEMS) {
+            idx_column = NUM_IDX_ITEMS-1;
+            idx_head++;
+        } else {
+            idx_column = 0;
+            idx_head += NUM_IDX_ITEMS;
         }
     }
 }
 
 void idx_dec(void)
 {
-    if (idx_req != 1) {
-        if (idx_head == 0 && idx_column == 0) return;
-        idx_req = 1;
-        if (idx_column == 0) {
-            if (idx_head - NUM_IDX_ITEMS < 0) {
-                idx_column = 0;
-                idx_head--;
-            } else {
-                idx_column = NUM_IDX_ITEMS-1;
-                idx_head -= NUM_IDX_ITEMS;
-            }
+    if (idx_req == 1) { return; }
+    if (idx_head == 0 && idx_column == 0) { return; }
+    idx_req = 1;
+    if (idx_column == 0) {
+        if (idx_head - NUM_IDX_ITEMS < 0) {
+            idx_column = 0;
+            idx_head--;
         } else {
-            idx_column--;
+            idx_column = NUM_IDX_ITEMS-1;
+            idx_head -= NUM_IDX_ITEMS;
         }
+    } else {
+        idx_column--;
     }
 }
 
 void idx_fast_inc(void)
 {
-    if (idx_req != 1) {
-        if (idx_head >= file_menu_get_size() - NUM_IDX_ITEMS && idx_column == NUM_IDX_ITEMS-1) return;
-        if (idx_head + idx_column + 1 >= file_menu_get_size()) return;
-        if (idx_head + NUM_IDX_ITEMS >= file_menu_get_size() - NUM_IDX_ITEMS) {
-            idx_head = file_menu_get_size() - NUM_IDX_ITEMS;
-            idx_inc();
-        } else {
-            idx_head += NUM_IDX_ITEMS;
-        }
-        idx_req = 1;
+    if (idx_req == 1) { return; }
+    if (idx_head >= file_menu_get_size() - NUM_IDX_ITEMS && idx_column == NUM_IDX_ITEMS-1) { return; }
+    if (idx_head + idx_column + 1 >= file_menu_get_size()) return;
+    if (idx_head + NUM_IDX_ITEMS >= file_menu_get_size() - NUM_IDX_ITEMS) {
+        idx_head = file_menu_get_size() - NUM_IDX_ITEMS;
+        idx_inc();
+    } else {
+        idx_head += NUM_IDX_ITEMS;
     }
+    idx_req = 1;
 }
 
 void idx_fast_dec(void)
 {
-    if (idx_req != 1) {
-        if (idx_head == 0 && idx_column == 0) return;
-        if (idx_head - NUM_IDX_ITEMS < 0) {
-            idx_head = 0;
-            idx_dec();
-        } else {
-            idx_head -= NUM_IDX_ITEMS;
-        }
-        idx_req = 1;
+    if (idx_req == 1) { return; }
+    if (idx_head == 0 && idx_column == 0) { return; }
+    if (idx_head - NUM_IDX_ITEMS < 0) {
+        idx_head = 0;
+        idx_dec();
+    } else {
+        idx_head -= NUM_IDX_ITEMS;
     }
+    idx_req = 1;
 }
 
 void aud_pause(void)
 {
-    if (aud_req == 0) {
-        aud_req = 1;
-    }
+    if (aud_req != 0) { return; }
+    aud_req = 1;
 }
 
 void aud_stop(void)
 {
-    if (aud_req == 0) {
-        aud_req = 2;
-    }
+    if (aud_req != 0) { return; }
+    aud_req = 2;
 }
 
 void volume_up(void)
 {
     i2s1.volume_up();
-    vol_update = true;
 }
 
 void volume_down(void)
 {
     i2s1.volume_down();
-    vol_update = true;
 }
 
 void tick_100ms(void)
@@ -246,8 +217,11 @@ void tick_100ms(void)
         button_repeat_count = 0;
         center_clicks = count_center_clicks(); // must be called once per tick because button_prv[] status has changed
         if (center_clicks > 0) {
-            sprintf(_str, "center_clicks = %d", center_clicks);
-            Serial.println(_str);
+            {
+                char _str[64];
+                sprintf(_str, "center_clicks = %d", center_clicks);
+                Serial.println(_str);
+            }
             if (mode == FileView) {
                 if (center_clicks == 1) {
                     idx_open();
@@ -304,28 +278,9 @@ void tick_100ms(void)
     button_prv[0] = button;
 }
 
-void tftPrintTest() {
-    tft.setTextWrap(false);
-    tft.fillScreen(ST77XX_BLACK);
-    tft.setCursor(0, 30);
-    tft.setTextColor(ST77XX_GREEN);
-    tft.setTextSize(1);
-    tft.println("Hello World!");
-}
-
 void setup() {
     Serial.begin(115200);
     myTimer.begin(tick_100ms, 100000);
-
-    // LCD Initialize
-    tft.initR(INITR_BLACKTAB);      // Init ST7735S chip, black tab
-    tft.setTextWrap(false);
-    tft.fillScreen(ST77XX_BLACK);
-    tft.setTextColor(ST77XX_WHITE);
-    //tft.setFont(&FreeMono9pt7b);
-    tft.setFont(&Nimbus_Sans_L_Regular_Condensed_12);
-    tft.setTextSize(1);
-    //tftPrintTest();
 
     stack = stack_init();
     file_menu_open_root_dir();
@@ -363,7 +318,7 @@ void loop() {
     } else if (aud_req == 2) {
         playMp3.stop();
         mode = FileView;
-        tft.fillScreen(ST77XX_BLACK);
+        lcd.switchToFileView();
         aud_req = 0;
         idx_req = 1;
     } else if (idx_req_open == 1) {
@@ -406,9 +361,7 @@ void loop() {
                     idx_play_count = 0;
                     idx_idle_count = 0;
                     aud_pause_flg = false;
-                    vol_update = true;
-                    tft.fillScreen(ST77XX_BLACK);
-                    tft.drawBitmap(16*0, 0, ICON16x16_VOLUME, 16, 16, ST77XX_GRAY);
+                    lcd.switchToPlay();
                 }
             }
       /*
@@ -495,24 +448,11 @@ void loop() {
     } else if (idx_req) {
         for (i = 0; i < NUM_IDX_ITEMS; i++) {
             if (idx_head+i >= file_menu_get_size()) {
-                tft.fillRect(0, 16*i, 128, 16, ST77XX_BLACK);
+                lcd.setFileItem(i, ""); // delete
                 continue;
             }
-            tft.fillRect(0, 16*i, 128, 16, ST77XX_BLACK);
-            if (file_menu_is_dir(idx_head+i)) {
-                tft.drawBitmap(0, 16*i, ICON16x16_FOLDER, 16, 16, ST77XX_GRAY);
-            } else {
-                tft.drawBitmap(0, 16*i, ICON16x16_FILE, 16, 16, ST77XX_GRAY);
-            }
-            tft.setCursor(16, 16*i+11);
             file_menu_get_fname(idx_head+i, str, sizeof(str));
-            if (i == idx_column) {
-                tft.setTextColor(ST77XX_GBLUE);
-                tft.println(str);
-            } else {
-                tft.setTextColor(ST77XX_GRAY);
-                tft.println(str);
-            }
+            lcd.setFileItem(i, str, file_menu_is_dir(idx_head+i), (i == idx_column));
         }
         idx_req = 0;
         idx_idle_count = 0;
@@ -536,26 +476,9 @@ void loop() {
                   idx_idle_count = 0;
               }
             }
-            if (vol_update) {
-                tft.fillRect(16*1, 16*0, 16*2, 16, ST77XX_BLACK);
-                tft.setTextColor(ST77XX_GRAY);
-                tft.setCursor(16*1, 16*0+13);
-                tft.println((int) i2s1.get_volume());
-                vol_update = false;
-            }
-            tft.fillRect(16*0, 16*9, 16*8, 16, ST77XX_BLACK);
-            unsigned pos = playMp3.positionMillis()/1000;
-            unsigned len = playMp3.lengthMillis()/1000;
-            sprintf(_str, "%d:%02d / %d:%02d", pos/60, pos%60, len/60, len%60);
-            int16_t x0, y0;
-            uint16_t w, h;
-            tft.getTextBounds(_str, 0, 0, &x0, &y0, &w, &h); // get smallest rectanble
-            tft.setTextColor(ST77XX_GRAY);
-            tft.setCursor(128-w, 16*9+13); // align-right
-            tft.println(_str);
-            sprintf(_str, "%dKbps", playMp3.bitRate());
-            tft.setCursor(16*3, 16*0+13);
-            tft.println(_str);
+            lcd.setVolume(i2s1.get_volume());
+            lcd.setBitRate(playMp3.bitRate());
+            lcd.setPlayTime(playMp3.positionMillis()/1000, playMp3.lengthMillis()/1000);
         } else {// if (mode == FileView)
             idx_idle_count++;
             if (idx_idle_count > 100) {
@@ -563,5 +486,6 @@ void loop() {
             }
         }
     }
-    delay(50);
+    lcd.draw();
+    delay(100);
 }
