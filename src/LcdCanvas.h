@@ -27,6 +27,9 @@ typedef enum _align_enm {
 	AlignCenter
 } align_enm;
 
+//=================================
+// Definition of Box class
+//=================================
 class Box {
 public:
 	Box(uint16_t pos_x, uint16_t pos_y, uint16_t bgColor) { this->pos_x = pos_x; this->pos_y = pos_y; this->bgColor = bgColor; }
@@ -40,10 +43,30 @@ protected:
 	uint16_t bgColor;
 };
 
+//=================================
+// Definition of Box class < Box
+//=================================
+class IconBox : public Box
+{
+public:
+	IconBox(uint16_t pos_x, uint16_t pos_y, uint16_t bgColor = ST77XX_BLACK) : Box(pos_x, pos_y, bgColor), fgColor(ST77XX_WHITE), icon(NULL) {}
+	IconBox(uint16_t pos_x, uint16_t pos_y, uint8_t *icon, uint16_t bgColor = ST77XX_BLACK) : Box(pos_x, pos_y, bgColor), fgColor(ST77XX_WHITE) { this->icon = icon; }
+	void setFgColor(uint16_t fgColor) { if (this->fgColor == fgColor) return; this->fgColor = fgColor; isUpdated = true;}
+	void setIcon(uint8_t *icon) { if (this->icon == icon) return; this->icon = icon; isUpdated = true; }
+	void draw(Adafruit_ST7735 *tft);
+	void clear(Adafruit_ST7735 *tft);
+protected:
+	uint16_t fgColor;
+	uint8_t *icon;
+};
+
+//=================================
+// Definition of TextBox class < Box
+//=================================
 class TextBox : public Box
 {
 public:
-	TextBox(uint16_t pos_x, uint16_t pos_y, align_enm align = AlignLeft, uint16_t bgColor = ST77XX_BLACK) : Box(pos_x, pos_y, bgColor) { this->align = align; fgColor = ST77XX_WHITE; }
+	TextBox(uint16_t pos_x, uint16_t pos_y, align_enm align = AlignLeft, uint16_t bgColor = ST77XX_BLACK) : Box(pos_x, pos_y, bgColor), fgColor(ST77XX_WHITE) { this->align = align; }
 	void setFgColor(uint16_t fgColor) { if (this->fgColor == fgColor) return; this->fgColor = fgColor; isUpdated = true;}
 	void setText(const char *str);
 	void setFormatText(const char *fmt, ...);
@@ -55,17 +78,21 @@ protected:
 	char str[256];
 };
 
-class IconTextBox : public TextBox
+//=================================
+// Definition of IconTextBox class < IconBox & TextBox
+//=================================
+class IconTextBox : public IconBox, public TextBox
 {
 public:
-	IconTextBox(uint16_t pos_x, uint16_t pos_y, uint16_t bgColor = ST77XX_BLACK, align_enm align = AlignLeft) : TextBox(pos_x+16, pos_y, align, bgColor) { icon = NULL; }
-	void setIcon(uint8_t *icon) { if (this->icon == icon) return; this->icon = icon; isUpdated = true; }
+	IconTextBox(uint16_t pos_x, uint16_t pos_y, align_enm align = AlignLeft, uint16_t bgColor = ST77XX_BLACK) : IconBox(pos_x, pos_y), TextBox(pos_x+16, pos_y, align, bgColor) {}
+	void setFgColor(uint16_t fgColor) { IconBox::setFgColor(fgColor); TextBox::setFgColor(fgColor); }
+	void update() { IconBox::update(); TextBox::update(); }
 	void draw(Adafruit_ST7735 *tft);
-protected:
-	uint8_t *icon;
-
 };
 
+//=================================
+// Definition of LcdCanvas Class < Adafruit_ST7735
+//=================================
 class LcdCanvas : public Adafruit_ST7735
 {
 public:
@@ -84,6 +111,7 @@ public:
 protected:
 	mode_enm mode;
 	IconTextBox *fileItem[10];
+	IconBox *battery;
 	IconTextBox *volume;
 	TextBox *bitRate;
 	TextBox *playTime;

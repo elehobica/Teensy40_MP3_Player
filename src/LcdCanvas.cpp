@@ -2,6 +2,22 @@
 #include "iconfont.h"
 
 //=================================
+// Implementation of IconBox class
+//=================================
+void IconBox::draw(Adafruit_ST7735 *tft) {
+    if (!isUpdated) { return; }
+    isUpdated = false;
+    clear(tft);
+    if (icon != NULL) {
+        tft->drawBitmap(pos_x, pos_y, icon, 16, 16, fgColor);
+    }
+}
+
+void IconBox::clear(Adafruit_ST7735 *tft) {
+    tft->fillRect(pos_x, pos_y, 16, 16, bgColor); // clear Icon rectangle
+}
+
+//=================================
 // Implementation of TextBox class
 //=================================
 void TextBox::setText(const char *str) {
@@ -44,12 +60,14 @@ void TextBox::draw(Adafruit_ST7735 *tft) {
 //=================================
 // Implementation of IconTextBox class
 //=================================
-void IconTextBox::draw(Adafruit_ST7735 *tft) {
-    if (!isUpdated) { return; }
-    tft->fillRect(pos_x-16, pos_y, 16, 16, bgColor); // clear Icon rectangle
-    if (icon != NULL && strlen(str) != 0) {
-        tft->drawBitmap(pos_x-16, pos_y, icon, 16, 16, fgColor);
+void IconTextBox::draw(Adafruit_ST7735 *tft) { 
+    // For IconBox: Don't display IconBox if str of TextBox is ""
+    if (strlen(str) == 0) {
+        if (TextBox::isUpdated) { clear(tft); }
+    } else {
+        IconBox::draw(tft);
     }
+    // For TextBox
     TextBox::draw(tft);
 }
 
@@ -75,6 +93,8 @@ void LcdCanvas::init()
         fileItem[i]->setFgColor(ST77XX_GRAY);
     }
     // Play parts
+    battery = new IconBox(16*7, 16*0, ICON16x16_BATTERY);
+    battery->setFgColor(ST77XX_GRAY);
     volume = new IconTextBox(16*0, 16*0);
     volume->setFgColor(ST77XX_GRAY);
     volume->setIcon(ICON16x16_VOLUME);
@@ -97,7 +117,7 @@ void LcdCanvas::switchToPlay()
 {
     mode = Play;
     clear();
-    drawBitmap(16*7, 16*0, ICON16x16_BATTERY, 16, 16, ST77XX_GRAY);
+    battery->update();
     volume->update();
     bitRate->update();
     playTime->update();
@@ -126,6 +146,7 @@ void LcdCanvas::drawFileView()
 
 void LcdCanvas::drawPlay()
 {
+    battery->draw(this);
     volume->draw(this);
     bitRate->draw(this);
     playTime->draw(this);
