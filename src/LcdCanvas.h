@@ -30,7 +30,8 @@ extern uint8_t Icon16[];
 
 typedef enum _mode_enm {
 	FileView = 0,
-	Play
+	Play,
+	PowerOff
 } mode_enm;
 
 typedef enum _align_enm {
@@ -82,9 +83,10 @@ class TextBox : public Box
 public:
 	TextBox(int16_t pos_x, int16_t pos_y, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
 	TextBox(int16_t pos_x, int16_t pos_y, align_enm align, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
+	TextBox(int16_t pos_x, int16_t pos_y, const char *str, align_enm align, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
 	void setFgColor(uint16_t fgColor);
 	void setBgColor(uint16_t bgColor);
-	void update();
+	virtual void update();
 	void draw(Adafruit_ST7735 *tft);
 	void setText(const char *str);
 	void setFormatText(const char *fmt, ...);
@@ -126,7 +128,7 @@ public:
 	ScrollTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
 	void setFgColor(uint16_t fgColor);
 	void setBgColor(uint16_t bgColor);
-	void update();
+	virtual void update();
 	void draw(Adafruit_ST7735 *tft);
 	void setScroll(bool scr_en);
 	void setText(const char *str);
@@ -170,6 +172,7 @@ public:
 	LcdCanvas(int8_t cs, int8_t dc, int8_t rst);
     ~LcdCanvas();
 	void clear();
+	void bye();
 	void setFileItem(int column, const char *str, bool isDir = false, bool isFocused = false);
 	void setBitRate(uint16_t value);
 	void setVolume(uint8_t value);

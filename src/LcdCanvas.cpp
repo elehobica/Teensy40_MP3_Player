@@ -5,10 +5,10 @@
 // Implementation of IconBox class
 //=================================
 IconBox::IconBox(int16_t pos_x, int16_t pos_y, uint16_t fgColor, uint16_t bgColor)
-    : pos_x(pos_x), pos_y(pos_y), fgColor(fgColor), bgColor(bgColor), icon(NULL) {}
+    : isUpdated(true), pos_x(pos_x), pos_y(pos_y), fgColor(fgColor), bgColor(bgColor), icon(NULL) {}
 
 IconBox::IconBox(int16_t pos_x, int16_t pos_y, uint8_t *icon, uint16_t fgColor, uint16_t bgColor)
-    : pos_x(pos_x), pos_y(pos_y), fgColor(fgColor), bgColor(bgColor), icon(icon) {}
+    : isUpdated(true), pos_x(pos_x), pos_y(pos_y), fgColor(fgColor), bgColor(bgColor), icon(icon) {}
 
 void IconBox::setFgColor(uint16_t fgColor)
 {
@@ -55,10 +55,16 @@ void IconBox::setIcon(uint8_t *icon)
 // Implementation of TextBox class
 //=================================
 TextBox::TextBox(int16_t pos_x, int16_t pos_y, uint16_t fgColor, uint16_t bgColor)
-    : pos_x(pos_x), pos_y(pos_y), fgColor(fgColor), bgColor(bgColor), align(AlignLeft) {}
+    : isUpdated(true), pos_x(pos_x), pos_y(pos_y), fgColor(fgColor), bgColor(bgColor), align(AlignLeft), str("") {}
 
 TextBox::TextBox(int16_t pos_x, int16_t pos_y, align_enm align, uint16_t fgColor, uint16_t bgColor)
-    : pos_x(pos_x), pos_y(pos_y), fgColor(fgColor), bgColor(bgColor), align(align) {}
+    : isUpdated(true), pos_x(pos_x), pos_y(pos_y), fgColor(fgColor), bgColor(bgColor), align(align), str("") {}
+
+TextBox::TextBox(int16_t pos_x, int16_t pos_y, const char *str, align_enm align, uint16_t fgColor, uint16_t bgColor)
+    : isUpdated(true), pos_x(pos_x), pos_y(pos_y), fgColor(fgColor), bgColor(bgColor), align(align), str("")
+{
+    setText(str);
+}
 
 void TextBox::setFgColor(uint16_t fgColor)
 {
@@ -161,7 +167,7 @@ void IconTextBox::setIcon(uint8_t *icon)
 // Implementation of ScrollTextBox class < Box
 //=================================
 ScrollTextBox::ScrollTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t fgColor, uint16_t bgColor)
-    : pos_x(pos_x), pos_y(pos_y), fgColor(fgColor), bgColor(bgColor), width(width), stay_count(0), scr_en(true)
+    : isUpdated(true), pos_x(pos_x), pos_y(pos_y), fgColor(fgColor), bgColor(bgColor), str(""), width(width), stay_count(0), scr_en(true)
 {
     int16_t x0, y0; // dummy
     uint16_t h0; // dummy
@@ -229,7 +235,7 @@ void ScrollTextBox::setText(const char *str)
     int16_t x0, y0; // dummy
     uint16_t h0; // dummy
     if (strncmp(this->str, str, charSize) == 0) { return; }
-    isUpdated = true;
+    update();
     strncpy(this->str, str, charSize);
     canvas->getTextBounds(str, 0, 0+TEXT_BASELINE_OFS_Y, &x0, &y0, &w0, &h0); // get width (w0)
     x_ofs = 0;
@@ -241,7 +247,6 @@ void ScrollTextBox::setText(const char *str)
 //=================================
 IconScrollTextBox::IconScrollTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t fgColor, uint16_t bgColor)
     : ScrollTextBox(pos_x+16, pos_y, width-16, fgColor, bgColor), iconBox(pos_x, pos_y, fgColor, bgColor) {}
-//    : pos_x(pos_x+16), pos_y(pos_y), width(width-16), fgColor(fgColor), bgColor(bgColor), scr_en(true), iconBox(pos_x, pos_y, fgColor, bgColor) {}
 
 void IconScrollTextBox::setFgColor(uint16_t fgColor)
 {
