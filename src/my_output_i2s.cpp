@@ -334,6 +334,11 @@ void MyAudioOutputI2S::volume_down(void)
     if (volume > 0) volume--;
 }
 
+void MyAudioOutputI2S::set_volume(uint8_t value)
+{
+	volume = (value <= 100) ? value : 100;
+}
+
 uint8_t MyAudioOutputI2S::get_volume(void)
 {
     return volume;

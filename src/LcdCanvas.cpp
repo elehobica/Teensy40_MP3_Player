@@ -332,6 +332,14 @@ void LcdCanvas::clear()
     fillScreen(ST77XX_BLACK);
 }
 
+void LcdCanvas::bye()
+{
+    mode = PowerOff;
+    clear();
+    TextBox bye_msg = TextBox(width()/2, height()/2-FONT_HEIGHT+TEXT_BASELINE_OFS_Y, "Bye", AlignCenter);
+    bye_msg.draw(this);
+}
+
 void LcdCanvas::draw()
 {
     if (mode == FileView) {

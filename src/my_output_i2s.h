@@ -40,6 +40,7 @@ public:
 	friend class AudioInputI2S;
 	static void volume_up(void);
 	static void volume_down(void);
+	static void set_volume(uint8_t value);
 	static uint8_t get_volume(void);
 #if defined(__IMXRT1062__)
 	friend class AudioOutputI2SQuad;

@@ -8,6 +8,7 @@
 #include <string.h>
 #include <Wire.h>
 #include <SdFat.h>
+#include <EEPROM.h>
 
 #include "LcdCanvas.h"
 #include "my_play_sd_mp3.h"
@@ -25,6 +26,18 @@ FsBaseFile file;
 #define HP_BUTTON_MINUS   4
 uint8_t button_prv[NUM_BTN_HISTORY] = {}; // initialized as HP_BUTTON_OPEN
 uint32_t button_repeat_count = 0;
+
+#define EEPROM_SIZE 1080
+#define EEPROM_BASE 0
+// Config Space (Byte Unit Access)
+#define CFG_BASE    EEPROM_BASE
+#define CFG_SIZE    0x10
+#define CFG_VERSION         (EEPROM_BASE + 0)
+#define CFG_EPRW_COUNT_L    (EEPROM_BASE + 1)
+#define CFG_EPRW_COUNT_H    (EEPROM_BASE + 2)
+#define CFG_VOLUME          (EEPROM_BASE + 3)
+
+uint16_t eprw_count; // EEPROM Write Count (to check for write endurance of 100,000 cycles)
 
 IntervalTimer myTimer;
 
@@ -58,6 +71,58 @@ uint16_t idx_column = 0;
 uint16_t idx_play_count = 0;
 uint16_t idx_idle_count = 0;
 uint16_t idx_play;
+
+void loadFromEEPROM(void)
+{
+    char _str[64];
+    uint8_t version = EEPROM.read(CFG_VERSION);
+    Serial.println("###################################");
+    sprintf(_str, "Teensy 4.0 MP3 Player ver. %d.%02d", (int) version/100, (int) version%100);
+    Serial.println(_str);
+    Serial.println("###################################");
+    if (version == 0xff) {
+        EEPROM.write(CFG_VERSION, 100);
+        EEPROM.write(CFG_EPRW_COUNT_L, 0);
+        EEPROM.write(CFG_EPRW_COUNT_H, 0);
+        EEPROM.write(CFG_VOLUME, 65);
+    } else {
+        for (int i = 0; i < CFG_SIZE; i++) {
+            int value = EEPROM.read(CFG_BASE + i);
+            sprintf(_str, "CFG[%d] = 0x%02x (%d)", i, value, value);
+            Serial.println(_str);
+        }
+    }
+    i2s1.set_volume(EEPROM.read(CFG_VOLUME));
+    eprw_count = ((uint16_t) EEPROM.read(CFG_EPRW_COUNT_H) << 8) | ((uint16_t) EEPROM.read(CFG_EPRW_COUNT_L));
+    sprintf(_str, "EEPROM Write Count: %d", (int) eprw_count);
+    Serial.println(_str);
+}
+
+void power_off(void)
+{
+    lcd.bye();
+    uint8_t volume = i2s1.get_volume();
+    if (playMp3.isPlaying()) {
+        while (i2s1.get_volume() > 0) {
+            i2s1.volume_down();
+            delay(5);
+            yield(); // Arduino msg loop
+        }
+        playMp3.stop();
+    }
+    // Save Config Data to EEPROM
+    eprw_count++;
+    EEPROM.write(CFG_EPRW_COUNT_L, (uint8_t) (eprw_count & 0xff));
+    EEPROM.write(CFG_EPRW_COUNT_H, (uint8_t) ((eprw_count >> 8) & 0xff));
+    EEPROM.write(CFG_VOLUME, volume);
+    // Self Power Off
+    /* do pin control here */
+    // Endless Loop
+    while (1) {
+        delay(100);
+        yield(); // Arduino msg loop
+    }
+}
 
 uint8_t adc0_get_hp_button(void)
 {
@@ -252,7 +317,7 @@ void tick_100ms(void)
                 volume_down();
             }
         }
-    }  else if (button_repeat_count == 10) { // long push
+    } else if (button_repeat_count == 10) { // long push
         if (button == HP_BUTTON_CENTER) {
             button_repeat_count++; // only once and step to longer push event
         } else if (button == HP_BUTTON_D || button == HP_BUTTON_PLUS) {
@@ -268,6 +333,11 @@ void tick_100ms(void)
                 volume_down();
             }
         }
+    } else if (button_repeat_count == 30) { // long long push
+        if (button == HP_BUTTON_CENTER) {
+            mode = PowerOff;
+        }
+        button_repeat_count++; // only once and step to longer push event
     } else if (button == button_prv[0]) {
         button_repeat_count++;
     }
@@ -280,6 +350,7 @@ void tick_100ms(void)
 
 void setup() {
     Serial.begin(115200);
+    loadFromEEPROM();
     myTimer.begin(tick_100ms, 100000);
 
     stack = stack_init();
@@ -480,11 +551,13 @@ void loop() {
             lcd.setVolume(i2s1.get_volume());
             lcd.setBitRate(playMp3.bitRate());
             lcd.setPlayTime(playMp3.positionMillis()/1000, playMp3.lengthMillis()/1000);
-        } else {// if (mode == FileView)
+        } else if (mode == FileView) {
             idx_idle_count++;
             if (idx_idle_count > 100) {
                 file_menu_idle();
             }
+        } else if (mode == PowerOff) {
+            power_off();
         }
     }
     lcd.draw();
