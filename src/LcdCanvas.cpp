@@ -4,7 +4,33 @@
 //=================================
 // Implementation of IconBox class
 //=================================
-void IconBox::draw(Adafruit_ST7735 *tft) {
+IconBox::IconBox(int16_t pos_x, int16_t pos_y, uint16_t fgColor, uint16_t bgColor)
+    : pos_x(pos_x), pos_y(pos_y), fgColor(fgColor), bgColor(bgColor), icon(NULL) {}
+
+IconBox::IconBox(int16_t pos_x, int16_t pos_y, uint8_t *icon, uint16_t fgColor, uint16_t bgColor)
+    : pos_x(pos_x), pos_y(pos_y), fgColor(fgColor), bgColor(bgColor), icon(icon) {}
+
+void IconBox::setFgColor(uint16_t fgColor)
+{
+    if (this->fgColor == fgColor) { return; }
+    this->fgColor = fgColor;
+    update();
+}
+
+void IconBox::setBgColor(uint16_t bgColor)
+{
+    if (this->bgColor == bgColor) { return; }
+    this->bgColor = bgColor;
+    update();
+}
+
+void IconBox::update()
+{
+    isUpdated = true;
+}
+
+void IconBox::draw(Adafruit_ST7735 *tft)
+{
     if (!isUpdated) { return; }
     isUpdated = false;
     clear(tft);
@@ -13,33 +39,48 @@ void IconBox::draw(Adafruit_ST7735 *tft) {
     }
 }
 
-void IconBox::clear(Adafruit_ST7735 *tft) {
+void IconBox::clear(Adafruit_ST7735 *tft)
+{
     tft->fillRect(pos_x, pos_y, iconWidth, iconHeight, bgColor); // clear Icon rectangle
+}
+
+void IconBox::setIcon(uint8_t *icon)
+{
+    if (this->icon == icon) { return; }
+    this->icon = icon;
+    update();
 }
 
 //=================================
 // Implementation of TextBox class
 //=================================
-void TextBox::setText(const char *str) {
-    if (strncmp(this->str, str, charSize) == 0) { return; }
+TextBox::TextBox(int16_t pos_x, int16_t pos_y, uint16_t fgColor, uint16_t bgColor)
+    : pos_x(pos_x), pos_y(pos_y), fgColor(fgColor), bgColor(bgColor), align(AlignLeft) {}
+
+TextBox::TextBox(int16_t pos_x, int16_t pos_y, align_enm align, uint16_t fgColor, uint16_t bgColor)
+    : pos_x(pos_x), pos_y(pos_y), fgColor(fgColor), bgColor(bgColor), align(align) {}
+
+void TextBox::setFgColor(uint16_t fgColor)
+{
+    if (this->fgColor == fgColor) { return; }
+    this->fgColor = fgColor;
+    update();
+}
+
+void TextBox::setBgColor(uint16_t bgColor)
+{
+    if (this->bgColor == bgColor) { return; }
+    this->bgColor = bgColor;
+    update();
+}
+
+void TextBox::update()
+{
     isUpdated = true;
-    strncpy(this->str, str, charSize);
 }
 
-void TextBox::setFormatText(const char *fmt, ...) {
-    char str_temp[charSize];
-    va_list va;
-    va_start(va, fmt);
-    vsprintf(str_temp, fmt, va);
-    va_end(va);
-    setText(str_temp);
-}
-
-void TextBox::setInt(int value) {
-    setFormatText("%d", value);
-}
-
-void TextBox::draw(Adafruit_ST7735 *tft) {
+void TextBox::draw(Adafruit_ST7735 *tft)
+{
     if (!isUpdated) { return; }
     int16_t x_ofs;
     isUpdated = false;
@@ -53,26 +94,77 @@ void TextBox::draw(Adafruit_ST7735 *tft) {
     tft->println(str);
 }
 
+void TextBox::setText(const char *str)
+{
+    if (strncmp(this->str, str, charSize) == 0) { return; }
+    strncpy(this->str, str, charSize);
+    update();
+}
+
+void TextBox::setFormatText(const char *fmt, ...)
+{
+    char str_temp[charSize];
+    va_list va;
+    va_start(va, fmt);
+    vsprintf(str_temp, fmt, va);
+    va_end(va);
+    setText(str_temp);
+}
+
+void TextBox::setInt(int value)
+{
+    setFormatText("%d", value);
+}
+
 //=================================
 // Implementation of IconTextBox class
 //=================================
-void IconTextBox::draw(Adafruit_ST7735 *tft) { 
+IconTextBox::IconTextBox(int16_t pos_x, int16_t pos_y, uint8_t *icon, uint16_t fgColor, uint16_t bgColor)
+    : TextBox(pos_x+16, pos_y, fgColor, bgColor), iconBox(pos_x, pos_y, icon, fgColor, bgColor) {}
+
+void IconTextBox::setFgColor(uint16_t fgColor)
+{
+    TextBox::setFgColor(fgColor);
+    iconBox.setFgColor(fgColor);
+}
+
+void IconTextBox::setBgColor(uint16_t bgColor)
+{
+    TextBox::setBgColor(bgColor);
+    iconBox.setBgColor(bgColor);
+}
+
+void IconTextBox::update()
+{
+    TextBox::update();
+    iconBox.update();
+}
+
+void IconTextBox::draw(Adafruit_ST7735 *tft)
+{
     // For IconBox: Don't display IconBox if str of TextBox is ""
     if (strlen(str) == 0) {
-        if (TextBox::isUpdated) { clear(tft); }
+        if (isUpdated) { iconBox.clear(tft); }
     } else {
-        IconBox::draw(tft);
+        iconBox.draw(tft);
     }
     // For TextBox
     TextBox::draw(tft);
 }
 
-//=================================
-// Implementation of ScrollTextBox class
-//=================================
-ScrollTextBox::ScrollTextBox(uint16_t pos_x, uint16_t pos_y, uint16_t width, uint16_t bgColor) : Box(pos_x, pos_y, bgColor), fgColor(ST77XX_WHITE), scr_en(false)
+void IconTextBox::setIcon(uint8_t *icon)
 {
-    this->width = width;
+    iconBox.setIcon(icon);
+}
+
+//=================================
+// Implementation of ScrollTextBox class < Box
+//=================================
+ScrollTextBox::ScrollTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t fgColor, uint16_t bgColor)
+    : pos_x(pos_x), pos_y(pos_y), fgColor(fgColor), bgColor(bgColor), width(width), stay_count(0), scr_en(true)
+{
+    int16_t x0, y0; // dummy
+    uint16_t h0; // dummy
     canvas = new GFXcanvas1(this->width, FONT_HEIGHT);
     canvas->setFont(DEFAULT_FONT);
     canvas->setTextWrap(false);
@@ -80,16 +172,27 @@ ScrollTextBox::ScrollTextBox(uint16_t pos_x, uint16_t pos_y, uint16_t width, uin
     canvas->getTextBounds("", 0, 0+TEXT_BASELINE_OFS_Y, &x0, &y0, &w0, &h0); // idle-run because first time fails somehow
 }
 
-void ScrollTextBox::setText(const char *str) {
-    if (strncmp(this->str, str, charSize) == 0) { return; }
-    isUpdated = true;
-    strncpy(this->str, str, charSize);
-    canvas->getTextBounds(str, 0, 0+TEXT_BASELINE_OFS_Y, &x0, &y0, &w0, &h0); // get width (w0)
-    x_ofs = 0;
-    stay_count = 0;
+void ScrollTextBox::setFgColor(uint16_t fgColor)
+{
+    if (this->fgColor == fgColor) { return; }
+    this->fgColor = fgColor;
+    update();
 }
 
-void ScrollTextBox::draw(Adafruit_ST7735 *tft) {
+void ScrollTextBox::setBgColor(uint16_t bgColor)
+{
+    if (this->bgColor == bgColor) { return; }
+    this->bgColor = bgColor;
+    update();
+}
+
+void ScrollTextBox::update()
+{
+    isUpdated = true;
+}
+
+void ScrollTextBox::draw(Adafruit_ST7735 *tft)
+{
     int16_t under_offset = tft->width()-pos_x-w0; // max minus offset for scroll (width must be tft's width)
     if (!isUpdated && (under_offset >= 0 || !scr_en)) { return; }
     if (under_offset >= 0 || !scr_en) {
@@ -114,18 +217,65 @@ void ScrollTextBox::draw(Adafruit_ST7735 *tft) {
     tft->drawBitmap(pos_x, pos_y, canvas->getBuffer(), width, FONT_HEIGHT, fgColor, bgColor);
 }
 
+void ScrollTextBox::setScroll(bool scr_en)
+{
+    if (this->scr_en == scr_en) { return; }
+    this->scr_en = scr_en;
+    update();
+}
+
+void ScrollTextBox::setText(const char *str)
+{
+    int16_t x0, y0; // dummy
+    uint16_t h0; // dummy
+    if (strncmp(this->str, str, charSize) == 0) { return; }
+    isUpdated = true;
+    strncpy(this->str, str, charSize);
+    canvas->getTextBounds(str, 0, 0+TEXT_BASELINE_OFS_Y, &x0, &y0, &w0, &h0); // get width (w0)
+    x_ofs = 0;
+    stay_count = 0;
+}
+
 //=================================
-// Implementation of IconScrollTextBox class
+// Implementation of IconScrollTextBox class < ScrollTextBox
 //=================================
-void IconScrollTextBox::draw(Adafruit_ST7735 *tft) {
-    // For IconBox: Don't display IconBox if str of TextBox is ""
+IconScrollTextBox::IconScrollTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t fgColor, uint16_t bgColor)
+    : ScrollTextBox(pos_x+16, pos_y, width-16, fgColor, bgColor), iconBox(pos_x, pos_y, fgColor, bgColor) {}
+//    : pos_x(pos_x+16), pos_y(pos_y), width(width-16), fgColor(fgColor), bgColor(bgColor), scr_en(true), iconBox(pos_x, pos_y, fgColor, bgColor) {}
+
+void IconScrollTextBox::setFgColor(uint16_t fgColor)
+{
+    ScrollTextBox::setFgColor(fgColor);
+    iconBox.setFgColor(fgColor);
+}
+
+void IconScrollTextBox::setBgColor(uint16_t bgColor)
+{
+    ScrollTextBox::setBgColor(bgColor);
+    iconBox.setBgColor(bgColor);
+}
+
+void IconScrollTextBox::update()
+{
+    ScrollTextBox::update();
+    iconBox.update();
+}
+
+void IconScrollTextBox::draw(Adafruit_ST7735 *tft)
+{
+    // For IconBox: Don't display IconBox if str of ScrollTextBox is ""
     if (strlen(str) == 0) {
-        if (ScrollTextBox::isUpdated) { clear(tft); }
+        if (isUpdated) { iconBox.clear(tft); }
     } else {
-        IconBox::draw(tft);
+        iconBox.draw(tft);
     }
     // For ScrollTextBox
     ScrollTextBox::draw(tft);
+}
+
+void IconScrollTextBox::setIcon(uint8_t *icon)
+{
+    iconBox.setIcon(icon);
 }
 
 //=================================
@@ -152,18 +302,9 @@ void LcdCanvas::init()
         fileItem[i]->setFgColor(ST77XX_GRAY);
     }
     // Play parts
-    battery = new IconBox(16*7, 16*0, ICON16x16_BATTERY);
-    battery->setFgColor(ST77XX_GRAY);
-    volume = new IconTextBox(16*0, 16*0);
-    volume->setFgColor(ST77XX_GRAY);
-    volume->setIcon(ICON16x16_VOLUME);
-    bitRate = new TextBox(16*4, 16*0, AlignCenter);
-    bitRate->setFgColor(ST77XX_GRAY);
-    playTime = new TextBox(16*8-1, 16*9, AlignRight);
-    playTime->setFgColor(ST77XX_GRAY);
-    title = new ScrollTextBox(16*0, 16*5, width());
-    title->setText("he cast-expression argument must be a pointer to a block");
-    title->setScroll(true);
+    title.setText("he cast-expression argument must be a pointer to a block");
+    artist.setText("error: expected identifier before numeric constant");
+    album.setText("alakekeeeeeeeeeeeeeeeeeeeeeeeeeeee133");
 }
 
 void LcdCanvas::switchToFileView()
@@ -179,11 +320,9 @@ void LcdCanvas::switchToPlay()
 {
     mode = Play;
     clear();
-    battery->update();
-    volume->update();
-    bitRate->update();
-    playTime->update();
-    title->update();
+    for (int i = 0; i < (int) (sizeof(groupPlay)/sizeof(*groupPlay)); i++) {
+        groupPlay[i]->update();
+    }
 }
 
 void LcdCanvas::clear()
@@ -209,11 +348,9 @@ void LcdCanvas::drawFileView()
 
 void LcdCanvas::drawPlay()
 {
-    battery->draw(this);
-    volume->draw(this);
-    bitRate->draw(this);
-    playTime->draw(this);
-    title->draw(this);
+    for (int i = 0; i < (int) (sizeof(groupPlay)/sizeof(*groupPlay)); i++) {
+        groupPlay[i]->draw(this);
+    }
 }
 
 void LcdCanvas::setFileItem(int column, const char *str, bool isDir, bool isFocused)
@@ -228,15 +365,15 @@ void LcdCanvas::setFileItem(int column, const char *str, bool isDir, bool isFocu
 
 void LcdCanvas::setVolume(uint8_t value)
 {
-    volume->setInt((int) value);
+    volume.setInt((int) value);
 }
 
 void LcdCanvas::setBitRate(uint16_t value)
 {
-    bitRate->setFormatText("%dKbps", (int) value);
+    bitRate.setFormatText("%dKbps", (int) value);
 }
 
 void LcdCanvas::setPlayTime(uint32_t positionSec, uint32_t lengthSec)
 {
-    playTime->setFormatText("%lu:%02lu / %lu:%02lu", positionSec/60, positionSec%60, lengthSec/60, lengthSec%60);
+    playTime.setFormatText("%lu:%02lu / %lu:%02lu", positionSec/60, positionSec%60, lengthSec/60, lengthSec%60);
 }

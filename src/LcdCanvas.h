@@ -19,6 +19,15 @@
 
 #define TEXT_BASELINE_OFS_Y	13
 
+extern uint8_t Icon16[];
+#define ICON16x16_TITLE		&Icon16[32*0]
+#define ICON16x16_ARTIST	&Icon16[32*1]
+#define ICON16x16_ALBUM		&Icon16[32*2]
+#define ICON16x16_FOLDER	&Icon16[32*3]
+#define ICON16x16_FILE		&Icon16[32*4]
+#define ICON16x16_VOLUME	&Icon16[32*5]
+#define ICON16x16_BATTERY	&Icon16[32*6]
+
 typedef enum _mode_enm {
 	FileView = 0,
 	Play
@@ -31,19 +40,14 @@ typedef enum _align_enm {
 } align_enm;
 
 //=================================
-// Definition of Box class
+// Definition of Box interface
 //=================================
 class Box {
 public:
-	Box(uint16_t pos_x, uint16_t pos_y, uint16_t bgColor) { this->pos_x = pos_x; this->pos_y = pos_y; this->bgColor = bgColor; }
-	void setBgColor(uint16_t bgColor) { if (this->bgColor == bgColor) return; this->bgColor = bgColor; isUpdated = true; }
-	void update() { isUpdated = true; }
-protected:
-	bool isUpdated;
-	uint16_t pos_x, pos_y;
-	int16_t x0, y0; // previous rectangle origin
-	uint16_t w0, h0; // previous rectangle size
-	uint16_t bgColor;
+	//virtual ~Box() {}
+	virtual void setBgColor(uint16_t bgColor) = 0;
+	virtual void update() = 0;
+	virtual void draw(Adafruit_ST7735 *tft) = 0;
 };
 
 //=================================
@@ -52,16 +56,21 @@ protected:
 class IconBox : public Box
 {
 public:
-	IconBox(uint16_t pos_x, uint16_t pos_y, uint16_t bgColor = ST77XX_BLACK) : Box(pos_x, pos_y, bgColor), fgColor(ST77XX_WHITE), icon(NULL) {}
-	IconBox(uint16_t pos_x, uint16_t pos_y, uint8_t *icon, uint16_t bgColor = ST77XX_BLACK) : Box(pos_x, pos_y, bgColor), fgColor(ST77XX_WHITE) { this->icon = icon; }
-	void setFgColor(uint16_t fgColor) { if (this->fgColor == fgColor) return; this->fgColor = fgColor; isUpdated = true;}
-	void setIcon(uint8_t *icon) { if (this->icon == icon) return; this->icon = icon; isUpdated = true; }
+	IconBox(int16_t pos_x, int16_t pos_y, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
+	IconBox(int16_t pos_x, int16_t pos_y, uint8_t *icon, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
+	void setFgColor(uint16_t fgColor);
+	void setBgColor(uint16_t bgColor);
+	void update();
 	void draw(Adafruit_ST7735 *tft);
 	void clear(Adafruit_ST7735 *tft);
+	void setIcon(uint8_t *icon);
 	static const int iconWidth = 16;
 	static const int iconHeight = 16;
 protected:
+	bool isUpdated;
+	int16_t pos_x, pos_y;
 	uint16_t fgColor;
+	uint16_t bgColor;
 	uint8_t *icon;
 };
 
@@ -71,29 +80,41 @@ protected:
 class TextBox : public Box
 {
 public:
-	TextBox(uint16_t pos_x, uint16_t pos_y, align_enm align = AlignLeft, uint16_t bgColor = ST77XX_BLACK) : Box(pos_x, pos_y, bgColor), fgColor(ST77XX_WHITE) { this->align = align; }
-	void setFgColor(uint16_t fgColor) { if (this->fgColor == fgColor) return; this->fgColor = fgColor; isUpdated = true; }
+	TextBox(int16_t pos_x, int16_t pos_y, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
+	TextBox(int16_t pos_x, int16_t pos_y, align_enm align, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
+	void setFgColor(uint16_t fgColor);
+	void setBgColor(uint16_t bgColor);
+	void update();
+	void draw(Adafruit_ST7735 *tft);
 	void setText(const char *str);
 	void setFormatText(const char *fmt, ...);
 	void setInt(int value);
-	void draw(Adafruit_ST7735 *tft);
 	static const int charSize = 256;
 protected:
+	bool isUpdated;
+	int16_t pos_x, pos_y;
 	uint16_t fgColor;
+	uint16_t bgColor;
+	int16_t x0, y0; // previous rectangle origin
+	uint16_t w0, h0; // previous rectangle size
 	align_enm align;
 	char str[charSize];
 };
 
 //=================================
-// Definition of IconTextBox class < IconBox & TextBox
+// Definition of IconTextBox class < TextBox
 //=================================
-class IconTextBox : public IconBox, public TextBox
+class IconTextBox : public TextBox
 {
 public:
-	IconTextBox(uint16_t pos_x, uint16_t pos_y, align_enm align = AlignLeft, uint16_t bgColor = ST77XX_BLACK) : IconBox(pos_x, pos_y), TextBox(pos_x+IconBox::iconWidth, pos_y, align, bgColor) {}
-	void setFgColor(uint16_t fgColor) { IconBox::setFgColor(fgColor); TextBox::setFgColor(fgColor); }
-	void update() { IconBox::update(); TextBox::update(); }
+	IconTextBox(int16_t pos_x, int16_t pos_y, uint8_t *icon, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
+	void setFgColor(uint16_t fgColor);
+	void setBgColor(uint16_t bgColor);
+	void update();
 	void draw(Adafruit_ST7735 *tft);
+	void setIcon(uint8_t *icon);
+protected:
+	IconBox iconBox;
 };
 
 //=================================
@@ -102,17 +123,22 @@ public:
 class ScrollTextBox : public Box
 {
 public:
-	ScrollTextBox(uint16_t pos_x, uint16_t pos_y, uint16_t width, uint16_t bgColor = ST77XX_BLACK);
-	void setFgColor(uint16_t fgColor) { if (this->fgColor == fgColor) return; this->fgColor = fgColor; isUpdated = true;}
-	void setText(const char *str);
+	ScrollTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
+	void setFgColor(uint16_t fgColor);
+	void setBgColor(uint16_t bgColor);
+	void update();
 	void draw(Adafruit_ST7735 *tft);
-	void setScroll(bool scr_en) { if (this->scr_en == scr_en) return; this->scr_en = scr_en; isUpdated = true; }
+	void setScroll(bool scr_en);
+	void setText(const char *str);
 	static const int charSize = 256;
 protected:
-	GFXcanvas1 *canvas;
+	bool isUpdated;
+	int16_t pos_x, pos_y;
 	uint16_t fgColor;
+	uint16_t bgColor;
+	uint16_t w0; // to get str display width
+	GFXcanvas1 *canvas;
 	char str[charSize];
-private:
 	uint16_t width;
 	int16_t x_ofs;
 	uint16_t stay_count;
@@ -120,15 +146,19 @@ private:
 };
 
 //=================================
-// Definition of IconScrollTextBox class < IconBox & ScrollTextBox
+// Definition of IconScrollTextBox class < ScrollTextBox
 //=================================
-class IconScrollTextBox : public IconBox, public ScrollTextBox
+class IconScrollTextBox : public ScrollTextBox
 {
 public:
-	IconScrollTextBox(uint16_t pos_x, uint16_t pos_y, uint16_t width, uint16_t bgColor = ST77XX_BLACK) : IconBox(pos_x, pos_y), ScrollTextBox(pos_x+IconBox::iconWidth, pos_y, width-IconBox::iconWidth, bgColor) {}
-	void setFgColor(uint16_t fgColor) { IconBox::setFgColor(fgColor); ScrollTextBox::setFgColor(fgColor); }
-	void update() { IconBox::update(); ScrollTextBox::update(); }
+	IconScrollTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
+	void setFgColor(uint16_t fgColor);
+	void setBgColor(uint16_t bgColor);
+	void update();
 	void draw(Adafruit_ST7735 *tft);
+	void setIcon(uint8_t *icon);
+protected:
+	IconBox iconBox;
 };
 
 //=================================
@@ -152,11 +182,14 @@ public:
 protected:
 	mode_enm mode;
 	IconScrollTextBox *fileItem[10];
-	IconBox *battery;
-	IconTextBox *volume;
-	TextBox *bitRate;
-	TextBox *playTime;
-	ScrollTextBox *title;
+	IconBox battery = IconBox(16*7, 16*0, ICON16x16_BATTERY, ST77XX_GRAY);
+	IconTextBox volume = IconTextBox(16*0, 16*0, ICON16x16_VOLUME, ST77XX_GRAY);
+	TextBox bitRate = TextBox(16*4, 16*0, AlignCenter, ST77XX_GRAY);
+	TextBox playTime = TextBox(16*8-1, 16*9, AlignRight, ST77XX_GRAY);
+	ScrollTextBox title = ScrollTextBox(16*0, 16*4, width());
+	TextBox artist = TextBox(0, 16*5);
+	ScrollTextBox album = ScrollTextBox(0, 16*6, 128);
+	Box *groupPlay[7] = {&battery, &volume, &bitRate, &playTime, &title, &artist, &album};
 	void drawFileView();
 	void drawPlay();
 };

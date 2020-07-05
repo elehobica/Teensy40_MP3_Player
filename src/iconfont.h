@@ -25,14 +25,6 @@ uint8_t Icon16[]={
 0x10,0x08,0x10,0x08,0x10,0x08,0x10,0x08,0x10,0x08,0x10,0x08,0x1F,0xF8,0x00,0x00,
 };
 
-#define ICON16x16_TITLE     &Icon16[32*0]
-#define ICON16x16_ARTIST    &Icon16[32*1]
-#define ICON16x16_ALBUM     &Icon16[32*2]
-#define ICON16x16_FOLDER    &Icon16[32*3]
-#define ICON16x16_FILE      &Icon16[32*4]
-#define ICON16x16_VOLUME    &Icon16[32*5]
-#define ICON16x16_BATTERY   &Icon16[32*6]
-
 #endif
 
 
