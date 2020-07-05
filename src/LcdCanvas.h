@@ -6,6 +6,9 @@
 //#include <Fonts/FreeMono9pt7b.h>
 #include "Nimbus_Sans_L_Regular_Condensed_12.h"
 
+#define DEFAULT_FONT	(&Nimbus_Sans_L_Regular_Condensed_12)
+#define FONT_HEIGHT		16
+
 // Additional Colors for ST77XX
 #define ST77XX_BRED       0XF81F
 #define ST77XX_GRED       0XFFE0
@@ -55,6 +58,8 @@ public:
 	void setIcon(uint8_t *icon) { if (this->icon == icon) return; this->icon = icon; isUpdated = true; }
 	void draw(Adafruit_ST7735 *tft);
 	void clear(Adafruit_ST7735 *tft);
+	static const int iconWidth = 16;
+	static const int iconHeight = 16;
 protected:
 	uint16_t fgColor;
 	uint8_t *icon;
@@ -67,16 +72,16 @@ class TextBox : public Box
 {
 public:
 	TextBox(uint16_t pos_x, uint16_t pos_y, align_enm align = AlignLeft, uint16_t bgColor = ST77XX_BLACK) : Box(pos_x, pos_y, bgColor), fgColor(ST77XX_WHITE) { this->align = align; }
-	void setFgColor(uint16_t fgColor) { if (this->fgColor == fgColor) return; this->fgColor = fgColor; isUpdated = true;}
+	void setFgColor(uint16_t fgColor) { if (this->fgColor == fgColor) return; this->fgColor = fgColor; isUpdated = true; }
 	void setText(const char *str);
 	void setFormatText(const char *fmt, ...);
 	void setInt(int value);
 	void draw(Adafruit_ST7735 *tft);
-	static const int size = 256;
+	static const int charSize = 256;
 protected:
 	uint16_t fgColor;
 	align_enm align;
-	char str[size];
+	char str[charSize];
 };
 
 //=================================
@@ -85,7 +90,7 @@ protected:
 class IconTextBox : public IconBox, public TextBox
 {
 public:
-	IconTextBox(uint16_t pos_x, uint16_t pos_y, align_enm align = AlignLeft, uint16_t bgColor = ST77XX_BLACK) : IconBox(pos_x, pos_y), TextBox(pos_x+16, pos_y, align, bgColor) {}
+	IconTextBox(uint16_t pos_x, uint16_t pos_y, align_enm align = AlignLeft, uint16_t bgColor = ST77XX_BLACK) : IconBox(pos_x, pos_y), TextBox(pos_x+IconBox::iconWidth, pos_y, align, bgColor) {}
 	void setFgColor(uint16_t fgColor) { IconBox::setFgColor(fgColor); TextBox::setFgColor(fgColor); }
 	void update() { IconBox::update(); TextBox::update(); }
 	void draw(Adafruit_ST7735 *tft);
@@ -97,17 +102,18 @@ public:
 class ScrollTextBox : public Box
 {
 public:
-	ScrollTextBox(uint16_t pos_x, uint16_t pos_y, uint16_t bgColor = ST77XX_BLACK);
+	ScrollTextBox(uint16_t pos_x, uint16_t pos_y, uint16_t width, uint16_t bgColor = ST77XX_BLACK);
 	void setFgColor(uint16_t fgColor) { if (this->fgColor == fgColor) return; this->fgColor = fgColor; isUpdated = true;}
 	void setText(const char *str);
 	void draw(Adafruit_ST7735 *tft);
 	void setScroll(bool scr_en) { if (this->scr_en == scr_en) return; this->scr_en = scr_en; isUpdated = true; }
-	static const int size = 256;
+	static const int charSize = 256;
 protected:
 	GFXcanvas1 *canvas;
 	uint16_t fgColor;
-	char str[size];
+	char str[charSize];
 private:
+	uint16_t width;
 	int16_t x_ofs;
 	uint16_t stay_count;
 	bool scr_en;
@@ -119,7 +125,7 @@ private:
 class IconScrollTextBox : public IconBox, public ScrollTextBox
 {
 public:
-	IconScrollTextBox(uint16_t pos_x, uint16_t pos_y, align_enm align = AlignLeft, uint16_t bgColor = ST77XX_BLACK) : IconBox(pos_x, pos_y), ScrollTextBox(pos_x+16, pos_y, bgColor) {}
+	IconScrollTextBox(uint16_t pos_x, uint16_t pos_y, uint16_t width, uint16_t bgColor = ST77XX_BLACK) : IconBox(pos_x, pos_y), ScrollTextBox(pos_x+IconBox::iconWidth, pos_y, width-IconBox::iconWidth, bgColor) {}
 	void setFgColor(uint16_t fgColor) { IconBox::setFgColor(fgColor); ScrollTextBox::setFgColor(fgColor); }
 	void update() { IconBox::update(); ScrollTextBox::update(); }
 	void draw(Adafruit_ST7735 *tft);

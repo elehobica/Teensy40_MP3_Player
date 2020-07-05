@@ -9,25 +9,25 @@ void IconBox::draw(Adafruit_ST7735 *tft) {
     isUpdated = false;
     clear(tft);
     if (icon != NULL) {
-        tft->drawBitmap(pos_x, pos_y, icon, 16, 16, fgColor);
+        tft->drawBitmap(pos_x, pos_y, icon, iconWidth, iconHeight, fgColor);
     }
 }
 
 void IconBox::clear(Adafruit_ST7735 *tft) {
-    tft->fillRect(pos_x, pos_y, 16, 16, bgColor); // clear Icon rectangle
+    tft->fillRect(pos_x, pos_y, iconWidth, iconHeight, bgColor); // clear Icon rectangle
 }
 
 //=================================
 // Implementation of TextBox class
 //=================================
 void TextBox::setText(const char *str) {
-    if (strncmp(this->str, str, size) == 0) { return; }
+    if (strncmp(this->str, str, charSize) == 0) { return; }
     isUpdated = true;
-    strncpy(this->str, str, size);
+    strncpy(this->str, str, charSize);
 }
 
 void TextBox::setFormatText(const char *fmt, ...) {
-    char str_temp[size];
+    char str_temp[charSize];
     va_list va;
     va_start(va, fmt);
     vsprintf(str_temp, fmt, va);
@@ -70,31 +70,33 @@ void IconTextBox::draw(Adafruit_ST7735 *tft) {
 //=================================
 // Implementation of ScrollTextBox class
 //=================================
-ScrollTextBox::ScrollTextBox(uint16_t pos_x, uint16_t pos_y, uint16_t bgColor) : Box(pos_x, pos_y, bgColor), fgColor(ST77XX_WHITE), scr_en(false)
+ScrollTextBox::ScrollTextBox(uint16_t pos_x, uint16_t pos_y, uint16_t width, uint16_t bgColor) : Box(pos_x, pos_y, bgColor), fgColor(ST77XX_WHITE), scr_en(false)
 {
-    canvas = new GFXcanvas1(128, 16);
-    canvas->setFont(&Nimbus_Sans_L_Regular_Condensed_12);
+    this->width = width;
+    canvas = new GFXcanvas1(this->width, FONT_HEIGHT);
+    canvas->setFont(DEFAULT_FONT);
     canvas->setTextWrap(false);
     canvas->setTextSize(1);
     canvas->getTextBounds("", 0, 0+TEXT_BASELINE_OFS_Y, &x0, &y0, &w0, &h0); // idle-run because first time fails somehow
 }
 
 void ScrollTextBox::setText(const char *str) {
-    if (strncmp(this->str, str, size) == 0) { return; }
+    if (strncmp(this->str, str, charSize) == 0) { return; }
     isUpdated = true;
-    strncpy(this->str, str, size);
+    strncpy(this->str, str, charSize);
     canvas->getTextBounds(str, 0, 0+TEXT_BASELINE_OFS_Y, &x0, &y0, &w0, &h0); // get width (w0)
     x_ofs = 0;
     stay_count = 0;
 }
 
 void ScrollTextBox::draw(Adafruit_ST7735 *tft) {
-    if (!isUpdated && ((128-pos_x-w0) >= 0 || !scr_en)) { return; }
-    if ((128-pos_x-w0) >= 0 || !scr_en) {
+    int16_t under_offset = tft->width()-pos_x-w0; // max minus offset for scroll (width must be tft's width)
+    if (!isUpdated && (under_offset >= 0 || !scr_en)) { return; }
+    if (under_offset >= 0 || !scr_en) {
         x_ofs = 0;
         stay_count = 0;
     } else {
-        if (x_ofs == 0 || x_ofs == (128-pos_x-w0)) { // scroll stay a while at both end
+        if (x_ofs == 0 || x_ofs == under_offset) { // scroll stay a while at both end
             if (stay_count++ > 20) {
                 if (x_ofs-- != 0) { x_ofs = 0; }
                 stay_count = 0;
@@ -105,10 +107,11 @@ void ScrollTextBox::draw(Adafruit_ST7735 *tft) {
     }
     if (!isUpdated && stay_count != 0) { return; }
     isUpdated = false;
-    canvas->fillRect(0, 0, 128, 16, bgColor);
+    // Flicker less draw (width must be ScrollTextBox's width)
+    canvas->fillRect(0, 0, width, FONT_HEIGHT, bgColor);
     canvas->setCursor(x_ofs, TEXT_BASELINE_OFS_Y);
     canvas->print(str);
-    tft->drawBitmap(pos_x, pos_y, canvas->getBuffer(), 128, 16, fgColor, bgColor);
+    tft->drawBitmap(pos_x, pos_y, canvas->getBuffer(), width, FONT_HEIGHT, fgColor, bgColor);
 }
 
 //=================================
@@ -138,12 +141,14 @@ void LcdCanvas::init()
     setTextWrap(false);
     fillScreen(ST77XX_BLACK);
     //setFont(&FreeMono9pt7b);
-    setFont(&Nimbus_Sans_L_Regular_Condensed_12);
+    setFont(DEFAULT_FONT);
     setTextSize(1);
+    //Serial.println(width());
+    //Serial.println(height());
 
     // FileView parts
     for (int i = 0; i < 10; i++) {
-        fileItem[i] = new IconScrollTextBox(16*0, 16*i);
+        fileItem[i] = new IconScrollTextBox(16*0, 16*i, width());
         fileItem[i]->setFgColor(ST77XX_GRAY);
     }
     // Play parts
@@ -156,7 +161,7 @@ void LcdCanvas::init()
     bitRate->setFgColor(ST77XX_GRAY);
     playTime = new TextBox(16*8-1, 16*9, AlignRight);
     playTime->setFgColor(ST77XX_GRAY);
-    title = new ScrollTextBox(16*0, 16*5);
+    title = new ScrollTextBox(16*0, 16*5, width());
     title->setText("he cast-expression argument must be a pointer to a block");
     title->setScroll(true);
 }
