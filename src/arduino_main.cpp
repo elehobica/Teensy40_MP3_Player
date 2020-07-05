@@ -469,12 +469,13 @@ void loop() {
                         playMp3.play(&file);
                         break;
                     }
-              }
-              if (!playMp3.isPlaying()) {
-                  mode = FileView;
-                  idx_req = 1;
-                  idx_idle_count = 0;
-              }
+                }
+                if (!playMp3.isPlaying()) {
+                    mode = FileView;
+                    lcd.switchToFileView();
+                    idx_req = 1;
+                    idx_idle_count = 0;
+                }
             }
             lcd.setVolume(i2s1.get_volume());
             lcd.setBitRate(playMp3.bitRate());
