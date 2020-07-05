@@ -167,9 +167,8 @@ protected:
 class LcdCanvas : public Adafruit_ST7735
 {
 public:
-	LcdCanvas(int8_t cs, int8_t dc, int8_t rst) : Adafruit_ST7735(cs, dc, rst) { init(); };
+	LcdCanvas(int8_t cs, int8_t dc, int8_t rst);
     ~LcdCanvas();
-	void init();
 	void clear();
 	void setFileItem(int column, const char *str, bool isDir = false, bool isFocused = false);
 	void setBitRate(uint16_t value);
@@ -181,7 +180,18 @@ public:
 
 protected:
 	mode_enm mode;
-	IconScrollTextBox *fileItem[10];
+	IconScrollTextBox fileItem[10] = {
+		IconScrollTextBox(16*0, 16*0, width(), ST77XX_GRAY),
+		IconScrollTextBox(16*0, 16*1, width(), ST77XX_GRAY),
+		IconScrollTextBox(16*0, 16*2, width(), ST77XX_GRAY),
+		IconScrollTextBox(16*0, 16*3, width(), ST77XX_GRAY),
+		IconScrollTextBox(16*0, 16*4, width(), ST77XX_GRAY),
+		IconScrollTextBox(16*0, 16*5, width(), ST77XX_GRAY),
+		IconScrollTextBox(16*0, 16*6, width(), ST77XX_GRAY),
+		IconScrollTextBox(16*0, 16*7, width(), ST77XX_GRAY),
+		IconScrollTextBox(16*0, 16*8, width(), ST77XX_GRAY),
+		IconScrollTextBox(16*0, 16*9, width(), ST77XX_GRAY)
+	};
 	IconBox battery = IconBox(16*7, 16*0, ICON16x16_BATTERY, ST77XX_GRAY);
 	IconTextBox volume = IconTextBox(16*0, 16*0, ICON16x16_VOLUME, ST77XX_GRAY);
 	TextBox bitRate = TextBox(16*4, 16*0, AlignCenter, ST77XX_GRAY);
@@ -189,6 +199,9 @@ protected:
 	ScrollTextBox title = ScrollTextBox(16*0, 16*4, width());
 	TextBox artist = TextBox(0, 16*5);
 	ScrollTextBox album = ScrollTextBox(0, 16*6, 128);
+	Box *groupFileView[10] = {
+		&fileItem[0], &fileItem[1], &fileItem[2], &fileItem[3], &fileItem[4], &fileItem[5], &fileItem[6], &fileItem[7], &fileItem[8],  &fileItem[9]
+	};
 	Box *groupPlay[7] = {&battery, &volume, &bitRate, &playTime, &title, &artist, &album};
 	void drawFileView();
 	void drawPlay();

@@ -281,11 +281,7 @@ void IconScrollTextBox::setIcon(uint8_t *icon)
 //=================================
 // Implementation of LcdCanvas class
 //=================================
-LcdCanvas::~LcdCanvas()
-{
-}
-
-void LcdCanvas::init()
+LcdCanvas::LcdCanvas(int8_t cs, int8_t dc, int8_t rst) : Adafruit_ST7735(cs, dc, rst), mode(FileView)
 {
     initR(INITR_BLACKTAB);      // Init ST7735S chip, black tab
     setTextWrap(false);
@@ -297,22 +293,23 @@ void LcdCanvas::init()
     //Serial.println(height());
 
     // FileView parts
-    for (int i = 0; i < 10; i++) {
-        fileItem[i] = new IconScrollTextBox(16*0, 16*i, width());
-        fileItem[i]->setFgColor(ST77XX_GRAY);
-    }
+
     // Play parts
     title.setText("he cast-expression argument must be a pointer to a block");
     artist.setText("error: expected identifier before numeric constant");
     album.setText("alakekeeeeeeeeeeeeeeeeeeeeeeeeeeee133");
 }
 
+LcdCanvas::~LcdCanvas()
+{
+}
+
 void LcdCanvas::switchToFileView()
 {
     mode = FileView;
     clear();
-    for (int i = 0; i < 10; i++) {
-        fileItem[i]->update();
+    for (int i = 0; i < (int) (sizeof(groupFileView)/sizeof(*groupFileView)); i++) {
+        groupFileView[i]->update();
     }
 }
 
@@ -341,8 +338,8 @@ void LcdCanvas::draw()
 
 void LcdCanvas::drawFileView()
 {
-    for (int i = 0; i < 10; i++) {
-        fileItem[i]->draw(this);
+    for (int i = 0; i < (int) (sizeof(groupFileView)/sizeof(*groupFileView)); i++) {
+        groupFileView[i]->draw(this);
     }
 }
 
@@ -357,10 +354,10 @@ void LcdCanvas::setFileItem(int column, const char *str, bool isDir, bool isFocu
 {
     uint8_t *icon[2] = {ICON16x16_FILE, ICON16x16_FOLDER};
     uint16_t color[2] = {ST77XX_GRAY, ST77XX_GBLUE};
-    fileItem[column]->setIcon(icon[isDir]);
-    fileItem[column]->setFgColor(color[isFocused]);
-    fileItem[column]->setText(str);
-    fileItem[column]->setScroll(isFocused); // Scroll for focused item only
+    fileItem[column].setIcon(icon[isDir]);
+    fileItem[column].setFgColor(color[isFocused]);
+    fileItem[column].setText(str);
+    fileItem[column].setScroll(isFocused); // Scroll for focused item only
 }
 
 void LcdCanvas::setVolume(uint8_t value)
