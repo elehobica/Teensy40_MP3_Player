@@ -179,6 +179,7 @@ public:
 	void setPlayTime(uint32_t posionSec, uint32_t lengthSec);
 	void switchToFileView();
 	void switchToPlay();
+	void switchToPowerOff();
 	void draw();
 
 protected:
@@ -202,12 +203,12 @@ protected:
 	ScrollTextBox title = ScrollTextBox(16*0, 16*4, width());
 	TextBox artist = TextBox(0, 16*5);
 	ScrollTextBox album = ScrollTextBox(0, 16*6, 128);
+	TextBox bye_msg = TextBox(width()/2, height()/2-FONT_HEIGHT+TEXT_BASELINE_OFS_Y, "Bye", AlignCenter);
 	Box *groupFileView[10] = {
 		&fileItem[0], &fileItem[1], &fileItem[2], &fileItem[3], &fileItem[4], &fileItem[5], &fileItem[6], &fileItem[7], &fileItem[8],  &fileItem[9]
 	};
 	Box *groupPlay[7] = {&battery, &volume, &bitRate, &playTime, &title, &artist, &album};
-	void drawFileView();
-	void drawPlay();
+	Box *groupPowerOff[1] = {&bye_msg};
 };
 
 #endif // __LCDCANVAS_H_INCLUDED__

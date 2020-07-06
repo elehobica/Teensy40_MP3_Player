@@ -327,39 +327,34 @@ void LcdCanvas::switchToPlay()
     }
 }
 
+void LcdCanvas::switchToPowerOff()
+{
+    mode = PowerOff;
+    clear();
+    for (int i = 0; i < (int) (sizeof(groupPowerOff)/sizeof(*groupPowerOff)); i++) {
+        groupPowerOff[i]->update();
+    }
+}
+
 void LcdCanvas::clear()
 {
     fillScreen(ST77XX_BLACK);
 }
 
-void LcdCanvas::bye()
-{
-    mode = PowerOff;
-    clear();
-    TextBox bye_msg = TextBox(width()/2, height()/2-FONT_HEIGHT+TEXT_BASELINE_OFS_Y, "Bye", AlignCenter);
-    bye_msg.draw(this);
-}
-
 void LcdCanvas::draw()
 {
     if (mode == FileView) {
-        drawFileView();
+        for (int i = 0; i < (int) (sizeof(groupFileView)/sizeof(*groupFileView)); i++) {
+            groupFileView[i]->draw(this);
+        }
     } else if (mode == Play) {
-        drawPlay();
-    }
-}
-
-void LcdCanvas::drawFileView()
-{
-    for (int i = 0; i < (int) (sizeof(groupFileView)/sizeof(*groupFileView)); i++) {
-        groupFileView[i]->draw(this);
-    }
-}
-
-void LcdCanvas::drawPlay()
-{
-    for (int i = 0; i < (int) (sizeof(groupPlay)/sizeof(*groupPlay)); i++) {
-        groupPlay[i]->draw(this);
+        for (int i = 0; i < (int) (sizeof(groupPlay)/sizeof(*groupPlay)); i++) {
+            groupPlay[i]->draw(this);
+        }
+    } else if (mode == PowerOff) {
+        for (int i = 0; i < (int) (sizeof(groupPowerOff)/sizeof(*groupPowerOff)); i++) {
+            groupPowerOff[i]->draw(this);
+        }
     }
 }
 

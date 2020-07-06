@@ -100,7 +100,8 @@ void loadFromEEPROM(void)
 
 void power_off(void)
 {
-    lcd.bye();
+    lcd.switchToPowerOff();
+    lcd.draw();
     uint8_t volume = i2s1.get_volume();
     if (playMp3.isPlaying()) {
         while (i2s1.get_volume() > 0) {
