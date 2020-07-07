@@ -349,6 +349,33 @@ void tick_100ms(void)
     button_prv[0] = button;
 }
 
+// Get .mp3 file which idx == idx_play (if seq_flg == 1, successive mp3 is searched)
+int get_mp3_file(uint16_t idx, int seq_flg, FsBaseFile *f)
+{
+    int flg = 0;
+    int ofs = 0;
+    char str[256];
+    while (idx + ofs < file_menu_get_size()) {
+        file_menu_get_fname(idx, str, sizeof(str));
+        char* ext_pos = strrchr(str, '.');
+        if (ext_pos) {
+            if (strncmp(ext_pos, ".mp3", 4) == 0) {
+                Serial.println(str);
+                file_menu_get_obj(idx, f);
+                flg = 1;
+                break;
+            }
+        }
+        if (!seq_flg) { break; }
+        ofs++;
+    }
+    if (flg) {
+        return idx + ofs;
+    } else {
+        return 0;
+    }
+}
+
 void setup() {
     Serial.begin(115200);
     loadFromEEPROM();
@@ -422,19 +449,13 @@ void loop() {
         } else { // File
             file_menu_full_sort();
             idx_play = idx_head + idx_column;
-            file_menu_get_fname(idx_play, str, sizeof(str));
-            char* ext_pos = strrchr(str, '.');
-            if (ext_pos) {
-                if (strncmp(ext_pos, ".mp3", 4) == 0) {
-                    mode = Play;
-                    Serial.println(str);
-                    file_menu_get_obj(idx_play, &file);
-                    playMp3.play(&file);
-                    idx_play_count = 0;
-                    idx_idle_count = 0;
-                    aud_pause_flg = false;
-                    lcd.switchToPlay();
-                }
+            if (idx_play = get_mp3_file(idx_play, 0, &file)) {
+                mode = Play;
+                playMp3.play(&file);
+                idx_play_count = 0;
+                idx_idle_count = 0;
+                aud_pause_flg = false;
+                lcd.switchToPlay();
             }
       /*
           file_menu_full_sort();
@@ -530,19 +551,13 @@ void loop() {
         idx_idle_count = 0;
     } else {
         if (mode == Play) {
-            if (!playMp3.isPlaying()) {
-                while (++idx_play < file_menu_get_size()) { // Play next file
-                    file_menu_get_fname(idx_play, str, sizeof(str));
-                    char* ext_pos = strrchr(str, '.');
-                    if (!ext_pos) { continue; }
-                    if (strncmp(ext_pos, ".mp3", 4) == 0) {
-                        Serial.println(str);
-                        file_menu_get_obj(idx_play, &file);
-                        playMp3.play(&file);
-                        break;
-                    }
-                }
-                if (!playMp3.isPlaying()) {
+            if (!playMp3.isPlaying() || (playMp3.positionMillis() + 150 > playMp3.lengthMillis())) {
+                int t = 0;
+                while (playMp3.isPlaying()) { delay(1); t++; yield(); } // minimize gap between tracks
+                Serial.println(t);
+                if (idx_play = get_mp3_file(idx_play+1, 1, &file)) {
+                    playMp3.play(&file);
+                } else {
                     mode = FileView;
                     lcd.switchToFileView();
                     idx_req = 1;
