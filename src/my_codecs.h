@@ -140,6 +140,7 @@ public:
 	MyAudioCodec(void) : AudioStream(0, NULL) {initVars();}
 	bool pause(const bool paused);
 	bool isPlaying(void) {return playing > 0;}
+	bool isPaused(void) {return playing == my_codec_paused;}
 	//unsigned positionMillis(void) { return (AUDIO_SAMPLE_RATE_EXACT / 1000) * samples_played;}
 	unsigned positionMillis(void) { return (unsigned) ((uint64_t) samples_played * 1000 / AUDIO_SAMPLE_RATE_EXACT);}
 	//unsigned lengthMillis(void) {return max(fsize() / (bitrate / 8 ) * 1000,  positionMillis());} //Ignores VBR

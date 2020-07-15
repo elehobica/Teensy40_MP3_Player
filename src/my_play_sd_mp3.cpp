@@ -42,12 +42,15 @@
 
 
 #include "my_play_sd_mp3.h"
+#include <TeensyThreads.h>
 
 #define MP3_SD_BUF_SIZE	2048 								//Enough space for a complete stereo frame
 #define MP3_BUF_SIZE	(MAX_NCHAN * MAX_NGRAN * MAX_NSAMP) //MP3 output buffer
 #define DECODE_NUM_STATES 2									//How many steps in decode() ?
 
 #define MIN_FREE_RAM (35+1)*1024 // 1KB Reserve
+
+extern Threads::Mutex mylock;
 
 //#define CODEC_DEBUG
 
@@ -58,8 +61,10 @@ unsigned	MyAudioCodec::decode_cycles_max_read;
 short		MyAudioCodec::lastError;
 
 static MyAudioPlaySdMp3 	*mp3objptr;
+
 void my_decodeMp3(void);
 
+// stop called from normal (mylock blocking)
 void MyAudioPlaySdMp3::stop(void)
 {
 	NVIC_DISABLE_IRQ(IRQ_AUDIOCODEC);
@@ -68,7 +73,9 @@ void MyAudioPlaySdMp3::stop(void)
 	if (buf[0]) {free(buf[0]);buf[0] = NULL;}
 	freeBuffer();
 	if (hMP3Decoder) {MP3FreeDecoder(hMP3Decoder);hMP3Decoder=NULL;};
+	mylock.lock();
 	fclose();
+	mylock.unlock();
 }
 /*
 float MyAudioPlaySdMp3::processorUsageMaxDecoder(void){
@@ -86,8 +93,115 @@ float MyAudioPlaySdMp3::processorUsageMaxSD(void){
 };
 */
 
+int MyAudioPlaySdMp3::standby_play(FsBaseFile *f)
+{
+	//ftype=my_codec_file; fptr=NULL; file = *f; _fsize=file.fileSize(); _fposition=0;
+	//if (!fopen(file)) return ERR_CODEC_FILE_NOT_FOUND;
+	//uint8_t *sd_buf_temp = allocBuffer(MP3_SD_BUF_SIZE);
+	uint8_t sd_buf_temp[10];
+	mylock.lock();
+	int sd_left_temp = f->read(sd_buf_temp, 10);
+	mylock.unlock();
+	//Skip ID3, if existent
+	int skip = skipID3(sd_buf_temp);
+	size_t size_id3_temp;
+	int b = 0;
+	if (skip) {
+		size_id3_temp = skip;
+		b = skip & 0xfffffe00;
+		sd_left_temp = 0;
+	} else {
+		size_id3_temp = 0;
+	}
+
+	while (isPlaying()) { /*delay(1);*/ } // Wait for previous MP3 playing to stop
+
+	//file.close();
+	//NVIC_DISABLE_IRQ(IRQ_AUDIOCODEC);
+
+	// instance copy start
+	initVars();
+	mylock.lock();
+	file = *f;
+	_fsize=file.fileSize();
+	_fposition=10;
+	ftype=my_codec_file;
+	mylock.unlock();
+
+	memcpy(sd_buf, sd_buf_temp, sizeof(sd_buf_temp));
+	// instance copy done
+
+	sd_left = sd_left_temp;
+	size_id3 = size_id3_temp;
+
+	lastError = ERR_CODEC_NONE;
+
+	mylock.lock();
+	if (b) {
+		fseek(b);
+	} else {
+		fseek(10);
+	}
+	//Fill buffer from the beginning with fresh data
+	sd_left = fillReadBuffer(sd_buf, sd_buf, sd_left, MP3_SD_BUF_SIZE);
+	mylock.unlock();
+
+	if (!sd_left) {
+		lastError = ERR_CODEC_FILE_NOT_FOUND;
+		stop();
+		return lastError;
+	}
+
+	//_VectorsRam[IRQ_AUDIOCODEC + 16] = &my_decodeMp3;
+	//initSwi();
+
+	decoded_length[0] = 0;
+	decoded_length[1] = 0;
+	decoding_block = 0;
+	decoding_state = 0;
+
+	play_pos = 0;
+
+	sd_p = sd_buf;
+
+	for (size_t i=0; i< DECODE_NUM_STATES; i++) {
+		my_decodeMp3();
+	}
+
+	if((mp3FrameInfo.samprate != AUDIOCODECS_SAMPLE_RATE ) || (mp3FrameInfo.bitsPerSample != 16) || (mp3FrameInfo.nChans > 2)) {
+		Serial.println("incompatible MP3 file.");
+		lastError = ERR_CODEC_FORMAT;
+		stop();
+		return lastError;
+	}
+	decoding_block = 1;
+
+	playing = my_codec_playing;
+	/*
+	Serial.print("playing = my_codec_playing: ");
+	Serial.println(millis());
+	*/
+
+#ifdef CODEC_DEBUG
+//	Serial.printf("RAM: %d\r\n",ram-freeRam());
+
+#endif
+    return lastError;
+}
+
 int MyAudioPlaySdMp3::play(void)
 {
+	_play();
+	playing = my_codec_playing;
+	return 0;
+}
+
+int MyAudioPlaySdMp3::_play(void)
+{
+	/*
+	Serial.print("play: ");
+	Serial.println(millis());
+	*/
 	lastError = ERR_CODEC_NONE;
 	initVars();
 
@@ -108,20 +222,28 @@ int MyAudioPlaySdMp3::play(void)
 		return lastError;
 	}
 
+/*
+	Serial.print("obj ready: ");
+	Serial.println(millis());
+	*/
+
 	//Read-ahead 10 Bytes to detect ID3
 	sd_left =  fread(sd_buf, 10);
 
 	//Skip ID3, if existent
 	int skip = skipID3(sd_buf);
+	int b = 0;
+	mylock.lock();
 	if (skip) {
 		size_id3 = skip;
-		int b = skip & 0xfffffe00;
+		b = skip & 0xfffffe00;
 		fseek(b);
 		sd_left = 0;
 	} else size_id3 = 0;
 
 	//Fill buffer from the beginning with fresh data
 	sd_left = fillReadBuffer(sd_buf, sd_buf, sd_left, MP3_SD_BUF_SIZE);
+	mylock.unlock();
 
 	if (!sd_left) {
 		lastError = ERR_CODEC_FILE_NOT_FOUND;
@@ -141,7 +263,9 @@ int MyAudioPlaySdMp3::play(void)
 
 	sd_p = sd_buf;
 
-	for (size_t i=0; i< DECODE_NUM_STATES; i++) my_decodeMp3();
+	for (size_t i=0; i< DECODE_NUM_STATES; i++) {
+		my_decodeMp3();
+	}
 
 	if((mp3FrameInfo.samprate != AUDIOCODECS_SAMPLE_RATE ) || (mp3FrameInfo.bitsPerSample != 16) || (mp3FrameInfo.nChans > 2)) {
 		Serial.println("incompatible MP3 file.");
@@ -151,7 +275,12 @@ int MyAudioPlaySdMp3::play(void)
 	}
 	decoding_block = 1;
 
-	playing = my_codec_playing;
+	//playing = my_codec_playing;
+	playing = my_codec_paused;
+	/*
+	Serial.print("playing = my_codec_playing: ");
+	Serial.println(millis());
+	*/
 
 #ifdef CODEC_DEBUG
 //	Serial.printf("RAM: %d\r\n",ram-freeRam());
@@ -237,19 +366,29 @@ void MyAudioPlaySdMp3::update(void)
 //__attribute__ ((optimize("O2"))) <- does not work here, bug in g++
 void my_decodeMp3(void)
 {
+	if (!mylock.try_lock()) {
+		Serial.println("my_decodeMp3: blocked");
+		return;
+	}
 	MyAudioPlaySdMp3 *o = mp3objptr;
 	int db = o->decoding_block;
 
-	if ( o->decoded_length[db] > 0 ) return; //this block is playing, do NOT fill it
-
-	uint32_t cycles = ARM_DWT_CYCCNT;
+	/*
+	Serial.print("my_decodeMp3 called: ");
+	Serial.println(millis());
+	*/
 	int eof = false;
+	uint32_t cycles = ARM_DWT_CYCCNT;
+
+	if ( o->decoded_length[db] > 0 ) {
+		mylock.unlock();
+		return; //this block is playing, do NOT fill it
+	}
 
 	switch (o->decoding_state) {
 
 	case 0:
 		{
-
 			o->sd_left = o->fillReadBuffer(o->sd_buf, o->sd_p, o->sd_left, MP3_SD_BUF_SIZE);
 			if (!o->sd_left) { eof = true; goto mp3end; }
 			o->sd_p = o->sd_buf;
@@ -312,6 +451,28 @@ mp3end:
 	o->decoding_state++;
 	if (o->decoding_state >= DECODE_NUM_STATES) o->decoding_state = 0;
 
-	if (eof) o->stop();
+	if (eof) {
+		//o->stop();
+		o->stop2();
+	}
 
+/*
+	Serial.print("my_decodeMp3 mp3end: ");
+	Serial.println(millis());
+	*/
+	mylock.unlock();
+}
+
+// stop called from ISR (mylock non-blocking)
+void MyAudioPlaySdMp3::stop2(void)
+{
+	//NVIC_DISABLE_IRQ(IRQ_AUDIOCODEC);
+	playing = my_codec_stopped;
+	/*
+	if (buf[1]) {free(buf[1]);buf[1] = NULL;}
+	if (buf[0]) {free(buf[0]);buf[0] = NULL;}
+	freeBuffer();
+	*/
+	//if (hMP3Decoder) {MP3FreeDecoder(hMP3Decoder);hMP3Decoder=NULL;};
+	fclose();
 }

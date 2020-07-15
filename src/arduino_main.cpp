@@ -9,12 +9,15 @@
 #include <Wire.h>
 #include <SdFat.h>
 #include <EEPROM.h>
+#include <TeensyThreads.h>
 
 #include "LcdCanvas.h"
 #include "my_play_sd_mp3.h"
 #include "my_output_i2s.h"
 #include "ff_util.h"
 #include "stack.h"
+
+Threads::Mutex mylock;
 
 FsBaseFile file;
 
@@ -48,10 +51,10 @@ IntervalTimer myTimer;
 //Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
 LcdCanvas lcd = LcdCanvas(TFT_CS, TFT_DC, TFT_RST);
 
-MyAudioPlaySdMp3         playMp3;
-MyAudioOutputI2S         i2s1;
-AudioConnection          patchCord0(playMp3, 0, i2s1, 0);
-AudioConnection          patchCord1(playMp3, 1, i2s1, 1);
+MyAudioPlaySdMp3    playMp3;
+MyAudioOutputI2S    i2s1;
+AudioConnection     patchCord0(playMp3, 0, i2s1, 0);
+AudioConnection     patchCord1(playMp3, 1, i2s1, 1);
 
 stack_t *stack; // for change directory history
 stack_data_t item;
@@ -64,7 +67,6 @@ mode_enm mode = FileView;
 int idx_req = 1;
 int idx_req_open = 0;
 int aud_req = 0;
-bool aud_pause_flg = false;
 
 uint16_t idx_head = 0;
 uint16_t idx_column = 0;
@@ -355,13 +357,16 @@ int get_mp3_file(uint16_t idx, int seq_flg, FsBaseFile *f)
     int flg = 0;
     int ofs = 0;
     char str[256];
+    //Serial.print("get_mp3_file: ");
+    //Serial.println(millis());
+    mylock.lock();
     while (idx + ofs < file_menu_get_size()) {
-        file_menu_get_fname(idx, str, sizeof(str));
+        file_menu_get_obj(idx, f);
+        f->getName(str, sizeof(str));
         char* ext_pos = strrchr(str, '.');
         if (ext_pos) {
             if (strncmp(ext_pos, ".mp3", 4) == 0) {
                 Serial.println(str);
-                file_menu_get_obj(idx, f);
                 flg = 1;
                 break;
             }
@@ -369,6 +374,9 @@ int get_mp3_file(uint16_t idx, int seq_flg, FsBaseFile *f)
         if (!seq_flg) { break; }
         ofs++;
     }
+    //Serial.print("get_mp3_file done: ");
+    //Serial.println(millis());
+    mylock.unlock();
     if (flg) {
         return idx + ofs;
     } else {
@@ -386,7 +394,7 @@ void setup() {
 
     // Audio connections require memory to work.  For more
     // detailed information, see the MemoryAndCpuUsage example
-    AudioMemory(5);
+    AudioMemory(5); // 5 for Single MP3
 }
 
 #if 0	
@@ -411,8 +419,7 @@ void loop() {
     int i;
     char str[256];
     if (aud_req == 1) {
-        playMp3.pause(aud_pause_flg);
-        aud_pause_flg = !aud_pause_flg;
+        playMp3.pause(!playMp3.isPaused());
         aud_req = 0;
     } else if (aud_req == 2) {
         playMp3.stop();
@@ -449,12 +456,12 @@ void loop() {
         } else { // File
             file_menu_full_sort();
             idx_play = idx_head + idx_column;
-            if (idx_play = get_mp3_file(idx_play, 0, &file)) {
+            idx_play = get_mp3_file(idx_play, 0, &file);
+            if (idx_play) {
                 mode = Play;
                 playMp3.play(&file);
                 idx_play_count = 0;
                 idx_idle_count = 0;
-                aud_pause_flg = false;
                 lcd.switchToPlay();
             }
       /*
@@ -552,12 +559,12 @@ void loop() {
     } else {
         if (mode == Play) {
             if (!playMp3.isPlaying() || (playMp3.positionMillis() + 150 > playMp3.lengthMillis())) {
-                int t = 0;
-                while (playMp3.isPlaying()) { delay(1); t++; yield(); } // minimize gap between tracks
-                Serial.println(t);
-                if (idx_play = get_mp3_file(idx_play+1, 1, &file)) {
-                    playMp3.play(&file);
+                idx_play = get_mp3_file(idx_play+1, 1, &file);
+                if (idx_play) {
+                    playMp3.standby_play(&file);
                 } else {
+                    while (playMp3.isPlaying()) { delay(1); } // minimize gap between tracks
+                    playMp3.stop();
                     mode = FileView;
                     lcd.switchToFileView();
                     idx_req = 1;

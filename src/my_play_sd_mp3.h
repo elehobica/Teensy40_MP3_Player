@@ -50,6 +50,8 @@ class MyAudioPlaySdMp3 : public MyAudioCodec
 {
 public:
 	void stop(void);
+	void stop2(void);
+	int standby_play(FsBaseFile *f);
 	int play(FsBaseFile *file) {stop();if (!fopen(file)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
 	int play(const char *filename) {stop();if (!fopen(filename)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
 	int play(const size_t p, const size_t size) {stop();if (!fopen(p,size)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
@@ -72,6 +74,7 @@ protected:
 	HMP3Decoder		hMP3Decoder;
 	MP3FrameInfo	mp3FrameInfo;
 
+	int _play(void);
 	int play(void);
 	void update(void);
 	friend void my_decodeMp3(void);
