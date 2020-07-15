@@ -82,7 +82,7 @@ size_t MyCodecFile::fread(uint8_t buffer[],size_t bytes)
 	if (_fposition + bytes > _fsize) bytes = _fsize - _fposition;
 	switch (ftype) {
 		case my_codec_none: bytes = 0; break;
-		case my_codec_file: bytes = file.read(buffer, bytes); break;
+		case my_codec_file: bytes = _file.read(buffer, bytes); break;
 		case my_codec_flash: memcpy(buffer, _fposition + fptr, bytes); break;
 		case my_codec_serflash: readserflash(buffer, _fposition + offset, bytes); break;
 	}

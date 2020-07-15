@@ -88,20 +88,20 @@ class MyCodecFile
 {
 public:
 
-	bool fopen(FsBaseFile *f) {ftype=my_codec_file; fptr=NULL; file = *f; _fsize=file.fileSize(); _fposition=0; return 1;} //FILE
-	bool fopen(const char *filename) {ftype=my_codec_file; fptr=NULL; file.open(filename, O_RDONLY); _fsize=file.fileSize(); _fposition=0; return 1;} //FILE
+	bool fopen(FsBaseFile *f) {ftype=my_codec_file; fptr=NULL; _file = *f; _fsize=_file.fileSize(); _fposition=0; return 1;} //FILE
+	bool fopen(const char *filename) {ftype=my_codec_file; fptr=NULL; _file.open(filename, O_RDONLY); _fsize=_file.fileSize(); _fposition=0; return 1;} //FILE
 	bool fopen(const uint8_t*p, const size_t size) {ftype=my_codec_flash; fptr=(uint8_t*)p; _fsize=size; _fposition=0; return true;} //FLASH
 	bool fopen(const size_t p, const size_t size) {ftype=my_codec_serflash; offset=p; _fsize=size; _fposition=0; serflashinit(); return true;} //SERIAL FLASH
 	void fclose(void)
 	{
 		_fsize=_fposition=0; fptr=NULL;
-		if (ftype==my_codec_file) {file.close();}
+		if (ftype==my_codec_file) {_file.close();}
 		else
 		if (ftype==my_codec_serflash) {}
 		ftype=my_codec_none;
 	}
 	bool f_eof(void) {return _fposition >= _fsize;}
-	bool fseek(const size_t position) {_fposition=position;if (ftype==my_codec_file) return file.seekSet(_fposition)!=0; else return _fposition <= _fsize;}
+	bool fseek(const size_t position) {_fposition=position;if (ftype==my_codec_file) return _file.seekSet(_fposition)!=0; else return _fposition <= _fsize;}
 	size_t fposition(void) {return _fposition;}
 	size_t fsize(void) {return _fsize;}
 	size_t fread(uint8_t buffer[],size_t bytes);
@@ -119,7 +119,7 @@ protected:
 
 	my_codec_filetype ftype;
 
-	FsBaseFile file;
+	FsBaseFile _file;
 
 	union {
 		uint8_t* fptr;

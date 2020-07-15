@@ -93,14 +93,14 @@ float MyAudioPlaySdMp3::processorUsageMaxSD(void){
 };
 */
 
-int MyAudioPlaySdMp3::standby_play(FsBaseFile *f)
+int MyAudioPlaySdMp3::standby_play(FsBaseFile *file)
 {
-	//ftype=my_codec_file; fptr=NULL; file = *f; _fsize=file.fileSize(); _fposition=0;
-	//if (!fopen(file)) return ERR_CODEC_FILE_NOT_FOUND;
+	//ftype=my_codec_file; fptr=NULL; _file = *file; _fsize=_file.fileSize(); _fposition=0;
+	//if (!fopen(_file)) return ERR_CODEC_FILE_NOT_FOUND;
 	//uint8_t *sd_buf_temp = allocBuffer(MP3_SD_BUF_SIZE);
 	uint8_t sd_buf_temp[10];
 	mylock.lock();
-	int sd_left_temp = f->read(sd_buf_temp, 10);
+	int sd_left_temp = file->read(sd_buf_temp, 10);
 	mylock.unlock();
 	//Skip ID3, if existent
 	int skip = skipID3(sd_buf_temp);
@@ -116,14 +116,14 @@ int MyAudioPlaySdMp3::standby_play(FsBaseFile *f)
 
 	while (isPlaying()) { /*delay(1);*/ } // Wait for previous MP3 playing to stop
 
-	//file.close();
+	//_file.close();
 	//NVIC_DISABLE_IRQ(IRQ_AUDIOCODEC);
 
 	// instance copy start
 	initVars();
 	mylock.lock();
-	file = *f;
-	_fsize=file.fileSize();
+	_file = *file;
+	_fsize=_file.fileSize();
 	_fposition=10;
 	ftype=my_codec_file;
 	mylock.unlock();
@@ -191,13 +191,6 @@ int MyAudioPlaySdMp3::standby_play(FsBaseFile *f)
 
 int MyAudioPlaySdMp3::play(void)
 {
-	_play();
-	playing = my_codec_playing;
-	return 0;
-}
-
-int MyAudioPlaySdMp3::_play(void)
-{
 	/*
 	Serial.print("play: ");
 	Serial.println(millis());
@@ -227,13 +220,13 @@ int MyAudioPlaySdMp3::_play(void)
 	Serial.println(millis());
 	*/
 
+	mylock.lock();
 	//Read-ahead 10 Bytes to detect ID3
 	sd_left =  fread(sd_buf, 10);
 
 	//Skip ID3, if existent
 	int skip = skipID3(sd_buf);
 	int b = 0;
-	mylock.lock();
 	if (skip) {
 		size_id3 = skip;
 		b = skip & 0xfffffe00;
@@ -275,8 +268,7 @@ int MyAudioPlaySdMp3::_play(void)
 	}
 	decoding_block = 1;
 
-	//playing = my_codec_playing;
-	playing = my_codec_paused;
+	playing = my_codec_playing;
 	/*
 	Serial.print("playing = my_codec_playing: ");
 	Serial.println(millis());
