@@ -193,7 +193,9 @@ static void idx_qsort_entry_list_by_range(uint16_t r_start, uint16_t r_end_1, ui
 		sprintf(_str, "before[%d] %d %s", k, entry_list[k], name); Serial.println(_str);
 	}
 	*/
-	if (end_1 - start <= 2) {
+	if (end_1 - start <= 1) {
+		set_sorted(start);
+	} else if (end_1 - start <= 2) {
 		// try fast_fname_list compare
 		result = get_is_file(entry_list[start]) - get_is_file(entry_list[start+1]);
 		if (result == 0) {
@@ -494,7 +496,6 @@ FRESULT file_menu_ch_dir(uint16_t order)
 		FsFile new_dir;
 		idx_f_stat(entry_list[order], &file);
 		new_dir.open(&dir, file.dirIndex(), O_RDONLY);
-		//dir.close();
 		dir.rewindDirectory();
 		parent_dir[path_depth++] = dir;
 		idx_sort_delete();
