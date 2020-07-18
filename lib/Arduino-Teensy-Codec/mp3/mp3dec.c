@@ -72,6 +72,12 @@ HMP3Decoder MP3InitDecoder(void)
 	return (HMP3Decoder)mp3DecInfo;
 }
 
+HMP3Decoder MP3ResetDecoder(HMP3Decoder hMP3Decoder)
+{
+	ResetBuffers((MP3DecInfo *) hMP3Decoder);
+	return hMP3Decoder;
+}
+
 /**************************************************************************************
  * Function:    MP3FreeDecoder
  *

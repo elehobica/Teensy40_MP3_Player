@@ -113,26 +113,32 @@ int MyAudioPlaySdMp3::standby_play(FsBaseFile *file)
 	} else {
 		size_id3_temp = 0;
 	}
+	/* // DEBUG
+	Serial.print("ID3 skip: ");
+	Serial.println(b);
+	*/
 
 	while (isPlaying()) { /*delay(1);*/ } // Wait for previous MP3 playing to stop
 
-	//_file.close();
+	//fclose();
 	//NVIC_DISABLE_IRQ(IRQ_AUDIOCODEC);
+	MP3ResetDecoder(hMP3Decoder);
 
 	// instance copy start
 	initVars();
 	mylock.lock();
-	_file = *file;
+	ftype=my_codec_file;
+	fptr=NULL;
+	_file = FsBaseFile(*file);
 	_fsize=_file.fileSize();
 	_fposition=10;
-	ftype=my_codec_file;
 	mylock.unlock();
 
 	memcpy(sd_buf, sd_buf_temp, sizeof(sd_buf_temp));
-	// instance copy done
 
 	sd_left = sd_left_temp;
 	size_id3 = size_id3_temp;
+	// instance copy done
 
 	lastError = ERR_CODEC_NONE;
 
@@ -215,7 +221,7 @@ int MyAudioPlaySdMp3::play(void)
 		return lastError;
 	}
 
-/*
+	/*
 	Serial.print("obj ready: ");
 	Serial.println(millis());
 	*/
@@ -233,6 +239,10 @@ int MyAudioPlaySdMp3::play(void)
 		fseek(b);
 		sd_left = 0;
 	} else size_id3 = 0;
+	/* // DEBUG
+	Serial.print("ID3 skip: ");
+	Serial.println(b);
+	*/
 
 	//Fill buffer from the beginning with fresh data
 	sd_left = fillReadBuffer(sd_buf, sd_buf, sd_left, MP3_SD_BUF_SIZE);
@@ -426,6 +436,8 @@ void my_decodeMp3(void)
 
 				default :
 				{
+					Serial.print("ERROR: decode_res: ");
+					Serial.println(decode_res);
 					MyAudioPlaySdMp3::lastError = decode_res;
 					eof = true;
 					break;
@@ -448,7 +460,7 @@ mp3end:
 		o->stop2();
 	}
 
-/*
+	/*
 	Serial.print("my_decodeMp3 mp3end: ");
 	Serial.println(millis());
 	*/

@@ -145,6 +145,29 @@ MP3DecInfo *AllocateBuffers(void)
 	return mp3DecInfo;
 }
 
+MP3DecInfo *ResetBuffers(MP3DecInfo *mp3DecInfo)
+{
+	FrameHeader *fh = (FrameHeader *) mp3DecInfo->FrameHeaderPS;
+	SideInfo *si = (SideInfo *) mp3DecInfo->SideInfoPS;
+	ScaleFactorInfo *sfi = (ScaleFactorInfo *) mp3DecInfo->ScaleFactorInfoPS;
+	HuffmanInfo *hi = (HuffmanInfo *) mp3DecInfo->HuffmanInfoPS;
+	DequantInfo *di = (DequantInfo *) mp3DecInfo->DequantInfoPS;
+	IMDCTInfo *mi = (IMDCTInfo *) mp3DecInfo->IMDCTInfoPS;
+	SubbandInfo *sbi = (SubbandInfo *) mp3DecInfo->SubbandInfoPS;
+
+	ClearBuffer(mp3DecInfo, sizeof(MP3DecInfo));
+
+	mp3DecInfo->FrameHeaderPS =     (void *)fh;
+	mp3DecInfo->SideInfoPS =        (void *)si;
+	mp3DecInfo->ScaleFactorInfoPS = (void *)sfi;
+	mp3DecInfo->HuffmanInfoPS =     (void *)hi;
+	mp3DecInfo->DequantInfoPS =     (void *)di;
+	mp3DecInfo->IMDCTInfoPS =       (void *)mi;
+	mp3DecInfo->SubbandInfoPS =     (void *)sbi;
+
+	return mp3DecInfo;
+}
+
 #define SAFE_FREE(x)	{if (x)	free(x);	(x) = 0;}	/* helper macro */
 
 /**************************************************************************************
