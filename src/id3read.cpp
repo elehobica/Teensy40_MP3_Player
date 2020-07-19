@@ -1,35 +1,47 @@
-//#include <stdio.h>
-//#include <stdlib.h>
-//#include <string.h>
 #include "id3read.h"
 #include <Arduino.h>
 #include <TeensyThreads.h>
+#include <codecvt>
+#include <string>
+#include <cassert>
+#include <locale>
 
 extern Threads::Mutex mylock;
 
-int GetID3Headers(FsBaseFile* infile, int testfail, id31** id31save, id32** id32save)
+extern "C"{
+    int __exidx_start(){ return -1;}
+    int __exidx_end(){ return -1; }
+}
+
+std::string utf16_to_utf8(std::u16string const& src){
+    std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> converter;
+    return converter.to_bytes(src);
+}
+
+ID3Read::ID3Read()
+{
+    id3v1 = NULL;
+    id3v2 = NULL;
+}
+
+ID3Read::~ID3Read()
+{
+    if (id3v1) ID31Free(id3v1);
+    if (id3v2) ID32Free(id3v2);
+}
+
+int ID3Read::loadFile(FsBaseFile* infile)
 {
     int result;
-    if (*id31save) ID31Free(*id31save);
-    if (*id32save) ID32Free(*id32save);
-    result = GetID3HeadersFull(infile, testfail, id31save, id32save);
+    file = FsBaseFile(*infile);
+    result = GetID3HeadersFull(&file, 1, &id3v1, &id3v2);
+    mylock.lock();
     infile->rewind();
+    mylock.unlock();
     return result;
 }
 
-int GetID3Headers(FsBaseFile* infile, int testfail)
-{
-    id31* id1;
-    id32* id2;
-    int result;
-    result = GetID3HeadersFull(infile, testfail, &id1, &id2);
-    if (id1) ID31Free(id1);
-    if (id2) ID32Free(id2);
-    infile->rewind();
-    return result;
-}
-
-int GetID3HeadersFull(FsBaseFile* infile, int testfail, id31** id31save, id32** id32save)
+int ID3Read::GetID3HeadersFull(FsBaseFile* infile, int testfail, id31** id31save, id32** id32save)
 {
     int result;
     char* input;
@@ -96,7 +108,7 @@ int GetID3HeadersFull(FsBaseFile* infile, int testfail, id31** id31save, id32** 
     return fail;
 }
 
-id32* ID32Detect(FsBaseFile* infile)
+id32* ID3Read::ID32Detect(FsBaseFile* infile)
 {
     unsigned char* buffer;
     int result;
@@ -321,43 +333,71 @@ id32* ID32Detect(FsBaseFile* infile)
     return id32header;
 }
 
-int GetID32(id32* id32header, const char *id, char* str)
+int ID3Read::getUTF8Title(char* str, size_t size)
+{
+    return GetID32("TT2", "TIT2", str, size);
+}
+
+int ID3Read::getUTF8Album(char* str, size_t size)
+{
+    return GetID32("TAL", "TALB", str, size);
+}
+
+int ID3Read::getUTF8Artist(char* str, size_t size)
+{
+    return GetID32("TP1", "TPE1", str, size);
+}
+
+int ID3Read::GetID32(const char *id3v22, const char *id3v23, char* str, size_t size)
 {
     int flg = 0;
     id32frame* thisframe;
-    int ver = id32header->version[0];
+    int ver = id3v2->version[0];
     // loop through tags and process
-    thisframe = id32header->firstframe;
+    thisframe = id3v2->firstframe;
     while (thisframe != NULL) {
-        char* buffer;
-        if (id32header->version[0] == 3) {
-            buffer = (char *) calloc(5,1);
+        if (id3v2->version[0] == 3) {
+            char buffer[5] = {};
             memcpy(buffer, thisframe->ID, 4);
-            if (!strcmp("TIT2", buffer) || !strcmp("TT2", buffer)) {
-                memcpy(str, &thisframe->data[1], thisframe->size-1);
-                free(buffer);
+            if (!strcmp(id3v23, buffer)) {
+                switch (thisframe->data[0]) {
+                    case 0: // ISO-8859-1
+                        strncpy(str, &thisframe->data[1], size);
+                        break;
+                    case 1: // UTF-8
+                        memcpy(str, utf16_to_utf8((const char16_t *) &thisframe->data[3]).c_str(), size);
+                        break;
+                    default:
+                        break;
+                }
                 flg = 1;
                 break;
             }
-            free(buffer);
-        } else if (id32header->version[0] == 2) {
+        } else if (id3v2->version[0] == 2) {
             id322frame* tframe = (id322frame*) thisframe;
-            buffer = (char *) calloc(4,1);
+            char buffer[4] = {};
             memcpy(buffer, thisframe->ID, 3);
-            if (!strcmp("TIT2", buffer) || !strcmp("TT2", buffer)) {
-                memcpy(str, &tframe->data[1], tframe->size-1);
-                free(buffer);
+            if (!strcmp(id3v22, buffer)) {
+                switch (tframe->data[0]) {
+                    case 0: // ISO-8859-1
+                        strncpy(str, &tframe->data[1], size);
+                        break;
+                    case 1: // UTF-8
+                        memcpy(str, utf16_to_utf8((const char16_t *) &tframe->data[3]).c_str(), size);
+                        break;
+                    default:
+                        break;
+                }
                 flg = 1;
                 break;
             }
-            free(buffer);
         }
         thisframe = (ver == 3) ? thisframe->next : (id32frame*) ((id322frame*) thisframe)->next;
     }
     return flg;
 }
 
-void ID32Print(id32* id32header)
+void ID3Read::ID32Print(id32* id32header)
 {
     id32frame* thisframe;
     int ver = id32header->version[0];
@@ -411,7 +451,7 @@ void ID32Print(id32* id32header)
     }
 }
 
-void ID32Free(id32* id32header)
+void ID3Read::ID32Free(id32* id32header)
 {
     if (id32header->version[0] == 3) {
         id32frame* bonar=id32header->firstframe;
@@ -433,7 +473,7 @@ void ID32Free(id32* id32header)
     free(id32header);
 }
 
-id32flat* ID32Create()
+id32flat* ID3Read::ID32Create()
 {
     id32flat* gary = (id32flat *) calloc(1, sizeof(id32flat));
     // allocate 10 bytes for the main header
@@ -442,7 +482,7 @@ id32flat* ID32Create()
     return gary;
 }
 
-void ID32AddTag(id32flat* gary, const char* ID, char* data, char* flags, int size)
+void ID3Read::ID32AddTag(id32flat* gary, const char* ID, char* data, char* flags, int size)
 {
     // resize the buffer
     int i;
@@ -472,7 +512,7 @@ void ID32AddTag(id32flat* gary, const char* ID, char* data, char* flags, int siz
     // done :D
 }
 
-void ID32Finalise(id32flat* gary)
+void ID3Read::ID32Finalise(id32flat* gary)
 {
     int killsize;
     int i;
@@ -495,7 +535,7 @@ void ID32Finalise(id32flat* gary)
     // done :D
 }
 
-int ID32Append(id32flat* gary, char* filename)
+int ID3Read::ID32Append(id32flat* gary, char* filename)
 {
     char* mp3;
     unsigned long size;
@@ -538,7 +578,7 @@ int ID32Append(id32flat* gary, char* filename)
     return 0;
 }
 
-id32flat* ID3Copy1to2(id31* bonar)
+id32flat* ID3Read::ID3Copy1to2(id31* bonar)
 {
     // todo: get rid of spaces on the end of padded ID3v1 :/
     Serial.println("Creating new ID3v2 header");
@@ -573,7 +613,7 @@ id32flat* ID3Copy1to2(id31* bonar)
     return final;
 }
 
-id31* ID31Detect(char* header)
+id31* ID3Read::ID31Detect(char* header)
 {
     char test[4];
     id31* toreturn = (id31 *) calloc(sizeof(id31), 1);
@@ -589,7 +629,7 @@ id31* ID31Detect(char* header)
     return NULL;
 }
 
-void ID31Print(id31* id31header)
+void ID3Read::ID31Print(id31* id31header)
 {
     char str[256];
     char* buffer = (char *) calloc(1, 31);
@@ -605,7 +645,7 @@ void ID31Print(id31* id31header)
     free(buffer);
 }
 
-void ID31Free(id31* id31header)
+void ID3Read::ID31Free(id31* id31header)
 {
     free(id31header);
 }

@@ -44,20 +44,33 @@ typedef struct _id32flat {
     char* buffer;
 } id32flat;
 
-int GetID3Headers(FsBaseFile* infile, int testfail, id31** id31save, id32** id32save);
-int GetID3Headers(FsBaseFile* infile, int testfail);
-int GetID3HeadersFull(FsBaseFile* infile, int testfail, id31** id31save, id32** id32save);
-id32* ID32Detect(FsBaseFile* infile);
-int GetID32(id32* id32header, const char *id, char* str);
-void ID32Print(id32* id32header);
-void ID32Free(id32* id32header);
-id32flat* ID32Create();
-void ID32AddTag(id32flat* gary, const char* ID, char* data, char* flags, int size);
-void ID32Finalise(id32flat* gary);
-int ID32Append(id32flat* gary, char* filename);
-id32flat* ID3Copy1to2(id31* bonar);
-id31* ID31Detect(char* header);
-void ID31Print(id31* id31header);
-void ID31Free(id31* id31header);
+class ID3Read
+{
+public:
+    ID3Read();
+    ~ID3Read();
+    int loadFile(FsBaseFile* infile);
+    int getUTF8Title(char *str, size_t size);
+    int getUTF8Album(char *str, size_t size);
+    int getUTF8Artist(char *str, size_t size);
+
+private:
+    FsBaseFile file;
+    id31 *id3v1;
+    id32 *id3v2;
+    int GetID3HeadersFull(FsBaseFile* infile, int testfail, id31** id31save, id32** id32save);
+    id32* ID32Detect(FsBaseFile* infile);
+    int GetID32(const char *id3v22, const char *id3v23, char* str, size_t size);
+    void ID32Print(id32* id32header);
+    void ID32Free(id32* id32header);
+    id32flat* ID32Create();
+    void ID32AddTag(id32flat* gary, const char* ID, char* data, char* flags, int size);
+    void ID32Finalise(id32flat* gary);
+    int ID32Append(id32flat* gary, char* filename);
+    id32flat* ID3Copy1to2(id31* bonar);
+    id31* ID31Detect(char* header);
+    void ID31Print(id31* id31header);
+    void ID31Free(id31* id31header);
+};
 
 #endif //_ID3READ_H_

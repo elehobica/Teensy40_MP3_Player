@@ -198,21 +198,6 @@ void ScrollTextBox::update()
     isUpdated = true;
 }
 
-#include <codecvt>
-#include <string>
-#include <cassert>
-#include <locale>
-
-extern "C"{
-    int __exidx_start(){ return -1;}
-    int __exidx_end(){ return -1; }
-}
-
-std::string utf16_to_utf8(std::u16string const& src){
-    std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> converter;
-    return converter.to_bytes(src);
-}
-
 void ScrollTextBox::draw(Adafruit_ST7735 *tft)
 {
     int16_t under_offset = tft->width()-pos_x-w0; // max minus offset for scroll (width must be tft's width)
@@ -235,9 +220,8 @@ void ScrollTextBox::draw(Adafruit_ST7735 *tft)
     // Flicker less draw (width must be ScrollTextBox's width)
     canvas->fillRect(0, 0, width, FONT_HEIGHT, bgColor);
     canvas->setCursor(x_ofs, TEXT_BASELINE_OFS_Y);
-    //canvas->print(str);
-    if (str[0] == 0xff) {
-        canvas->printUTF8(utf16_to_utf8((const char16_t *) &str[2]).c_str());
+    if (encoding == utf8) {
+        canvas->printUTF8(str);
     } else {
         canvas->print(str);
     }
@@ -251,7 +235,7 @@ void ScrollTextBox::setScroll(bool scr_en)
     update();
 }
 
-void ScrollTextBox::setText(const char *str)
+void ScrollTextBox::setText(const char *str, encoding_t encoding)
 {
     int16_t x0, y0; // dummy
     uint16_t h0; // dummy
@@ -260,6 +244,7 @@ void ScrollTextBox::setText(const char *str)
     //strncpy(this->str, str, charSize);
     memcpy(this->str, str, charSize);
     canvas->getTextBounds(str, 0, 0+TEXT_BASELINE_OFS_Y, &x0, &y0, &w0, &h0); // get width (w0)
+    this->encoding = encoding;
     x_ofs = 0;
     stay_count = 0;
 }
@@ -269,6 +254,9 @@ void ScrollTextBox::setText(const char *str)
 //=================================
 IconScrollTextBox::IconScrollTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t fgColor, uint16_t bgColor)
     : ScrollTextBox(pos_x+16, pos_y, width-16, fgColor, bgColor), iconBox(pos_x, pos_y, fgColor, bgColor) {}
+
+IconScrollTextBox::IconScrollTextBox(int16_t pos_x, int16_t pos_y, uint8_t *icon, uint16_t width, uint16_t fgColor, uint16_t bgColor)
+    : ScrollTextBox(pos_x+16, pos_y, width-16, fgColor, bgColor), iconBox(pos_x, pos_y, icon, fgColor, bgColor) {}
 
 void IconScrollTextBox::setFgColor(uint16_t fgColor)
 {
@@ -319,12 +307,9 @@ LcdCanvas::LcdCanvas(int8_t cs, int8_t dc, int8_t rst) : Adafruit_ST7735(cs, dc,
     //Serial.println(width());
     //Serial.println(height());
 
-    // FileView parts
+    // FileView parts (nothing to set here)
 
-    // Play parts
-    title.setText("he cast-expression argument must be a pointer to a block");
-    artist.setText("error: expected identifier before numeric constant");
-    album.setText("alakekeeeeeeeeeeeeeeeeeeeeeeeeeeee133");
+    // Play parts (nothing to set here)
 }
 
 LcdCanvas::~LcdCanvas()
@@ -405,7 +390,17 @@ void LcdCanvas::setPlayTime(uint32_t positionSec, uint32_t lengthSec)
     playTime.setFormatText("%lu:%02lu / %lu:%02lu", positionSec/60, positionSec%60, lengthSec/60, lengthSec%60);
 }
 
-void LcdCanvas::setArtist(const char *str)
+void LcdCanvas::setTitle(const char *str, encoding_t encoding)
 {
-    album.setText(str);
+    title.setText(str, encoding);
+}
+
+void LcdCanvas::setAlbum(const char *str, encoding_t encoding)
+{
+    album.setText(str, encoding);
+}
+
+void LcdCanvas::setArtist(const char *str, encoding_t encoding)
+{
+    artist.setText(str, encoding);
 }

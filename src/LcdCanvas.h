@@ -29,6 +29,11 @@ extern uint8_t Icon16[];
 #define ICON16x16_VOLUME	&Icon16[32*5]
 #define ICON16x16_BATTERY	&Icon16[32*6]
 
+typedef enum _encoding {
+	none = 0,
+	utf8
+} encoding_t;
+
 typedef enum _mode_enm {
 	FileView = 0,
 	Play,
@@ -132,7 +137,7 @@ public:
 	virtual void update();
 	void draw(Adafruit_ST7735 *tft);
 	void setScroll(bool scr_en);
-	void setText(const char *str);
+	void setText(const char *str, encoding_t encoding = none);
 	static const int charSize = 256;
 protected:
 	bool isUpdated;
@@ -146,6 +151,7 @@ protected:
 	int16_t x_ofs;
 	uint16_t stay_count;
 	bool scr_en;
+	encoding_t encoding;
 };
 
 //=================================
@@ -155,6 +161,7 @@ class IconScrollTextBox : public ScrollTextBox
 {
 public:
 	IconScrollTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
+	IconScrollTextBox(int16_t pos_x, int16_t pos_y, uint8_t *icon, uint16_t width, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
 	void setFgColor(uint16_t fgColor);
 	void setBgColor(uint16_t bgColor);
 	void update();
@@ -178,7 +185,9 @@ public:
 	void setBitRate(uint16_t value);
 	void setVolume(uint8_t value);
 	void setPlayTime(uint32_t posionSec, uint32_t lengthSec);
-	void setArtist(const char *str);
+	void setTitle(const char *str, encoding_t encoding = none);
+	void setAlbum(const char *str, encoding_t encoding = none);
+	void setArtist(const char *str, encoding_t encoding = none);
 	void switchToFileView();
 	void switchToPlay();
 	void switchToPowerOff();
@@ -202,9 +211,9 @@ protected:
 	IconTextBox volume = IconTextBox(16*0, 16*0, ICON16x16_VOLUME, ST77XX_GRAY);
 	TextBox bitRate = TextBox(16*4, 16*0, AlignCenter, ST77XX_GRAY);
 	TextBox playTime = TextBox(16*8-1, 16*9, AlignRight, ST77XX_GRAY);
-	ScrollTextBox title = ScrollTextBox(16*0, 16*4, width());
-	TextBox artist = TextBox(0, 16*5);
-	ScrollTextBox album = ScrollTextBox(0, 16*6, 128);
+	IconScrollTextBox title = IconScrollTextBox(16*0, 16*4, ICON16x16_TITLE, width());
+	IconScrollTextBox artist = IconScrollTextBox(16*0, 16*5, ICON16x16_ARTIST, width());
+	IconScrollTextBox album = IconScrollTextBox(16*0, 16*6, ICON16x16_ALBUM, width());
 	TextBox bye_msg = TextBox(width()/2, height()/2-FONT_HEIGHT+TEXT_BASELINE_OFS_Y, "Bye", AlignCenter);
 	Box *groupFileView[10] = {
 		&fileItem[0], &fileItem[1], &fileItem[2], &fileItem[3], &fileItem[4], &fileItem[5], &fileItem[6], &fileItem[7], &fileItem[8],  &fileItem[9]

@@ -75,8 +75,7 @@ uint16_t idx_play_count = 0;
 uint16_t idx_idle_count = 0;
 uint16_t idx_play;
 
-id31 *id3v1 = NULL;
-id32 *id3v2 = NULL;
+ID3Read id3;
 
 void loadFromEEPROM(void)
 {
@@ -463,10 +462,14 @@ void loop() {
             idx_play = get_mp3_file(idx_play, 0, &file);
             if (idx_play) {
                 mode = Play;
-                GetID3Headers(&file, 1, &id3v1, &id3v2);
+                id3.loadFile(&file);
                 char __str[256];
-                GetID32(id3v2, "ID3", __str);
-                lcd.setArtist(__str);
+                id3.getUTF8Title(__str, sizeof(__str));
+                lcd.setTitle(__str, utf8);
+                id3.getUTF8Album(__str, sizeof(__str));
+                lcd.setAlbum(__str, utf8);
+                id3.getUTF8Artist(__str, sizeof(__str));
+                lcd.setArtist(__str, utf8);
                 playMp3.play(&file);
                 idx_play_count = 0;
                 idx_idle_count = 0;
@@ -569,6 +572,14 @@ void loop() {
             if (!playMp3.isPlaying() || (playMp3.positionMillis() + 150 > playMp3.lengthMillis())) {
                 idx_play = get_mp3_file(idx_play+1, 1, &file);
                 if (idx_play) {
+                    id3.loadFile(&file);
+                    char __str[256];
+                    id3.getUTF8Title(__str, sizeof(__str));
+                    lcd.setTitle(__str, utf8);
+                    id3.getUTF8Album(__str, sizeof(__str));
+                    lcd.setAlbum(__str, utf8);
+                    id3.getUTF8Artist(__str, sizeof(__str));
+                    lcd.setArtist(__str, utf8);
                     playMp3.standby_play(&file);
                 } else {
                     while (playMp3.isPlaying()) { delay(1); } // minimize gap between tracks
