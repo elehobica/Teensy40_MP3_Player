@@ -1353,19 +1353,19 @@ size_t Adafruit_GFX::writeCodepoint(uint16_t c) {
             cursor_y += textsize * 16;            // advance y one line
         }
         int advance = drawCodepoint(cursor_x, cursor_y, c, textcolor, textbgcolor, textsize);
-        cursor_x += textsize * advance * direction;    // Advance x one char
+        //cursor_x += textsize * advance * direction;    // Advance x one char
+        cursor_x += textsize * 8; // Advance x one char even through frameout
     }
     return 1;
 }
 
-
-size_t Adafruit_GFX::printlnUTF8(char *string) {
+size_t Adafruit_GFX::printlnUTF8(const char *string) {
     size_t retVal = printUTF8(string);
     retVal += print('\n');
     return retVal;
 }
 
-size_t Adafruit_GFX::printUTF8(char *string) {
+size_t Adafruit_GFX::printUTF8(const char *string) {
     size_t len = 0;
     uint16_t *codepointsToPrint = (uint16_t *)malloc(strlen(string) * 2);
 
@@ -1589,6 +1589,7 @@ void Adafruit_GFX::cp437(boolean x) {
 /**************************************************************************/
 void Adafruit_GFX::charBounds(char c, int16_t *x, int16_t *y,
   int16_t *minx, int16_t *miny, int16_t *maxx, int16_t *maxy) {
+
     if(c == '\n') {                     // Newline?
         *x  = 0;                        // Reset x to zero,
         *y += textsize * 16;             // advance y one line

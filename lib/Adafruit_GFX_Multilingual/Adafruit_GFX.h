@@ -139,8 +139,8 @@ class Adafruit_GFX : public Print {
 
   size_t
     writeCodepoint(uint16_t c),
-    printUTF8(char *string),
-    printlnUTF8(char *string);
+    printUTF8(const char *string),
+    printlnUTF8(const char *string);
 
 
 #if ARDUINO >= 100
