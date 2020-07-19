@@ -16,6 +16,7 @@
 #include "my_output_i2s.h"
 #include "ff_util.h"
 #include "stack.h"
+#include "id3read.h"
 
 Threads::Mutex mylock;
 
@@ -73,6 +74,9 @@ uint16_t idx_column = 0;
 uint16_t idx_play_count = 0;
 uint16_t idx_idle_count = 0;
 uint16_t idx_play;
+
+id31 *id3v1 = NULL;
+id32 *id3v2 = NULL;
 
 void loadFromEEPROM(void)
 {
@@ -459,6 +463,10 @@ void loop() {
             idx_play = get_mp3_file(idx_play, 0, &file);
             if (idx_play) {
                 mode = Play;
+                GetID3Headers(&file, 1, &id3v1, &id3v2);
+                char __str[256];
+                GetID32(id3v2, "ID3", __str);
+                lcd.setArtist(__str);
                 playMp3.play(&file);
                 idx_play_count = 0;
                 idx_idle_count = 0;

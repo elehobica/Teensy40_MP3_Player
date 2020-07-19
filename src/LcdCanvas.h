@@ -4,9 +4,9 @@
 #include <Adafruit_GFX.h>    // Core graphics library
 #include <Adafruit_ST7735.h> // Hardware-specific library for ST7735
 //#include <Fonts/FreeMono9pt7b.h>
-#include "Nimbus_Sans_L_Regular_Condensed_12.h"
+//#include "Nimbus_Sans_L_Regular_Condensed_12.h"
 
-#define DEFAULT_FONT	(&Nimbus_Sans_L_Regular_Condensed_12)
+//#define DEFAULT_FONT	(&Nimbus_Sans_L_Regular_Condensed_12)
 #define FONT_HEIGHT		16
 
 // Additional Colors for ST77XX
@@ -17,7 +17,8 @@
 #define ST77XX_BRRED      0XFC07
 #define ST77XX_GRAY       0X8430
 
-#define TEXT_BASELINE_OFS_Y	13
+//#define TEXT_BASELINE_OFS_Y	13
+#define TEXT_BASELINE_OFS_Y	0
 
 extern uint8_t Icon16[];
 #define ICON16x16_TITLE		&Icon16[32*0]
@@ -177,6 +178,7 @@ public:
 	void setBitRate(uint16_t value);
 	void setVolume(uint8_t value);
 	void setPlayTime(uint32_t posionSec, uint32_t lengthSec);
+	void setArtist(const char *str);
 	void switchToFileView();
 	void switchToPlay();
 	void switchToPowerOff();

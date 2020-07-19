@@ -103,7 +103,8 @@ void TextBox::draw(Adafruit_ST7735 *tft)
 void TextBox::setText(const char *str)
 {
     if (strncmp(this->str, str, charSize) == 0) { return; }
-    strncpy(this->str, str, charSize);
+    //strncpy(this->str, str, charSize);
+    memcpy(this->str, str, charSize);
     update();
 }
 
@@ -172,7 +173,7 @@ ScrollTextBox::ScrollTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint1
     int16_t x0, y0; // dummy
     uint16_t h0; // dummy
     canvas = new GFXcanvas1(this->width, FONT_HEIGHT);
-    canvas->setFont(DEFAULT_FONT);
+    //canvas->setFont(DEFAULT_FONT);
     canvas->setTextWrap(false);
     canvas->setTextSize(1);
     canvas->getTextBounds("", 0, 0+TEXT_BASELINE_OFS_Y, &x0, &y0, &w0, &h0); // idle-run because first time fails somehow
@@ -197,6 +198,21 @@ void ScrollTextBox::update()
     isUpdated = true;
 }
 
+#include <codecvt>
+#include <string>
+#include <cassert>
+#include <locale>
+
+extern "C"{
+    int __exidx_start(){ return -1;}
+    int __exidx_end(){ return -1; }
+}
+
+std::string utf16_to_utf8(std::u16string const& src){
+    std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> converter;
+    return converter.to_bytes(src);
+}
+
 void ScrollTextBox::draw(Adafruit_ST7735 *tft)
 {
     int16_t under_offset = tft->width()-pos_x-w0; // max minus offset for scroll (width must be tft's width)
@@ -219,7 +235,12 @@ void ScrollTextBox::draw(Adafruit_ST7735 *tft)
     // Flicker less draw (width must be ScrollTextBox's width)
     canvas->fillRect(0, 0, width, FONT_HEIGHT, bgColor);
     canvas->setCursor(x_ofs, TEXT_BASELINE_OFS_Y);
-    canvas->print(str);
+    //canvas->print(str);
+    if (str[0] == 0xff) {
+        canvas->printUTF8(utf16_to_utf8((const char16_t *) &str[2]).c_str());
+    } else {
+        canvas->print(str);
+    }
     tft->drawBitmap(pos_x, pos_y, canvas->getBuffer(), width, FONT_HEIGHT, fgColor, bgColor);
 }
 
@@ -236,7 +257,8 @@ void ScrollTextBox::setText(const char *str)
     uint16_t h0; // dummy
     if (strncmp(this->str, str, charSize) == 0) { return; }
     update();
-    strncpy(this->str, str, charSize);
+    //strncpy(this->str, str, charSize);
+    memcpy(this->str, str, charSize);
     canvas->getTextBounds(str, 0, 0+TEXT_BASELINE_OFS_Y, &x0, &y0, &w0, &h0); // get width (w0)
     x_ofs = 0;
     stay_count = 0;
@@ -292,7 +314,7 @@ LcdCanvas::LcdCanvas(int8_t cs, int8_t dc, int8_t rst) : Adafruit_ST7735(cs, dc,
     setTextWrap(false);
     fillScreen(ST77XX_BLACK);
     //setFont(&FreeMono9pt7b);
-    setFont(DEFAULT_FONT);
+    //setFont(DEFAULT_FONT);
     setTextSize(1);
     //Serial.println(width());
     //Serial.println(height());
@@ -381,4 +403,9 @@ void LcdCanvas::setBitRate(uint16_t value)
 void LcdCanvas::setPlayTime(uint32_t positionSec, uint32_t lengthSec)
 {
     playTime.setFormatText("%lu:%02lu / %lu:%02lu", positionSec/60, positionSec%60, lengthSec/60, lengthSec%60);
+}
+
+void LcdCanvas::setArtist(const char *str)
+{
+    album.setText(str);
 }
