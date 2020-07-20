@@ -33,8 +33,10 @@ ID3Read::~ID3Read()
 int ID3Read::loadFile(FsBaseFile* infile)
 {
     int result;
+    if (id3v1) ID31Free(id3v1);
+    if (id3v2) ID32Free(id3v2);
     file = FsBaseFile(*infile);
-    result = GetID3HeadersFull(&file, 1, &id3v1, &id3v2);
+    result = GetID3HeadersFull(&file, 1, &id3v1, &id3v2); // 1: no-debug display, 0: debug display
     mylock.lock();
     infile->rewind();
     mylock.unlock();
@@ -351,6 +353,7 @@ int ID3Read::getUTF8Artist(char* str, size_t size)
 int ID3Read::GetID32(const char *id3v22, const char *id3v23, char* str, size_t size)
 {
     int flg = 0;
+    if (!id3v2) { return 0; }
     id32frame* thisframe;
     int ver = id3v2->version[0];
     // loop through tags and process

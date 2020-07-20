@@ -464,12 +464,9 @@ void loop() {
                 mode = Play;
                 id3.loadFile(&file);
                 char __str[256];
-                id3.getUTF8Title(__str, sizeof(__str));
-                lcd.setTitle(__str, utf8);
-                id3.getUTF8Album(__str, sizeof(__str));
-                lcd.setAlbum(__str, utf8);
-                id3.getUTF8Artist(__str, sizeof(__str));
-                lcd.setArtist(__str, utf8);
+                if (id3.getUTF8Title(__str, sizeof(__str))) lcd.setTitle(__str, utf8);
+                if (id3.getUTF8Album(__str, sizeof(__str))) lcd.setAlbum(__str, utf8);
+                if (id3.getUTF8Artist(__str, sizeof(__str))) lcd.setArtist(__str, utf8);
                 playMp3.play(&file);
                 idx_play_count = 0;
                 idx_idle_count = 0;
@@ -574,12 +571,9 @@ void loop() {
                 if (idx_play) {
                     id3.loadFile(&file);
                     char __str[256];
-                    id3.getUTF8Title(__str, sizeof(__str));
-                    lcd.setTitle(__str, utf8);
-                    id3.getUTF8Album(__str, sizeof(__str));
-                    lcd.setAlbum(__str, utf8);
-                    id3.getUTF8Artist(__str, sizeof(__str));
-                    lcd.setArtist(__str, utf8);
+                    if (id3.getUTF8Title(__str, sizeof(__str))) lcd.setTitle(__str, utf8);
+                    if (id3.getUTF8Album(__str, sizeof(__str))) lcd.setAlbum(__str, utf8);
+                    if (id3.getUTF8Artist(__str, sizeof(__str))) lcd.setArtist(__str, utf8);
                     playMp3.standby_play(&file);
                 } else {
                     while (playMp3.isPlaying()) { delay(1); } // minimize gap between tracks
