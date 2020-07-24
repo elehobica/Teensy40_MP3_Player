@@ -1,7 +1,6 @@
 #ifndef __LCDCANVAS_H_INCLUDED__
 #define __LCDCANVAS_H_INCLUDED__
 
-#include <Adafruit_GFX.h>    // Core graphics library
 #include <Adafruit_ST7735.h> // Hardware-specific library for ST7735
 //#include <Fonts/FreeMono9pt7b.h>
 //#include "Nimbus_Sans_L_Regular_Condensed_12.h"
@@ -177,7 +176,12 @@ protected:
 class LcdCanvas : public Adafruit_ST7735
 {
 public:
+	//LcdCanvas(int8_t cs, int8_t dc, int8_t mosi, int8_t sclk, int8_t rst) : Adafruit_ST7735(cs, dc, mosi, sclk, rst) {}
 	LcdCanvas(int8_t cs, int8_t dc, int8_t rst);
+#if !defined(ESP8266)
+	//LcdCanvas(SPIClass *spiClass, int8_t cs, int8_t dc, int8_t rst) : Adafruit_ST7735(spiClass, cs, dc, rst) {}
+#endif // end !ESP8266
+
     ~LcdCanvas();
 	void clear();
 	void bye();

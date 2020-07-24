@@ -10,6 +10,8 @@
  #include "WProgram.h"
 #endif
 
+#define UNIFONT_USE_SDFAT
+
 // NOTE: I only have the Feather M0 Express, M4 Express and PyPortal boards to test with.
 #if defined(ADAFRUIT_FEATHER_M0_EXPRESS) /* UNTESTED: */ || defined(ADAFRUIT_METRO_M0_EXPRESS) || defined(ADAFRUIT_CIRCUITPLAYGROUND_M0) || defined(ADAFRUIT_ITSYBITSY_M0) || defined(ADAFRUIT_HALLOWING)
  #define UNIFONT_USE_FLASH
@@ -30,6 +32,10 @@
   #include <Adafruit_QSPI_GD25Q.h>
  #endif // UNIFONT_USE_QSPI
 #endif // UNIFONT_USE_FLASH
+
+#ifdef UNIFONT_USE_SDFAT
+ #include <SdFat.h>
+#endif
 
 /// A generic graphics superclass that can handle all sorts of drawing. At a minimum you can subclass and provide drawPixel(). At a maximum you can do a ton of overriding to optimize. Used for any/all Adafruit displays!
 class Adafruit_GFX : public Print {
@@ -71,11 +77,21 @@ class Adafruit_GFX : public Print {
     drawLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint16_t color),
     drawRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color);
 
+  // Unifont support (Static members and functions)
+#if defined(UNIFONT_USE_FLASH) || defined(UNIFONT_USE_SDFAT)
+  static void loadUnifontFile(const char *dir, const char *file);
+  static boolean unifileavailable;
+  static UnifontBlock *unifont;
+#ifdef UNIFONT_USE_FLASH
+  static File unifile;    // file handle to unifont.bin, if available
+#endif
+#ifdef UNIFONT_USE_SDFAT
+  static FsFile unifile;    // file handle to unifont.bin, if available
+#endif
+#endif // if defined(UNIFONT_USE_FLASH) || defined(UNIFONT_USE_SDFAT)
+
   // These exist only with Adafruit_GFX (no subclass overrides)
   void
-#ifdef UNIFONT_USE_FLASH
-    loadUnifontFile(),
-#endif // UNIFONT_USE_FLASH
     drawCircle(int16_t x0, int16_t y0, int16_t r, uint16_t color),
     drawCircleHelper(int16_t x0, int16_t y0, int16_t r, uint8_t cornername,
       uint16_t color),
@@ -178,16 +194,10 @@ class Adafruit_GFX : public Print {
     rotation;       ///< Display rotation (0 thru 3)
   int8_t direction; ///< 1 for LTR, -1 for RTL.
   boolean
-    wrap,           ///< If set, 'wrap' text at right edge of display
-    unifileavailable;///< if set, unifont.bin is available on the SPI filesystem
-  UnifontBlock *unifont;
+    wrap;           ///< If set, 'wrap' text at right edge of display
  private:
   inline uint8_t index_for_block(uint8_t block);
   void fix_diacritics(uint16_t *s, size_t length);
-#ifdef UNIFONT_USE_FLASH
-  File
-    unifile;        // file handle to unifont.bin, if available
-#endif // UNIFONT_USE_FLASH
 };
 
 

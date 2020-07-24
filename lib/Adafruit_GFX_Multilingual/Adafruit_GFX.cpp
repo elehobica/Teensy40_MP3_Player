@@ -62,6 +62,11 @@ POSSIBILITY OF SUCH DAMAGE.
  Adafruit_M0_Express_CircuitPython pythonfs(unifont_flash);
 #endif // UNIFONT_USE_FLASH
 
+#ifdef UNIFONT_USE_SDFAT
+#include <TeensyThreads.h>
+extern Threads::Mutex mylock;
+#endif // UNIFONT_USE_SDFAT
+
 // Many (but maybe not all) non-AVR board installs define macros
 // for compatibility with existing PROGMEM-reading AVR code.
 // Do our own checks and defines here for good measure...
@@ -93,6 +98,18 @@ POSSIBILITY OF SUCH DAMAGE.
 #define _swap_int16_t(a, b) { int16_t t = a; a = b; b = t; }
 #endif
 
+// Static Member Variables
+#if defined(UNIFONT_USE_FLASH) || defined(UNIFONT_USE_SDFAT)
+boolean Adafruit_GFX::unifileavailable = false;
+UnifontBlock *Adafruit_GFX::unifont = NULL;
+#ifdef UNIFONT_USE_FLASH
+File Adafruit_GFX:: unifile;
+#endif
+#ifdef UNIFONT_USE_SDFAT
+FsFile Adafruit_GFX:: unifile;
+#endif
+#endif // if defined(UNIFONT_USE_FLASH) || defined(UNIFONT_USE_SDFAT)
+
 /**************************************************************************/
 /*!
    @brief    Instatiate a GFX context for graphics! Can only be done by a superclass
@@ -111,13 +128,6 @@ WIDTH(w), HEIGHT(h)
     direction = 1;
     textcolor = textbgcolor = 0xFFFF;
     wrap      = true;
-    unifileavailable = false;
-    unifont = (UnifontBlock*)malloc(256 * sizeof(UnifontBlock));
-    memset(unifont, 0, 256 * sizeof(UnifontBlock));
-    for (int i = 0; i < (sizeof(BlocksInProgmem)/sizeof(*BlocksInProgmem)); i++)
-    {
-        unifont[BlocksInProgmem[i].blockNumber] = BlocksInProgmem[i].blockData;
-    }
 }
 
 /**************************************************************************/
@@ -132,9 +142,17 @@ WIDTH(w), HEIGHT(h)
    unavailable code points will be silently skipped.
 */
 /**************************************************************************/
-#ifdef UNIFONT_USE_FLASH
-void Adafruit_GFX::loadUnifontFile()
+#if defined(UNIFONT_USE_FLASH) || defined(UNIFONT_USE_SDFAT)
+void Adafruit_GFX::loadUnifontFile(const char *dir, const char *file)
 {
+    if (unifont) free(unifont);
+    unifont = (UnifontBlock*)malloc(256 * sizeof(UnifontBlock));
+    memset(unifont, 0, 256 * sizeof(UnifontBlock));
+    for (int i = 0; i < (sizeof(BlocksInProgmem)/sizeof(*BlocksInProgmem)); i++)
+    {
+        unifont[BlocksInProgmem[i].blockNumber] = BlocksInProgmem[i].blockData;
+    }
+
     #ifdef UNIFONT_USE_SPI
       if (!unifont_flash.begin(FLASH_TYPE)) return;
     #endif // UNIFONT_USE_SPI
@@ -142,13 +160,27 @@ void Adafruit_GFX::loadUnifontFile()
       if (!unifont_flash.begin()) return;
       if (!unifont_flash.setFlashType(FLASH_TYPE)) return;
     #endif // UNIFONT_USE_QSPI
-    if (pythonfs.begin() && pythonfs.exists("unifont.bin"))
+    #ifdef UNIFONT_USE_FLASH
+    if (pythonfs.begin() && pythonfs.exists(file))
     {
-        unifile = pythonfs.open("unifont.bin", FILE_READ);
+        unifile = pythonfs.open(file, FILE_READ);
+    #endif // UNIFONT_USE_FLASH
+    #ifdef UNIFONT_USE_SDFAT
+    Serial.print("loadUnifontFile \"");
+    Serial.print(dir);
+    Serial.print(file);
+    Serial.print("\": ");
+    unifile.open(dir);
+    if (unifile.exists(file)) {
+        unifile.open(file, O_RDONLY);
+    #endif //UNIFONT_USE_SDFAT
         if (unifile)
         {
             unifileavailable = true;
             // For format details: https://github.com/joeycastillo/Adafruit-GFX-Library/blob/master/unifontconvert/README.md
+    #ifdef UNIFONT_USE_SDFAT
+            mylock.lock();
+    #endif //UNIFONT_USE_SDFAT
             unifile.seek(2);
             uint8_t w = unifile.read();
             uint8_t h = unifile.read();
@@ -156,14 +188,25 @@ void Adafruit_GFX::loadUnifontFile()
             uint8_t numBitmasks = unifile.read();
             uint16_t numBlocks;
             unifile.read(&numBlocks, 2);
+    #ifdef UNIFONT_USE_SDFAT
+            mylock.unlock();
+    #endif //UNIFONT_USE_SDFAT
 
             int offset = 8 + (numBlocks * 4);
             for(uint16_t i = 0; i < numBlocks; i++)
             {
+                //Serial.print("block: 0x");
+                //Serial.println(i, HEX);
+    #ifdef UNIFONT_USE_SDFAT
+                mylock.lock();
+    #endif //UNIFONT_USE_SDFAT
                 uint8_t blockNum = unifile.read();
                 unifile.read(); // plane number, ignored
                 uint8_t flags = unifile.read();
                 unifile.read(); // free byte, ignored.
+    #ifdef UNIFONT_USE_SDFAT
+                mylock.unlock();
+    #endif //UNIFONT_USE_SDFAT
 
                 if (unifont[i].glyphs.offset == 0)
                 {
@@ -179,10 +222,13 @@ void Adafruit_GFX::loadUnifontFile()
                     offset += 256 * w * h * multiplier / 8 + 32 * numBitmasks;
                 }
             }
+            Serial.println("Success");
+        } else {
+            Serial.println("Failure");
         }
     }
 }
-#endif // UNIFONT_USE_FLASH
+#endif // if defined(UNIFONT_USE_FLASH) || defined(UNIFONT_USE_SDFAT)
 
 /**************************************************************************/
 /*!
@@ -1172,22 +1218,24 @@ void Adafruit_GFX::drawChar(int16_t x, int16_t y, unsigned char c,
 /**************************************************************************/
 int Adafruit_GFX::drawCodepoint(int16_t x, int16_t y, uint16_t c, uint16_t color,
       uint16_t bg, uint8_t size) {
-    if((x >= _width)            || // Clip right
-       (y >= _height)           || // Clip bottom
-       ((x + 6 * size - 1) < 0) || // Clip left
-       ((y + 8 * size - 1) < 0))   // Clip top
-        return 0;
 
     uint8_t block = c >> 8;
     uint8_t charindex = c & 0x00FF;
 
     bool useProgmem;
-    if (unifont[block].flags & UNIFONT_BLOCK_IN_PROGMEM)
+    if (unifont[block].flags & UNIFONT_BLOCK_IN_PROGMEM) {
         useProgmem = true;
-    else if (unifileavailable)
+        //Serial.print("useProgmem for ");
+        //Serial.println(c, HEX);
+    } else if (unifileavailable) {
         useProgmem = false;
-    else
+        //Serial.print("unifileavailable for ");
+        //Serial.println(c, HEX);
+    } else {
+        //Serial.print("not available for ");
+        //Serial.println(c, HEX);
         return 0; // font data for this block is not available
+    }
 
     uint8_t tableWidth;
     uint8_t characterWidth;
@@ -1205,8 +1253,6 @@ int Adafruit_GFX::drawCodepoint(int16_t x, int16_t y, uint16_t c, uint16_t color
         characterWidth = 0; // we'll need to figure this out in a minute.
     }
 
-    startWrite();
-
     // first, figure out characterWidth if needed
     uint32_t widthOffset = 16 * tableWidth * 256;
     uint8_t mask;
@@ -1218,10 +1264,16 @@ int Adafruit_GFX::drawCodepoint(int16_t x, int16_t y, uint16_t c, uint16_t color
             mask = pgm_read_byte(widths + charindex / 8);
         } else
         {
-            #ifdef UNIFONT_USE_FLASH
+            #if defined(UNIFONT_USE_FLASH) || defined(UNIFONT_USE_SDFAT)
+            #ifdef UNIFONT_USE_SDFAT
+            mylock.lock();
+            #endif // UNIFONT_USE_SDFAT
             unifile.seek((uint32_t)unifont[block].glyphs.offset + widthOffset + UNIFONT_BITMASK_LENGTH + charindex / 8);
             mask = unifile.read();
-            #endif // UNIFONT_USE_FLASH
+            #ifdef UNIFONT_USE_SDFAT
+            mylock.unlock();
+            #endif // UNIFONT_USE_SDFAT
+            #endif // if defined(UNIFONT_USE_FLASH) || defined(UNIFONT_USE_SDFAT)
         }
 
         if (mask & (1 << (7 - charindex % 8)))
@@ -1240,10 +1292,16 @@ int Adafruit_GFX::drawCodepoint(int16_t x, int16_t y, uint16_t c, uint16_t color
             mask = pgm_read_byte(spacings + charindex / 8);
         } else
         {
-            #ifdef UNIFONT_USE_FLASH
+            #if defined(UNIFONT_USE_FLASH) || defined(UNIFONT_USE_SDFAT)
+            #ifdef UNIFONT_USE_SDFAT
+            mylock.lock();
+            #endif // UNIFONT_USE_SDFAT
             unifile.seek((uint32_t)unifont[block].glyphs.offset + widthOffset + charindex / 8);
             mask = unifile.read();
-            #endif // UNIFONT_USE_FLASH
+            #ifdef UNIFONT_USE_SDFAT
+            mylock.unlock();
+            #endif // UNIFONT_USE_SDFAT
+            #endif // if defined(UNIFONT_USE_FLASH) || defined(UNIFONT_USE_SDFAT)
         }
 
         if (mask & (1 << (7 - charindex % 8)))
@@ -1255,80 +1313,93 @@ int Adafruit_GFX::drawCodepoint(int16_t x, int16_t y, uint16_t c, uint16_t color
         shouldAdvance = true;
     }
 
-    // now fetch the glyph data
-    uint8_t glyph[32];
-    if (useProgmem)
+    if (!((x >= _width)         || // Clip right
+       (y >= _height)           || // Clip bottom
+       ((x + 6 * size - 1) < 0) || // Clip left
+       ((y + 8 * size - 1) < 0)))  // Clip top
     {
-        const int16_t start = block == 0 ? 0x20 : 0;
-        if (charindex - start < 0) return 0;
-        for(int8_t i=0; i<characterWidth*16; i++ )
-            glyph[i] = pgm_read_byte(&unifont[block].glyphs.location[(charindex - start) * 16 * tableWidth + i]);
-    }
-    else
-    {
-        #ifdef UNIFONT_USE_FLASH
-        uint32_t charOffset = 16 * tableWidth * charindex;
-        unifile.seek((uint32_t)unifont[block].glyphs.offset + charOffset);
-        unifile.read(&glyph, characterWidth*16);
-        #endif // UNIFONT_USE_FLASH
-    }
-
-    switch (characterWidth)
-    {
-        case 1:
+        // now fetch the glyph data
+        uint8_t glyph[32];
+        if (useProgmem)
+        {
+            const int16_t start = block == 0 ? 0x20 : 0;
+            if (charindex - start < 0) return 0;
             for(int8_t i=0; i<characterWidth*16; i++ )
-            {
-                uint8_t line = glyph[i];
-                for(int8_t j=7; j>= 0; j--, line >>= 1)
+                glyph[i] = pgm_read_byte(&unifont[block].glyphs.location[(charindex - start) * 16 * tableWidth + i]);
+        }
+        else
+        {
+            #if defined(UNIFONT_USE_FLASH) || defined(UNIFONT_USE_SDFAT)
+            #ifdef UNIFONT_USE_SDFAT
+            mylock.lock();
+            #endif // UNIFONT_USE_SDFAT
+            uint32_t charOffset = 16 * tableWidth * charindex;
+            unifile.seek((uint32_t)unifont[block].glyphs.offset + charOffset);
+            unifile.read(&glyph, characterWidth*16);
+            #ifdef UNIFONT_USE_SDFAT
+            mylock.unlock();
+            #endif // UNIFONT_USE_SDFAT
+            #endif // if defined(UNIFONT_USE_FLASH) || defined(UNIFONT_USE_SDFAT)
+        }
+
+        startWrite();
+        switch (characterWidth)
+        {
+            case 1:
+                for(int8_t i=0; i<characterWidth*16; i++ )
                 {
-                    if(line & 1)
+                    uint8_t line = glyph[i];
+                    for(int8_t j=7; j>= 0; j--, line >>= 1)
                     {
-                        if(size == 1)
-                            writePixel(x+j, y+i, color);
-                        else
-                            writeFillRect(x+j*size, y+i*size, size, size, color);
-                    }
-                    else if(bg != color)
-                    {
-                        if(size == 1)
-                            writePixel(x+j, y+i, bg);
-                        else
-                            writeFillRect(x+j*size, y+i*size, size, size, bg);
+                        if(line & 1)
+                        {
+                            if(size == 1)
+                                writePixel(x+j, y+i, color);
+                            else
+                                writeFillRect(x+j*size, y+i*size, size, size, color);
+                        }
+                        else if(bg != color)
+                        {
+                            if(size == 1)
+                                writePixel(x+j, y+i, bg);
+                            else
+                                writeFillRect(x+j*size, y+i*size, size, size, bg);
+                        }
                     }
                 }
-            }
-            break;
-        case 2:
-            for(int8_t i=0; i<characterWidth*16; i++ )
-            {
-                uint8_t line = glyph[i];
-                for(int8_t j=7; j>= 0; j--, line >>= 1)
+                break;
+            case 2:
+                for(int8_t i=0; i<characterWidth*16; i++ )
                 {
-                    if(line & 1)
+                    uint8_t line = glyph[i];
+                    for(int8_t j=7; j>= 0; j--, line >>= 1)
                     {
-                        if(size == 1)
-                            writePixel(x+j+(i%2?8:0), y+i/2, color);
-                        else
-                            writeFillRect(x+(j+(i%2?8:0))*size, y+(i/2)*size, size, size, color);
-                    }
-                    else if(bg != color)
-                    {
-                        if(size == 1)
-                            writePixel(x+j+(i%2?8:0), y+i/2, bg);
-                        else
-                            writeFillRect(x+(j+(i%2?8:0))*size, y+(i/2)*size, size, size, bg);
+                        if(line & 1)
+                        {
+                            if(size == 1)
+                                writePixel(x+j+(i%2?8:0), y+i/2, color);
+                            else
+                                writeFillRect(x+(j+(i%2?8:0))*size, y+(i/2)*size, size, size, color);
+                        }
+                        else if(bg != color)
+                        {
+                            if(size == 1)
+                                writePixel(x+j+(i%2?8:0), y+i/2, bg);
+                            else
+                                writeFillRect(x+(j+(i%2?8:0))*size, y+(i/2)*size, size, size, bg);
+                        }
                     }
                 }
-            }
-            break;
-    }
+                break;
+        }
 
 
-    if(bg != color) { // If opaque, draw vertical line for last column
-        if(size == 1) writeFastVLine(x+8*characterWidth, y, 16, bg);
-        else          writeFillRect(x+8*characterWidth*size, y, size, 16*size, bg);
+        if(bg != color) { // If opaque, draw vertical line for last column
+            if(size == 1) writeFastVLine(x+8*characterWidth, y, 16, bg);
+            else          writeFillRect(x+8*characterWidth*size, y, size, 16*size, bg);
+        }
+        endWrite();
     }
-    endWrite();
 
     if (shouldAdvance)
         return characterWidth * 8;
@@ -1342,6 +1413,8 @@ int Adafruit_GFX::drawCodepoint(int16_t x, int16_t y, uint16_t c, uint16_t color
 */
 /**************************************************************************/
 size_t Adafruit_GFX::writeCodepoint(uint16_t c) {
+    //Serial.print("writeCodepoint: ");
+    //Serial.println(c, HEX);
     // FIXME: RTL start of line and wrap check do not account for double-width glyphs or non spacing marks.
     if(c == '\n') {                        // Newline?
         cursor_x = (direction == 1) ? 0 : (_width - textsize * 8); // Reset x to start of line
@@ -1353,8 +1426,7 @@ size_t Adafruit_GFX::writeCodepoint(uint16_t c) {
             cursor_y += textsize * 16;            // advance y one line
         }
         int advance = drawCodepoint(cursor_x, cursor_y, c, textcolor, textbgcolor, textsize);
-        //cursor_x += textsize * advance * direction;    // Advance x one char
-        cursor_x += textsize * 8; // Advance x one char even through frameout
+        cursor_x += textsize * advance * direction;    // Advance x one char
     }
     return 1;
 }
@@ -1411,10 +1483,16 @@ void Adafruit_GFX::fix_diacritics(uint16_t *s, size_t length)
             mask = pgm_read_byte(spacings + charindex / 8);
         } else if (unifileavailable)
         {
-            #ifdef UNIFONT_USE_FLASH
+            #if defined(UNIFONT_USE_FLASH) || defined(UNIFONT_USE_SDFAT)
+            #ifdef UNIFONT_USE_SDFAT
+            mylock.lock();
+            #endif // UNIFONT_USE_SDFAT
               unifile.seek((uint32_t)unifont[block].glyphs.offset + 8192 + charindex / 8);
               mask = unifile.read();
-            #endif // UNIFONT_USE_FLASH
+            #ifdef UNIFONT_USE_SDFAT
+            mylock.unlock();
+            #endif // UNIFONT_USE_SDFAT
+            #endif // if defined(UNIFONT_USE_FLASH) || defined(UNIFONT_USE_SDFAT)
         }
         // If the character at i+1 is non-spacing, swap it with the current character.
         if ((mask & (1 << (7 - charindex % 8))) == 0)

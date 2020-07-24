@@ -10,6 +10,7 @@
 #include <SdFat.h>
 #include <EEPROM.h>
 #include <TeensyThreads.h>
+#include <Adafruit_GFX.h>
 
 #include "LcdCanvas.h"
 #include "my_play_sd_mp3.h"
@@ -49,6 +50,7 @@ IntervalTimer myTimer;
 #define TFT_CS        10
 #define TFT_RST        9 // Or set to -1 and connect to Arduino RESET pin
 #define TFT_DC         8
+
 //Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
 LcdCanvas lcd = LcdCanvas(TFT_CS, TFT_DC, TFT_RST);
 
@@ -394,6 +396,7 @@ void setup() {
 
     stack = stack_init();
     file_menu_open_root_dir();
+    Adafruit_GFX::loadUnifontFile("/", "unifont.bin");
 
     // Audio connections require memory to work.  For more
     // detailed information, see the MemoryAndCpuUsage example
