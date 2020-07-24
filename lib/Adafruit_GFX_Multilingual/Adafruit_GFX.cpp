@@ -1438,29 +1438,37 @@ size_t Adafruit_GFX::writeCodepoint(uint16_t c) {
     return 1;
 }
 
-size_t Adafruit_GFX::printlnUTF8(const char *string) {
-    size_t retVal = printUTF8(string);
-    retVal += print('\n');
-    return retVal;
+size_t Adafruit_GFX::println(const char *string, encoding_t encoding) {
+    if (encoding == none) {
+        return Print::println(string);
+    } else if (encoding == utf8) {
+        size_t retVal = print(string);
+        retVal += Print::print('\n');
+        return retVal;
+    }
 }
 
-size_t Adafruit_GFX::printUTF8(const char *string) {
-    size_t len = 0;
-    uint16_t *codepointsToPrint = (uint16_t *)malloc(strlen(string) * 2);
+size_t Adafruit_GFX::print(const char *string, encoding_t encoding) {
+    if (encoding == none) {
+        return Print::print(string);
+    } else if (encoding == utf8) {
+        size_t len = 0;
+        uint16_t *codepointsToPrint = (uint16_t *)malloc(strlen(string) * 2);
 
-    utf8_decode_init(string, strlen(string));
-    do
-    {
-        int c = utf8_decode_next();
-        if (c == UTF8_END || c == UTF8_ERROR) break;
-        codepointsToPrint[len++] = (uint16_t)c;
-    } while (1);
+        utf8_decode_init(string, strlen(string));
+        do
+        {
+            int c = utf8_decode_next();
+            if (c == UTF8_END || c == UTF8_ERROR) break;
+            codepointsToPrint[len++] = (uint16_t)c;
+        } while (1);
 
-    fix_diacritics(codepointsToPrint, len);
-    for (size_t i = 0; i < len; i++) writeCodepoint(codepointsToPrint[i]);
+        fix_diacritics(codepointsToPrint, len);
+        for (size_t i = 0; i < len; i++) writeCodepoint(codepointsToPrint[i]);
 
-    free(codepointsToPrint);
-    return len;
+        free(codepointsToPrint);
+        return len;
+    }
 }
 
 /**************************************************************************/

@@ -221,11 +221,7 @@ void ScrollTextBox::draw(Adafruit_ST7735 *tft)
     // Flicker less draw (width must be ScrollTextBox's width)
     canvas->fillRect(0, 0, width, FONT_HEIGHT, bgColor);
     canvas->setCursor(x_ofs, TEXT_BASELINE_OFS_Y);
-    if (encoding == utf8) {
-        canvas->printUTF8(str);
-    } else {
-        canvas->print(str);
-    }
+    canvas->print(str, encoding);
     tft->drawBitmap(pos_x, pos_y, canvas->getBuffer(), width, FONT_HEIGHT, fgColor, bgColor);
 }
 
