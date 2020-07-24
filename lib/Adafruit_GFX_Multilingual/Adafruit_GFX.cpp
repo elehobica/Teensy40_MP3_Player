@@ -170,6 +170,9 @@ void Adafruit_GFX::loadUnifontFile(const char *dir, const char *file)
     Serial.print(dir);
     Serial.print(file);
     Serial.print("\": ");
+    #ifdef UNIFONT_USE_SDFAT
+    mylock.lock();
+    #endif //UNIFONT_USE_SDFAT
     unifile.open(dir);
     if (unifile.exists(file)) {
         unifile.open(file, O_RDONLY);
@@ -178,9 +181,6 @@ void Adafruit_GFX::loadUnifontFile(const char *dir, const char *file)
         {
             unifileavailable = true;
             // For format details: https://github.com/joeycastillo/Adafruit-GFX-Library/blob/master/unifontconvert/README.md
-    #ifdef UNIFONT_USE_SDFAT
-            mylock.lock();
-    #endif //UNIFONT_USE_SDFAT
             unifile.seek(2);
             uint8_t w = unifile.read();
             uint8_t h = unifile.read();
@@ -226,6 +226,11 @@ void Adafruit_GFX::loadUnifontFile(const char *dir, const char *file)
         } else {
             Serial.println("Failure");
         }
+    } else {
+    #ifdef UNIFONT_USE_SDFAT
+        mylock.unlock();
+    #endif //UNIFONT_USE_SDFAT
+
     }
 }
 #endif // if defined(UNIFONT_USE_FLASH) || defined(UNIFONT_USE_SDFAT)
@@ -1213,11 +1218,12 @@ void Adafruit_GFX::drawChar(int16_t x, int16_t y, unsigned char c,
     @param    color 16-bit 5-6-5 Color to draw chraracter with
     @param    bg 16-bit 5-6-5 Color to fill background with (if same as color, no background)
     @param    size  Font magnification level, 1 is 'original' size
+    @param    doDraw  true: draw, false: not draw (to get return value only)
     @returns  the number of pixels to advance
 */
 /**************************************************************************/
 int Adafruit_GFX::drawCodepoint(int16_t x, int16_t y, uint16_t c, uint16_t color,
-      uint16_t bg, uint8_t size) {
+      uint16_t bg, uint8_t size, bool doDraw) {
 
     uint8_t block = c >> 8;
     uint8_t charindex = c & 0x00FF;
@@ -1313,10 +1319,11 @@ int Adafruit_GFX::drawCodepoint(int16_t x, int16_t y, uint16_t c, uint16_t color
         shouldAdvance = true;
     }
 
-    if (!((x >= _width)         || // Clip right
-       (y >= _height)           || // Clip bottom
-       ((x + 6 * size - 1) < 0) || // Clip left
-       ((y + 8 * size - 1) < 0)))  // Clip top
+    if (doDraw &&
+        !((x >= _width)          || // Clip right
+        (y >= _height)           || // Clip bottom
+        ((x + 6 * size - 1) < 0) || // Clip left
+        ((y + 8 * size - 1) < 0)))  // Clip top
     {
         // now fetch the glyph data
         uint8_t glyph[32];
@@ -1689,6 +1696,43 @@ void Adafruit_GFX::charBounds(char c, int16_t *x, int16_t *y,
 
 /**************************************************************************/
 /*!
+    @brief    Helper to determine size of a character with current font/size.
+       Broke this out as it's used by both the PROGMEM- and RAM-resident getTextBounds() functions.
+    @param    c     The codepoint of Unicode in question
+    @param    x     Pointer to x location of character
+    @param    y     Pointer to y location of character
+    @param    minx  Minimum clipping value for X
+    @param    miny  Minimum clipping value for Y
+    @param    maxx  Maximum clipping value for X
+    @param    maxy  Maximum clipping value for Y
+*/
+/**************************************************************************/
+void Adafruit_GFX::codepointBounds(uint16_t c, int16_t *x, int16_t *y,
+  int16_t *minx, int16_t *miny, int16_t *maxx, int16_t *maxy) {
+    // FIXME: RTL start of line and wrap check do not account for double-width glyphs or non spacing marks.
+    if(c == '\n') {                        // Newline?
+        *x = (direction == 1) ? 0 : (_width - textsize * 8); // Reset x to start of line
+        *y += textsize * 16;          // advance y one line
+    } else if(c != '\r') {                 // Ignore carriage returns
+        int xPos = (*x + textsize * 8 * direction);
+        if(wrap && (xPos > _width || xPos < textsize * -8)) { // Off right or left?
+            *x = (direction == 1) ? 0 : (_width - textsize * 8); // Reset x to start of line
+            *y += textsize * 16;            // advance y one line
+        }
+        int advance = drawCodepoint(cursor_x, cursor_y, c, textcolor, textbgcolor, textsize, false); // don't draw
+        int x2 = *x + textsize * advance * direction - 1, // Lower-right pixel of char
+            y2 = *y + textsize * 16 - 1;
+        if(x2 > *maxx) *maxx = x2;      // Track max x, y
+        if(y2 > *maxy) *maxy = y2;
+        if(*x < *minx) *minx = *x;      // Track min x, y
+        if(*y < *miny) *miny = *y;
+        *x += textsize * advance * direction;    // Advance x one char
+    }
+}
+
+
+/**************************************************************************/
+/*!
     @brief    Helper to determine size of a string with current font/size. Pass string and a cursor position, returns UL corner and W,H.
     @param    str     The ascii string to measure
     @param    x       The current cursor X
@@ -1697,20 +1741,43 @@ void Adafruit_GFX::charBounds(char c, int16_t *x, int16_t *y,
     @param    y1      The boundary Y coordinate, set by function
     @param    w      The boundary width, set by function
     @param    h      The boundary height, set by function
+    @param    encoding      string code (none, utf8)
 */
 /**************************************************************************/
 void Adafruit_GFX::getTextBounds(const char *str, int16_t x, int16_t y,
-        int16_t *x1, int16_t *y1, uint16_t *w, uint16_t *h) {
-    uint8_t c; // Current character
-
+        int16_t *x1, int16_t *y1, uint16_t *w, uint16_t *h, encoding_t encoding) {
     *x1 = x;
     *y1 = y;
     *w  = *h = 0;
 
     int16_t minx = _width, miny = _height, maxx = -1, maxy = -1;
 
-    while((c = *str++))
-        charBounds(c, &x, &y, &minx, &miny, &maxx, &maxy);
+    if (encoding == none) {
+        uint8_t c; // Current character
+
+        while((c = *str++)) {
+            charBounds(c, &x, &y, &minx, &miny, &maxx, &maxy);
+        }
+
+    } else if (encoding == utf8) {
+        size_t len = 0;
+        uint16_t *codepointsToPrint = (uint16_t *)malloc(strlen(str) * 2);
+
+        utf8_decode_init(str, strlen(str));
+        do
+        {
+            int c = utf8_decode_next();
+            if (c == UTF8_END || c == UTF8_ERROR) break;
+            codepointsToPrint[len++] = (uint16_t)c;
+        } while (1);
+
+        fix_diacritics(codepointsToPrint, len);
+        for (size_t i = 0; i < len; i++) {
+            codepointBounds(codepointsToPrint[i], &x, &y, &minx, &miny, &maxx, &maxy);
+        }
+
+        free(codepointsToPrint);
+    }
 
     if(maxx >= minx) {
         *x1 = minx;
@@ -1732,12 +1799,13 @@ void Adafruit_GFX::getTextBounds(const char *str, int16_t x, int16_t y,
     @param    y1     The boundary Y coordinate, set by function
     @param    w      The boundary width, set by function
     @param    h      The boundary height, set by function
+    @param    encoding      string code (none, utf8)
 */
 /**************************************************************************/
 void Adafruit_GFX::getTextBounds(const String &str, int16_t x, int16_t y,
-        int16_t *x1, int16_t *y1, uint16_t *w, uint16_t *h) {
+        int16_t *x1, int16_t *y1, uint16_t *w, uint16_t *h, encoding_t encoding) {
     if (str.length() != 0) {
-        getTextBounds(const_cast<char*>(str.c_str()), x, y, x1, y1, w, h);
+        getTextBounds(const_cast<char*>(str.c_str()), x, y, x1, y1, w, h, encoding);
     }
 }
 
@@ -1752,10 +1820,11 @@ void Adafruit_GFX::getTextBounds(const String &str, int16_t x, int16_t y,
     @param    y1      The boundary Y coordinate, set by function
     @param    w      The boundary width, set by function
     @param    h      The boundary height, set by function
+    @param    encoding      string code (none, utf8)
 */
 /**************************************************************************/
 void Adafruit_GFX::getTextBounds(const __FlashStringHelper *str,
-        int16_t x, int16_t y, int16_t *x1, int16_t *y1, uint16_t *w, uint16_t *h) {
+        int16_t x, int16_t y, int16_t *x1, int16_t *y1, uint16_t *w, uint16_t *h, encoding_t encoding) {
     uint8_t *s = (uint8_t *)str, c;
 
     *x1 = x;

@@ -37,6 +37,11 @@
  #include <SdFat.h>
 #endif
 
+typedef enum _encoding {
+	none = 0,	// ISO-8859-1
+	utf8		// UTF-8
+} encoding_t;
+
 /// A generic graphics superclass that can handle all sorts of drawing. At a minimum you can subclass and provide drawPixel(). At a maximum you can do a ton of overriding to optimize. Used for any/all Adafruit displays!
 class Adafruit_GFX : public Print {
 
@@ -144,14 +149,14 @@ class Adafruit_GFX : public Print {
     setRTL(boolean r),
     cp437(boolean x=true),
     getTextBounds(const char *string, int16_t x, int16_t y,
-      int16_t *x1, int16_t *y1, uint16_t *w, uint16_t *h),
+      int16_t *x1, int16_t *y1, uint16_t *w, uint16_t *h, encoding_t encoding = none),
     getTextBounds(const __FlashStringHelper *s, int16_t x, int16_t y,
-      int16_t *x1, int16_t *y1, uint16_t *w, uint16_t *h),
+      int16_t *x1, int16_t *y1, uint16_t *w, uint16_t *h, encoding_t encoding = none),
     getTextBounds(const String &str, int16_t x, int16_t y,
-      int16_t *x1, int16_t *y1, uint16_t *w, uint16_t *h);
+      int16_t *x1, int16_t *y1, uint16_t *w, uint16_t *h, encoding_t encoding = none);
   int
     drawCodepoint(int16_t x, int16_t y, uint16_t c, uint16_t color,
-      uint16_t bg, uint8_t size);
+      uint16_t bg, uint8_t size, bool doDraw = true);
 
   size_t
     writeCodepoint(uint16_t c),
@@ -177,6 +182,8 @@ class Adafruit_GFX : public Print {
  protected:
   void
     charBounds(char c, int16_t *x, int16_t *y,
+      int16_t *minx, int16_t *miny, int16_t *maxx, int16_t *maxy),
+    codepointBounds(uint16_t c, int16_t *x, int16_t *y,
       int16_t *minx, int16_t *miny, int16_t *maxx, int16_t *maxy);
   const int16_t
     WIDTH,          ///< This is the 'raw' display width - never changes

@@ -168,7 +168,8 @@ void IconTextBox::setIcon(uint8_t *icon)
 // Implementation of ScrollTextBox class < Box
 //=================================
 ScrollTextBox::ScrollTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t fgColor, uint16_t bgColor)
-    : isUpdated(true), pos_x(pos_x), pos_y(pos_y), fgColor(fgColor), bgColor(bgColor), str(""), width(width), stay_count(0), scr_en(true)
+    : isUpdated(true), pos_x(pos_x), pos_y(pos_y), fgColor(fgColor), bgColor(bgColor),
+      str(""), width(width), stay_count(0), scr_en(true), encoding(none)
 {
     int16_t x0, y0; // dummy
     uint16_t h0; // dummy
@@ -176,7 +177,7 @@ ScrollTextBox::ScrollTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint1
     //canvas->setFont(DEFAULT_FONT);
     canvas->setTextWrap(false);
     canvas->setTextSize(1);
-    canvas->getTextBounds("", 0, 0+TEXT_BASELINE_OFS_Y, &x0, &y0, &w0, &h0); // idle-run because first time fails somehow
+    canvas->getTextBounds(str, 0, 0+TEXT_BASELINE_OFS_Y, &x0, &y0, &w0, &h0, encoding); // idle-run because first time fails somehow
 }
 
 void ScrollTextBox::setFgColor(uint16_t fgColor)
@@ -240,11 +241,11 @@ void ScrollTextBox::setText(const char *str, encoding_t encoding)
     int16_t x0, y0; // dummy
     uint16_t h0; // dummy
     if (strncmp(this->str, str, charSize) == 0) { return; }
+    this->encoding = encoding;
     update();
     //strncpy(this->str, str, charSize);
     memcpy(this->str, str, charSize);
-    canvas->getTextBounds(str, 0, 0+TEXT_BASELINE_OFS_Y, &x0, &y0, &w0, &h0); // get width (w0)
-    this->encoding = encoding;
+    canvas->getTextBounds(str, 0, 0+TEXT_BASELINE_OFS_Y, &x0, &y0, &w0, &h0, encoding); // get width (w0)
     x_ofs = 0;
     stay_count = 0;
 }

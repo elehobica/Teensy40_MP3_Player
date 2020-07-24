@@ -28,10 +28,12 @@ extern uint8_t Icon16[];
 #define ICON16x16_VOLUME	&Icon16[32*5]
 #define ICON16x16_BATTERY	&Icon16[32*6]
 
+/*
 typedef enum _encoding {
-	none = 0,
-	utf8
+	none = 0,	// ISO-8859-1
+	utf8		// UTF-8
 } encoding_t;
+*/
 
 typedef enum _mode_enm {
 	FileView = 0,
