@@ -173,7 +173,7 @@ ScrollTextBox::ScrollTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint1
 {
     int16_t x0, y0; // dummy
     uint16_t h0; // dummy
-    canvas = new GFXcanvas1(this->width, FONT_HEIGHT);
+    canvas = new GFXcanvas1(width*2, FONT_HEIGHT); // 2x width for minimize canvas update, which costs Unifont SdFat access
     //canvas->setFont(DEFAULT_FONT);
     canvas->setTextWrap(false);
     canvas->setTextSize(1);
@@ -199,6 +199,10 @@ void ScrollTextBox::update()
     isUpdated = true;
 }
 
+// canvas update policy:
+//  x_ofs is minus value
+//  canvas width: width * 2
+//  canvas update: every ((x_ofs % width) == -(width-1))
 void ScrollTextBox::draw(Adafruit_ST7735 *tft)
 {
     int16_t under_offset = tft->width()-pos_x-w0; // max minus offset for scroll (width must be tft's width)
@@ -209,20 +213,57 @@ void ScrollTextBox::draw(Adafruit_ST7735 *tft)
     } else {
         if (x_ofs == 0 || x_ofs == under_offset) { // scroll stay a while at both end
             if (stay_count++ > 20) {
-                if (x_ofs-- != 0) { x_ofs = 0; }
+                if (x_ofs-- != 0) {
+                    if (x_ofs < -width + 1) {
+                        canvas->fillRect(0, 0, width*2, FONT_HEIGHT, bgColor);
+                        canvas->setCursor(0, TEXT_BASELINE_OFS_Y);
+                        canvas->print(str, encoding);
+                    }
+                    x_ofs = 0;
+                }
                 stay_count = 0;
             }
         } else {
+            if ((x_ofs % width) == -(width-1)) { // modulo returns minus value (C++)
+                canvas->fillRect(0, 0, width*2, FONT_HEIGHT, bgColor);
+                canvas->setCursor((x_ofs-1)/width*width, TEXT_BASELINE_OFS_Y);
+                canvas->print(str, encoding);
+            }
             x_ofs--;
         }
     }
     if (!isUpdated && stay_count != 0) { return; }
     isUpdated = false;
+
     // Flicker less draw (width must be ScrollTextBox's width)
-    canvas->fillRect(0, 0, width, FONT_HEIGHT, bgColor);
-    canvas->setCursor(x_ofs, TEXT_BASELINE_OFS_Y);
-    canvas->print(str, encoding);
-    tft->drawBitmap(pos_x, pos_y, canvas->getBuffer(), width, FONT_HEIGHT, fgColor, bgColor);
+    //tft->drawBitmap(pos_x+x_ofs, pos_y, canvas->getBuffer(), width, FONT_HEIGHT, fgColor, bgColor);
+    {
+        int16_t x = pos_x + x_ofs%width;
+        int16_t y = pos_y;
+        const uint8_t *bitmap = canvas->getBuffer();
+        int16_t w = width * 2;
+        int16_t h = FONT_HEIGHT;
+        uint16_t color = fgColor;
+        uint16_t bg = bgColor;
+
+        int16_t byteWidth = (w + 7) / 8; // Bitmap scanline pad = whole byte
+        uint8_t byte = 0;
+
+        tft->startWrite();
+        for (int16_t j = 0; j < h; j++, y++) {
+            for (int16_t i = 0; i < w; i++) {
+                if (i & 7) {
+                    byte <<= 1;
+                } else {
+                    byte = pgm_read_byte(&bitmap[j * byteWidth + i / 8]);
+                }
+                if (x+i >= pos_x) {
+                    tft->writePixel(x+i, y, (byte & 0x80) ? color : bg);
+                }
+            }
+        }
+        tft->endWrite();
+    }
 }
 
 void ScrollTextBox::setScroll(bool scr_en)
@@ -244,6 +285,10 @@ void ScrollTextBox::setText(const char *str, encoding_t encoding)
     canvas->getTextBounds(str, 0, 0+TEXT_BASELINE_OFS_Y, &x0, &y0, &w0, &h0, encoding); // get width (w0)
     x_ofs = 0;
     stay_count = 0;
+
+    canvas->fillRect(0, 0, width*2, FONT_HEIGHT, bgColor);
+    canvas->setCursor(0, TEXT_BASELINE_OFS_Y);
+    canvas->print(str, encoding);
 }
 
 //=================================
