@@ -187,7 +187,7 @@ public:
     ~LcdCanvas();
 	void clear();
 	void bye();
-	void setFileItem(int column, const char *str, bool isDir = false, bool isFocused = false);
+	void setFileItem(int column, const char *str, bool isDir = false, bool isFocused = false, encoding_t = none);
 	void setBitRate(uint16_t value);
 	void setVolume(uint8_t value);
 	void setPlayTime(uint32_t posionSec, uint32_t lengthSec);

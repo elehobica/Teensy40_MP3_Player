@@ -18,6 +18,7 @@
 #include "ff_util.h"
 #include "stack.h"
 #include "id3read.h"
+#include "utf_conv.h"
 
 Threads::Mutex mylock;
 
@@ -562,8 +563,16 @@ void loop() {
                 lcd.setFileItem(i, ""); // delete
                 continue;
             }
-            file_menu_get_fname(idx_head+i, str, sizeof(str));
-            lcd.setFileItem(i, str, file_menu_is_dir(idx_head+i), (i == idx_column));
+            //file_menu_get_fname(idx_head+i, str, sizeof(str));
+            if (idx_head+i == 0) {
+                lcd.setFileItem(i, "..", file_menu_is_dir(idx_head+i), (i == idx_column));
+            } else {
+                ExFatFile xfile;
+                file_menu_get_obj(idx_head+i, (FsBaseFile *) &xfile);
+                //xfile.getName(str, sizeof(str));
+                xfile.getUTF16Name((char16_t *) str, sizeof(str)/2);
+                lcd.setFileItem(i, utf16_to_utf8((const char16_t *) str).c_str(), file_menu_is_dir(idx_head+i), (i == idx_column), utf8);
+            }
         }
         idx_req = 0;
         idx_idle_count = 0;

@@ -417,7 +417,7 @@ void file_menu_full_sort(void)
 	file_menu_sort_entry(0, max_entry_cnt);
 }
 
-FRESULT file_menu_get_fname(uint16_t order, char *str, uint16_t size)
+FRESULT file_menu_get_fname(uint16_t order, char *str, size_t size)
 {
 	file_menu_sort_entry(order, order+5);
 	if (order >= max_entry_cnt) { return FR_INVALID_PARAMETER; }

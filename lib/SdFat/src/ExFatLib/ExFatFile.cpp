@@ -109,6 +109,46 @@ size_t ExFatFile::getName(ExChar_t *name, size_t length) {
   return 0;
 }
 //-----------------------------------------------------------------------------
+#if !USE_EXFAT_UNICODE_NAMES
+size_t ExFatFile::getUTF16Name(char16_t *name, size_t length) {
+  DirName_t* dn;
+  DirPos_t pos = m_dirPos;
+  size_t n = 0;
+  if (!isOpen()) {
+      DBG_FAIL_MACRO;
+      goto fail;
+  }
+  for (uint8_t is = 1; is < m_setCount; is++) {
+    if (m_vol->dirSeek(&pos, is == 1 ? 64: 32) != 1) {
+      DBG_FAIL_MACRO;
+      goto fail;
+    }
+    dn = reinterpret_cast<DirName_t*>
+         (m_vol->dirCache(&pos, FsCache::CACHE_FOR_READ));
+    if (!dn || dn->type != EXFAT_TYPE_NAME) {
+      DBG_FAIL_MACRO;
+      goto fail;
+    }
+    for (uint8_t in = 0; in < 15; in++) {
+      if ((n + 1) >= length) {
+        goto done;
+      }
+      uint16_t c = getLe16(dn->unicode + 2*in);
+      //name[n++] = sizeof(ExChar_t) > 1 || c < 0X7F ? c : '?';
+      name[n++] = c;
+    }
+  }
+ done:
+  name[n] = 0;
+  return n;
+
+ fail:
+  *name = 0;
+  return 0;
+}
+#endif // !USE_EXFAT_UNICODE_NAMES
+
+//-----------------------------------------------------------------------------
 bool ExFatFile::open(const ExChar_t* path, int oflag) {
   return open(ExFatVolume::cwv(), path, oflag);
 }

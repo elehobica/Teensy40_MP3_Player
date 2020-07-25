@@ -196,6 +196,10 @@ class ExFatFile {
    * \return the name length.
    */
   size_t getName(ExChar_t *name, size_t size);
+#if !USE_EXFAT_UNICODE_NAMES
+  size_t getUTF16Name(char16_t *name, size_t size);
+#endif // !USE_EXFAT_UNICODE_NAMES
+
   /** Clear all error bits. */
   void clearError() {
     m_error = 0;

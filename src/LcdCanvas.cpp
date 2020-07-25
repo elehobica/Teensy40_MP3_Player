@@ -407,13 +407,13 @@ void LcdCanvas::draw()
     }
 }
 
-void LcdCanvas::setFileItem(int column, const char *str, bool isDir, bool isFocused)
+void LcdCanvas::setFileItem(int column, const char *str, bool isDir, bool isFocused, encoding_t encoding)
 {
     uint8_t *icon[2] = {ICON16x16_FILE, ICON16x16_FOLDER};
     uint16_t color[2] = {ST77XX_GRAY, ST77XX_GBLUE};
     fileItem[column].setIcon(icon[isDir]);
     fileItem[column].setFgColor(color[isFocused]);
-    fileItem[column].setText(str);
+    fileItem[column].setText(str, encoding);
     fileItem[column].setScroll(isFocused); // Scroll for focused item only
 }
 
