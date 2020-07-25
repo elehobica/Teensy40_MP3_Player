@@ -19,7 +19,7 @@ typedef struct _id32frame {
     char ID[4];
     unsigned char sizebytes[4];
     char flags[2];
-    int size;
+    size_t size;
     char* data;
     struct _id32frame* next;
 } id32frame;
@@ -27,7 +27,7 @@ typedef struct _id32frame {
 typedef struct _id322frame {
     char ID[3];
     unsigned char sizebytes[3];
-    int size;
+    size_t size;
     char* data;
     struct _id322frame* next;
 } id322frame;
@@ -35,12 +35,12 @@ typedef struct _id322frame {
 typedef struct _id32 {
     char version[2];
     char flags;
-    int size;
+    size_t size;
     id32frame* firstframe;
 } id32;
 
 typedef struct _id32flat {
-    int size;
+    size_t size;
     char* buffer;
 } id32flat;
 
@@ -64,7 +64,7 @@ private:
     void ID32Print(id32* id32header);
     void ID32Free(id32* id32header);
     id32flat* ID32Create();
-    void ID32AddTag(id32flat* gary, const char* ID, char* data, char* flags, int size);
+    void ID32AddTag(id32flat* gary, const char* ID, char* data, char* flags, size_t size);
     void ID32Finalise(id32flat* gary);
     int ID32Append(id32flat* gary, char* filename);
     id32flat* ID3Copy1to2(id31* bonar);

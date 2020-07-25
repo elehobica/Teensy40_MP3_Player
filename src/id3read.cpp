@@ -188,7 +188,7 @@ id32* ID3Read::ID32Detect(FsBaseFile* infile)
         //Serial.println(str);
         //return NULL;
         // this code is modified from version 3, ideally we should reuse some
-        while (filepos-10 < id32header->size) {
+        while (filepos-10 < (int) id32header->size) {
             // make space for new frame
             int i;
             id322frame* frame = (id322frame *) calloc(1, sizeof(id322frame));
@@ -233,7 +233,7 @@ id32* ID3Read::ID32Detect(FsBaseFile* infile)
             result = infile->read(frame->data, frame->size);
             mylock.unlock();
             filepos += result;
-            if (result != frame->size) {
+            if (result != (int) frame->size) {
                 char str[256];
                 sprintf(str, "Expected to read %d bytes, only got %d", frame->size, result);
                 Serial.println(str);
@@ -250,7 +250,7 @@ id32* ID3Read::ID32Detect(FsBaseFile* infile)
         }
     } else {
         // start reading frames
-        while (filepos-10 < id32header->size) {
+        while (filepos-10 < (int) id32header->size) {
             // make space for new frame
             int i;
             id32frame* frame = (id32frame *) calloc(1, sizeof(id32frame));
@@ -315,7 +315,7 @@ id32* ID3Read::ID32Detect(FsBaseFile* infile)
             result = infile->read(frame->data, frame->size);
             mylock.unlock();
             filepos += result;
-            if (result != frame->size) {
+            if (result != (int) frame->size) {
                 char str[256];
                 sprintf(str, "Expected to read %d bytes, only got %d", frame->size, result);
                 Serial.println(str);
@@ -363,13 +363,23 @@ int ID3Read::GetID32(const char *id3v22, const char *id3v23, char* str, size_t s
             char buffer[5] = {};
             memcpy(buffer, thisframe->ID, 4);
             if (!strcmp(id3v23, buffer)) {
-                switch (thisframe->data[0]) {
+                size_t max_size;
+                switch (thisframe->data[0]) { // data has no '\0' termination
                     case 0: // ISO-8859-1
-                        strncpy(str, &thisframe->data[1], size);
+                        max_size = (thisframe->size - 1 <= size - 1) ? thisframe->size - 1 : size - 1;
+                        strncpy(str, &thisframe->data[1], max_size);
+                        str[max_size] = '\0';
                         break;
-                    case 1: // UTF-8
-                        memcpy(str, utf16_to_utf8((const char16_t *) &thisframe->data[3]).c_str(), size);
+                    case 1: { // UTF-16 (w/BOM)
+                        char _str[256*2] = {};
+                        max_size = (thisframe->size - 3 <= 256*2-2) ? thisframe->size - 3 : 256*2-2;
+                        memcpy(_str, &thisframe->data[3], max_size);
+                        std::string utf8_str = utf16_to_utf8((const char16_t *) _str);
+                        max_size = (utf8_str.length() <= size - 1) ? utf8_str.length() : size - 1;
+                        memcpy(str, utf8_str.c_str(), max_size);
+                        str[max_size] = '\0';
                         break;
+                    }
                     default:
                         break;
                 }
@@ -381,13 +391,23 @@ int ID3Read::GetID32(const char *id3v22, const char *id3v23, char* str, size_t s
             char buffer[4] = {};
             memcpy(buffer, thisframe->ID, 3);
             if (!strcmp(id3v22, buffer)) {
-                switch (tframe->data[0]) {
+                size_t max_size;
+                switch (tframe->data[0]) { // data has no '\0' termination
                     case 0: // ISO-8859-1
-                        strncpy(str, &tframe->data[1], size);
+                        max_size = (tframe->size - 1 <= size - 1) ? tframe->size - 1 : size - 1;
+                        strncpy(str, &tframe->data[1], max_size);
+                        str[max_size] = '\0';
                         break;
-                    case 1: // UTF-8
-                        memcpy(str, utf16_to_utf8((const char16_t *) &tframe->data[3]).c_str(), size);
+                    case 1: { // UTF-16 (w/BOM)
+                        char _str[256*2] = {};
+                        max_size = (tframe->size - 3 <= 256*2-2) ? tframe->size - 3 : 256*2-2;
+                        memcpy(_str, &tframe->data[3], max_size);
+                        std::string utf8_str = utf16_to_utf8((const char16_t *) _str);
+                        max_size = (utf8_str.length() <= size - 1) ? utf8_str.length() : size - 1;
+                        memcpy(str, utf8_str.c_str(), max_size);
+                        str[max_size] = '\0';
                         break;
+                    }
                     default:
                         break;
                 }
@@ -485,7 +505,7 @@ id32flat* ID3Read::ID32Create()
     return gary;
 }
 
-void ID3Read::ID32AddTag(id32flat* gary, const char* ID, char* data, char* flags, int size)
+void ID3Read::ID32AddTag(id32flat* gary, const char* ID, char* data, char* flags, size_t size)
 {
     // resize the buffer
     int i;
