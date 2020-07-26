@@ -89,6 +89,24 @@ static bool lfnGetName(DirLfn_t *ldir, char* name, size_t n) {
   return true;
 }
 //------------------------------------------------------------------------------
+static bool lfnGetUTF16Name(DirLfn_t *ldir, char16_t* name, size_t n) {
+  uint8_t i;
+  size_t k = 13*((ldir->order & 0X1F) - 1);
+  for (i = 0; i < 13; i++) {
+    uint16_t c = lfnGetChar(ldir, i);
+    name[k++] = c;
+    //if (c == 0 || k >= n) break;
+    if (k >= n) break;
+  }
+  // Terminate with zero byte if name fits.
+  if (k < n && (ldir->order & FAT_ORDER_LAST_LONG_ENTRY)) {
+    name[k] = 0;
+  }
+  // Truncate if name is too long.
+  name[n - 1] = 0;
+  return true;
+}
+//------------------------------------------------------------------------------
 inline bool lfnLegalChar(uint8_t c) {
   if (c == '/' || c == '\\' || c == '"' || c == '*' ||
       c == ':' || c == '<' || c == '>' || c == '?' || c == '|') {
@@ -155,6 +173,54 @@ bool FatFile::getName(char* name, size_t size) {
       goto fail;
     }
     if (!lfnGetName(ldir, name, size)) {
+      DBG_FAIL_MACRO;
+      goto fail;
+    }
+    if (ldir->order & FAT_ORDER_LAST_LONG_ENTRY) {
+      return true;
+    }
+  }
+  // Fall into fail.
+  DBG_FAIL_MACRO;
+
+fail:
+  name[0] = 0;
+  return false;
+}
+//------------------------------------------------------------------------------
+bool FatFile::getUTF16Name(char16_t* name, size_t size) {
+  FatFile dirFile;
+  DirLfn_t* ldir;
+  if (!isOpen() || size < 13) {
+    DBG_FAIL_MACRO;
+    goto fail;
+  }
+  if (!isLFN()) {
+    return getUTF16SFN(name);
+  }
+  if (!dirFile.openCluster(this)) {
+    DBG_FAIL_MACRO;
+    goto fail;
+  }
+  for (uint8_t order = 1; order <= m_lfnOrd; order++) {
+    if (!dirFile.seekSet(32UL*(m_dirIndex - order))) {
+      DBG_FAIL_MACRO;
+      goto fail;
+    }
+    ldir = reinterpret_cast<DirLfn_t*>(dirFile.readDirCache());
+    if (!ldir) {
+      DBG_FAIL_MACRO;
+      goto fail;
+    }
+    if (ldir->attributes != FAT_ATTRIB_LONG_NAME) {
+      DBG_FAIL_MACRO;
+      goto fail;
+    }
+    if (order != (ldir->order & 0X1F)) {
+      DBG_FAIL_MACRO;
+      goto fail;
+    }
+    if (!lfnGetUTF16Name(ldir, name, size)) {
       DBG_FAIL_MACRO;
       goto fail;
     }

@@ -567,10 +567,8 @@ void loop() {
             if (idx_head+i == 0) {
                 lcd.setFileItem(i, "..", file_menu_is_dir(idx_head+i), (i == idx_column));
             } else {
-                ExFatFile xfile;
-                file_menu_get_obj(idx_head+i, (FsBaseFile *) &xfile);
-                //xfile.getName(str, sizeof(str));
-                xfile.getUTF16Name((char16_t *) str, sizeof(str)/2);
+                file_menu_get_obj(idx_head+i, &file);
+                file.getUTF16Name((char16_t *) str, sizeof(str)/2);
                 lcd.setFileItem(i, utf16_to_utf8((const char16_t *) str).c_str(), file_menu_is_dir(idx_head+i), (i == idx_column), utf8);
             }
         }

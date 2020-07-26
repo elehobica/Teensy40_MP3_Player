@@ -163,6 +163,11 @@ class FsBaseFile {
     return m_fFile ? m_fFile->getName(name, len) :
            m_xFile ? m_xFile->getName(name, len) : 0;
   }
+  size_t getUTF16Name(char16_t* name, size_t len) {
+    *name = 0;
+    return m_fFile ? m_fFile->getUTF16Name(name, len) :
+           m_xFile ? m_xFile->getUTF16Name(name, len) : 0;
+  }
 
   /** \return value of writeError */
   bool getWriteError() {

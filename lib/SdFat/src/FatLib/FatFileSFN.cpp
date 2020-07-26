@@ -71,6 +71,51 @@ fail:
   return false;
 }
 //------------------------------------------------------------------------------
+#if USE_LONG_FILE_NAMES
+bool FatFile::getUTF16SFN(char16_t* name) {
+  uint8_t j = 0;
+  uint8_t lcBit = FAT_CASE_LC_BASE;
+  DirFat_t *dir;
+
+  if (!isOpen()) {
+    DBG_FAIL_MACRO;
+    goto fail;
+  }
+  if (isRoot()) {
+    name[0] = '/';
+    name[1] = '\0';
+    return true;
+  }
+  // cache entry
+  dir = reinterpret_cast<DirFat_t*>(cacheDirEntry(FatCache::CACHE_FOR_READ));
+  if (!dir) {
+    DBG_FAIL_MACRO;
+    goto fail;
+  }
+  // format name
+  for (uint8_t i = 0; i < 11; i++) {
+    if (dir->name[i] == ' ') {
+      continue;
+    }
+    if (i == 8) {
+      // Position bit for extension.
+      lcBit = FAT_CASE_LC_EXT;
+      name[j++] = '.';
+    }
+    char c = dir->name[i];
+    if ('A' <= c && c <= 'Z' && (lcBit & dir->caseFlags)) {
+      c += 'a' - 'A';
+    }
+    name[j++] = c;
+  }
+  name[j] = 0;
+  return true;
+
+fail:
+  return false;
+}
+#endif // USE_LONG_FILE_NAMES
+//------------------------------------------------------------------------------
 size_t FatFile::printSFN(print_t* pr) {
   char name[13];
   if (!getSFN(name)) {

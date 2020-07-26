@@ -299,6 +299,9 @@ class FatFile {
    * \return true for success or false for failure.
    */
   bool getName(char* name, size_t size);
+  #if USE_LONG_FILE_NAMES
+  bool getUTF16Name(char16_t* name, size_t size);
+  #endif // USE_LONG_FILE_NAMES
   /**
    * Get a file's Short File Name followed by a zero byte.
    *
@@ -307,6 +310,9 @@ class FatFile {
    * \return true for success or false for failure.
    */
   bool getSFN(char* name);
+  #if USE_LONG_FILE_NAMES
+  bool getUTF16SFN(char16_t* name);
+  #endif // USE_LONG_FILE_NAMES
 #if USE_FAT_FILE_FLAG_CONTIGUOUS
     /** \return True if the file is contiguous. */
   bool isContiguous() const {return m_flags & FILE_FLAG_CONTIGUOUS;}

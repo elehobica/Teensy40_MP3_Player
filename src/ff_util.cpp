@@ -472,7 +472,8 @@ FRESULT file_menu_open_root_dir()
 		}
         return FR_INVALID_PARAMETER;
 	}
-	Serial.println("SD card OK");
+	Serial.print("SD card OK (16: FAT, 32: FAT32, 64: ExFAT): ");
+	Serial.println(sd.fatType());
     if (dir.open("/")) {
 		parent_dir[path_depth++] = dir;
 		idx_sort_new();
@@ -480,6 +481,11 @@ FRESULT file_menu_open_root_dir()
 	} else {
         return FR_INVALID_PARAMETER;
     }
+}
+
+uint8_t file_menu_get_fatType()
+{
+	return sd.fatType();
 }
 
 FRESULT file_menu_ch_dir(uint16_t order)

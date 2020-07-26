@@ -177,8 +177,7 @@ void Adafruit_GFX::loadUnifontFile(const char *dir, const char *file)
     if (unifile.exists(file)) {
         unifile.open(file, O_RDONLY);
     #endif //UNIFONT_USE_SDFAT
-        if (unifile)
-        {
+        if (unifile) {
             unifileavailable = true;
             // For format details: https://github.com/joeycastillo/Adafruit-GFX-Library/blob/master/unifontconvert/README.md
             unifile.seek(2);
@@ -223,15 +222,13 @@ void Adafruit_GFX::loadUnifontFile(const char *dir, const char *file)
                 }
             }
             Serial.println("Success");
-        } else {
-            Serial.println("Failure");
+            return;
         }
-    } else {
+    }
+    Serial.println("Failure");
     #ifdef UNIFONT_USE_SDFAT
         mylock.unlock();
     #endif //UNIFONT_USE_SDFAT
-
-    }
 }
 #endif // if defined(UNIFONT_USE_FLASH) || defined(UNIFONT_USE_SDFAT)
 
