@@ -93,10 +93,10 @@ void TextBox::draw(Adafruit_ST7735 *tft)
     tft->fillRect(x0, y0, w0, h0, bgColor); // clear previous rectangle
     tft->setTextColor(fgColor);
     x_ofs = (align == AlignRight) ? -w0 : (align == AlignCenter) ? -w0/2 : 0; // at this point, w0 could be not correct
-    tft->getTextBounds(str, pos_x+x_ofs, pos_y+TEXT_BASELINE_OFS_Y, &x0, &y0, &w0, &h0); // update next smallest rectangle (get correct w0)
+    tft->getTextBounds(str, pos_x+x_ofs, pos_y, &x0, &y0, &w0, &h0); // update next smallest rectangle (get correct w0)
     x_ofs = (align == AlignRight) ? -w0 : (align == AlignCenter) ? -w0/2 : 0;
-    tft->getTextBounds(str, pos_x+x_ofs, pos_y+TEXT_BASELINE_OFS_Y, &x0, &y0, &w0, &h0); // update next smallest rectangle (get total correct info)
-    tft->setCursor(pos_x+x_ofs, pos_y+TEXT_BASELINE_OFS_Y);
+    tft->getTextBounds(str, pos_x+x_ofs, pos_y, &x0, &y0, &w0, &h0); // update next smallest rectangle (get total correct info)
+    tft->setCursor(pos_x+x_ofs, pos_y);
     tft->println(str);
 }
 
@@ -174,10 +174,10 @@ ScrollTextBox::ScrollTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint1
     int16_t x0, y0; // dummy
     uint16_t h0; // dummy
     canvas = new GFXcanvas1(width*2, FONT_HEIGHT); // 2x width for minimize canvas update, which costs Unifont SdFat access
-    //canvas->setFont(DEFAULT_FONT);
+    canvas->setFont(CUSTOM_FONT, CUSTOM_FONT_OFS_Y);
     canvas->setTextWrap(false);
     canvas->setTextSize(1);
-    canvas->getTextBounds(str, 0, 0+TEXT_BASELINE_OFS_Y, &x0, &y0, &w0, &h0, encoding); // idle-run because first time fails somehow
+    canvas->getTextBounds(str, 0, 0, &x0, &y0, &w0, &h0, encoding); // idle-run because first time fails somehow
 }
 
 void ScrollTextBox::setFgColor(uint16_t fgColor)
@@ -216,7 +216,7 @@ void ScrollTextBox::draw(Adafruit_ST7735 *tft)
                 if (x_ofs-- != 0) {
                     if (x_ofs < -width + 1) {
                         canvas->fillRect(0, 0, width*2, FONT_HEIGHT, bgColor);
-                        canvas->setCursor(0, TEXT_BASELINE_OFS_Y);
+                        canvas->setCursor(0, 0);
                         canvas->print(str, encoding);
                     }
                     x_ofs = 0;
@@ -226,7 +226,7 @@ void ScrollTextBox::draw(Adafruit_ST7735 *tft)
         } else {
             if ((x_ofs % width) == -(width-1)) { // modulo returns minus value (C++)
                 canvas->fillRect(0, 0, width*2, FONT_HEIGHT, bgColor);
-                canvas->setCursor((x_ofs-1)/width*width, TEXT_BASELINE_OFS_Y);
+                canvas->setCursor((x_ofs-1)/width*width, 0);
                 canvas->print(str, encoding);
             }
             x_ofs--;
@@ -282,12 +282,12 @@ void ScrollTextBox::setText(const char *str, encoding_t encoding)
     update();
     //strncpy(this->str, str, charSize);
     memcpy(this->str, str, charSize);
-    canvas->getTextBounds(str, 0, 0+TEXT_BASELINE_OFS_Y, &x0, &y0, &w0, &h0, encoding); // get width (w0)
+    canvas->getTextBounds(str, 0, 0, &x0, &y0, &w0, &h0, encoding); // get width (w0)
     x_ofs = 0;
     stay_count = 0;
 
     canvas->fillRect(0, 0, width*2, FONT_HEIGHT, bgColor);
-    canvas->setCursor(0, TEXT_BASELINE_OFS_Y);
+    canvas->setCursor(0, 0);
     canvas->print(str, encoding);
 }
 
@@ -343,8 +343,7 @@ LcdCanvas::LcdCanvas(int8_t cs, int8_t dc, int8_t rst) : Adafruit_ST7735(cs, dc,
     initR(INITR_BLACKTAB);      // Init ST7735S chip, black tab
     setTextWrap(false);
     fillScreen(ST77XX_BLACK);
-    //setFont(&FreeMono9pt7b);
-    //setFont(DEFAULT_FONT);
+    setFont(CUSTOM_FONT, CUSTOM_FONT_OFS_Y);
     setTextSize(1);
     //Serial.println(width());
     //Serial.println(height());

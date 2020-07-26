@@ -9,6 +9,7 @@
 #else
  #include "WProgram.h"
 #endif
+#include "gfxfont.h"
 
 #define UNIFONT_USE_SDFAT
 
@@ -145,6 +146,7 @@ class Adafruit_GFX : public Print {
     setTextColor(uint16_t c),
     setTextColor(uint16_t c, uint16_t bg),
     setTextSize(uint8_t s),
+    setFont(const GFXfont *f = NULL, int16_t ofs_y = 0),
     setTextWrap(boolean w),
     setRTL(boolean r),
     cp437(boolean x=true),
@@ -206,6 +208,10 @@ class Adafruit_GFX : public Print {
   int8_t direction; ///< 1 for LTR, -1 for RTL.
   boolean
     wrap;           ///< If set, 'wrap' text at right edge of display
+  GFXfont
+    *gfxFont;       ///< Pointer to special font
+  int16_t
+    gfxFont_ofs_y;  ///< Y offset for special font
  private:
   inline uint8_t index_for_block(uint8_t block);
   void fix_diacritics(uint16_t *s, size_t length);

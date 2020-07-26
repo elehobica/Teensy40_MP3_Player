@@ -3,10 +3,14 @@
 
 #include <Adafruit_ST7735.h> // Hardware-specific library for ST7735
 //#include <Fonts/FreeMono9pt7b.h>
-//#include "Nimbus_Sans_L_Regular_Condensed_12.h"
+#include "Nimbus_Sans_L_Regular_Condensed_12.h"
 
-//#define DEFAULT_FONT	(&Nimbus_Sans_L_Regular_Condensed_12)
+// Common for Unicode Font & Custom Font (gfxFont)
 #define FONT_HEIGHT		16
+
+//  Custom Font (gfxFont)
+#define CUSTOM_FONT	(&Nimbus_Sans_L_Regular_Condensed_12)
+#define CUSTOM_FONT_OFS_Y	13
 
 // Additional Colors for ST77XX
 #define ST77XX_BRED       0XF81F
@@ -15,9 +19,6 @@
 #define ST77XX_BROWN      0XBC40
 #define ST77XX_BRRED      0XFC07
 #define ST77XX_GRAY       0X8430
-
-//#define TEXT_BASELINE_OFS_Y	13
-#define TEXT_BASELINE_OFS_Y	0
 
 extern uint8_t Icon16[];
 #define ICON16x16_TITLE		&Icon16[32*0]
@@ -220,7 +221,7 @@ protected:
 	IconScrollTextBox title = IconScrollTextBox(16*0, 16*4, ICON16x16_TITLE, width());
 	IconScrollTextBox artist = IconScrollTextBox(16*0, 16*5, ICON16x16_ARTIST, width());
 	IconScrollTextBox album = IconScrollTextBox(16*0, 16*6, ICON16x16_ALBUM, width());
-	TextBox bye_msg = TextBox(width()/2, height()/2-FONT_HEIGHT+TEXT_BASELINE_OFS_Y, "Bye", AlignCenter);
+	TextBox bye_msg = TextBox(width()/2, height()/2-FONT_HEIGHT, "Bye", AlignCenter);
 	Box *groupFileView[10] = {
 		&fileItem[0], &fileItem[1], &fileItem[2], &fileItem[3], &fileItem[4], &fileItem[5], &fileItem[6], &fileItem[7], &fileItem[8],  &fileItem[9]
 	};
