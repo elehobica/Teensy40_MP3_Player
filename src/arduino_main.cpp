@@ -471,6 +471,13 @@ void loop() {
                 if (id3.getUTF8Title(__str, sizeof(__str))) lcd.setTitle(__str, utf8);
                 if (id3.getUTF8Album(__str, sizeof(__str))) lcd.setAlbum(__str, utf8);
                 if (id3.getUTF8Artist(__str, sizeof(__str))) lcd.setArtist(__str, utf8);
+                mime_t mime;
+                ptype_t ptype;
+                char *ptr;
+                size_t size;
+                id3.getPicturePtr(&mime, &ptype, &ptr, &size);
+                Serial.print("size: ");
+                Serial.println(size);
                 playMp3.play(&file);
                 idx_play_count = 0;
                 idx_idle_count = 0;

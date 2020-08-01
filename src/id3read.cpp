@@ -337,7 +337,70 @@ int ID3Read::getUTF8Artist(char* str, size_t size)
     return GetID32("TP1", "TPE1", str, size);
 }
 
-int ID3Read::GetID32(const char *id3v22, const char *id3v23, char* str, size_t size)
+int ID3Read::getPicturePtr(mime_t *mime, ptype_t *ptype, char **ptr, size_t *size)
+{
+    *mime = non;
+    *ptype = other;
+    *ptr = NULL;
+    *size = 0;
+    if (!id3v2) { return 0; }
+    id32frame* thisframe;
+    int ver = id3v2->version[0];
+    // loop through tags and process
+    thisframe = id3v2->firstframe;
+    while (thisframe != NULL) {
+        if (id3v2->version[0] == 3) {
+            if (!strncmp("APIC", thisframe->ID, 4)) {
+                // encoding(1) + mime(\0) + ptype(1) + desc(1) + binary
+                if (thisframe->data[0] == 0) { // ISO-8859-1
+                    if (!strncmp("image/jpeg", &thisframe->data[1], 10)) {
+                        *mime = jpeg;
+                        *ptype = static_cast<ptype_t>(thisframe->data[1+11]);
+                        if (thisframe->data[1+11+1] == 0) {
+                            *ptr = &thisframe->data[1+11+1+1];
+                            *size = thisframe->size - (1+11+1+1);
+                        }
+                    } else if (!strncmp("image/png", &thisframe->data[1], 9)) {
+                        *mime = png;
+                        *ptype = static_cast<ptype_t>(thisframe->data[1+10]);
+                        if (thisframe->data[1+10+1] == 0) {
+                            *ptr = &thisframe->data[1+10+1+1];
+                            *size = thisframe->size - (1+10+1+1);
+                        }
+                    }
+                }
+                break;
+            }
+        } else if (id3v2->version[0] == 2) {
+            id322frame* tframe = (id322frame*) thisframe;
+            if (!strncmp("PIC", tframe->ID, 3)) {
+                // encoding(1) + mime(3) + ptype(1) + desc(1) + binary
+                if (tframe->data[0] == 0) { // ISO-8859-1
+                    if (!strncmp("JPG", &tframe->data[1], 3)) {
+                        *mime = jpeg;
+                        *ptype = static_cast<ptype_t>(tframe->data[1+3]);
+                        if (tframe->data[1+3+1] == 0) {
+                            *ptr = &tframe->data[1+3+1+1];
+                            *size = tframe->size - (1+3+1+1);
+                        }
+                    } else if (!strncmp("PNG", &tframe->data[1], 3)) {
+                        *mime = png;
+                        *ptype = static_cast<ptype_t>(tframe->data[1+3]);
+                        if (tframe->data[1+3+1] == 0) {
+                            *ptr = &tframe->data[1+3+1+1];
+                            *size = tframe->size - (1+3+1+1);
+                        }
+                    }
+                }
+                break;
+            }
+        }
+        thisframe = (ver == 3) ? thisframe->next : (id32frame*) ((id322frame*) thisframe)->next;
+    }
+    return (*ptr != NULL);
+}
+
+int ID3Read::GetID32(const char *id3v22, const char *id3v23, char *str, size_t size)
 {
     int flg = 0;
     if (!id3v2) { return 0; }
@@ -349,7 +412,7 @@ int ID3Read::GetID32(const char *id3v22, const char *id3v23, char* str, size_t s
         if (id3v2->version[0] == 3) {
             char buffer[5] = {};
             memcpy(buffer, thisframe->ID, 4);
-            if (!strcmp(id3v23, buffer)) {
+            if (!strncmp(id3v23, buffer, sizeof(buffer))) {
                 size_t max_size;
                 switch (thisframe->data[0]) { // data has no '\0' termination
                     case 0: // ISO-8859-1
@@ -377,7 +440,7 @@ int ID3Read::GetID32(const char *id3v22, const char *id3v23, char* str, size_t s
             id322frame* tframe = (id322frame*) thisframe;
             char buffer[4] = {};
             memcpy(buffer, thisframe->ID, 3);
-            if (!strcmp(id3v22, buffer)) {
+            if (!strncmp(id3v22, buffer, sizeof(buffer))) {
                 size_t max_size;
                 switch (tframe->data[0]) { // data has no '\0' termination
                     case 0: // ISO-8859-1
@@ -659,4 +722,3 @@ void ID3Read::ID31Free(id31* id31header)
 {
     free(id31header);
 }
-
