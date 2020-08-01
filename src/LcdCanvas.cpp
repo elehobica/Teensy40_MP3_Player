@@ -55,13 +55,13 @@ void IconBox::setIcon(uint8_t *icon)
 // Implementation of TextBox class
 //=================================
 TextBox::TextBox(int16_t pos_x, int16_t pos_y, uint16_t fgColor, uint16_t bgColor)
-    : isUpdated(true), pos_x(pos_x), pos_y(pos_y), fgColor(fgColor), bgColor(bgColor), align(AlignLeft), str("") {}
+    : isUpdated(true), pos_x(pos_x), pos_y(pos_y), fgColor(fgColor), bgColor(bgColor), align(AlignLeft), str(""), encoding(none) {}
 
 TextBox::TextBox(int16_t pos_x, int16_t pos_y, align_enm align, uint16_t fgColor, uint16_t bgColor)
-    : isUpdated(true), pos_x(pos_x), pos_y(pos_y), fgColor(fgColor), bgColor(bgColor), align(align), str("") {}
+    : isUpdated(true), pos_x(pos_x), pos_y(pos_y), fgColor(fgColor), bgColor(bgColor), align(align), str(""), encoding(none) {}
 
 TextBox::TextBox(int16_t pos_x, int16_t pos_y, const char *str, align_enm align, uint16_t fgColor, uint16_t bgColor)
-    : isUpdated(true), pos_x(pos_x), pos_y(pos_y), fgColor(fgColor), bgColor(bgColor), align(align), str("")
+    : isUpdated(true), pos_x(pos_x), pos_y(pos_y), fgColor(fgColor), bgColor(bgColor), align(align), str(""), encoding(none)
 {
     setText(str);
 }
@@ -80,6 +80,11 @@ void TextBox::setBgColor(uint16_t bgColor)
     update();
 }
 
+void TextBox::setEncoding(encoding_t encoding)
+{
+    this->encoding = encoding;
+}
+
 void TextBox::update()
 {
     isUpdated = true;
@@ -93,18 +98,19 @@ void TextBox::draw(Adafruit_ST7735 *tft)
     tft->fillRect(x0, y0, w0, h0, bgColor); // clear previous rectangle
     tft->setTextColor(fgColor);
     x_ofs = (align == AlignRight) ? -w0 : (align == AlignCenter) ? -w0/2 : 0; // at this point, w0 could be not correct
-    tft->getTextBounds(str, pos_x+x_ofs, pos_y, &x0, &y0, &w0, &h0); // update next smallest rectangle (get correct w0)
+    tft->getTextBounds(str, pos_x+x_ofs, pos_y, &x0, &y0, &w0, &h0, encoding); // update next smallest rectangle (get correct w0)
     x_ofs = (align == AlignRight) ? -w0 : (align == AlignCenter) ? -w0/2 : 0;
-    tft->getTextBounds(str, pos_x+x_ofs, pos_y, &x0, &y0, &w0, &h0); // update next smallest rectangle (get total correct info)
+    tft->getTextBounds(str, pos_x+x_ofs, pos_y, &x0, &y0, &w0, &h0, encoding); // update next smallest rectangle (get total correct info)
     tft->setCursor(pos_x+x_ofs, pos_y);
-    tft->println(str);
+    tft->println(str, encoding);
 }
 
-void TextBox::setText(const char *str)
+void TextBox::setText(const char *str, encoding_t encoding)
 {
     if (strncmp(this->str, str, charSize) == 0) { return; }
     //strncpy(this->str, str, charSize);
     memcpy(this->str, str, charSize);
+    this->encoding = encoding;
     update();
 }
 
@@ -115,12 +121,111 @@ void TextBox::setFormatText(const char *fmt, ...)
     va_start(va, fmt);
     vsprintf(str_temp, fmt, va);
     va_end(va);
-    setText(str_temp);
+    setText(str_temp, encoding);
 }
 
 void TextBox::setInt(int value)
 {
+    setEncoding(none);
     setFormatText("%d", value);
+}
+
+//=================================
+// Implementation of NFTextBox class
+//=================================
+NFTextBox::NFTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t fgColor, uint16_t bgColor)
+    : TextBox(pos_x, pos_y, "", AlignLeft, fgColor, bgColor), width(width)
+{
+    initCanvas();
+}
+
+NFTextBox::NFTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, align_enm align, uint16_t fgColor, uint16_t bgColor)
+    : TextBox(pos_x, pos_y, "", align, fgColor, bgColor), width(width)
+{
+    initCanvas();
+}
+
+NFTextBox::NFTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, const char *str, align_enm align, uint16_t fgColor, uint16_t bgColor)
+    : TextBox(pos_x, pos_y, str, align, fgColor, bgColor), width(width)
+{
+    initCanvas();
+}
+
+NFTextBox::~NFTextBox()
+{
+    // deleting object of polymorphic class type 'GFXcanvas1' which has non-virtual destructor might cause undefined behaviour
+    //delete canvas;
+}
+
+void NFTextBox::initCanvas()
+{
+    canvas = new GFXcanvas1(width, FONT_HEIGHT); // 2x width for minimize canvas update, which costs Unifont SdFat access
+    canvas->setFont(CUSTOM_FONT, CUSTOM_FONT_OFS_Y);
+    canvas->setTextWrap(false);
+    canvas->setTextSize(1);
+    canvas->getTextBounds(str, 0, 0, &x0, &y0, &w0, &h0, encoding); // idle-run because first time fails somehow
+}
+
+void NFTextBox::draw(Adafruit_ST7735 *tft)
+{
+    if (!isUpdated) { return; }
+    int16_t x_ofs;
+    int16_t new_x_ofs;
+    uint16_t new_w0;
+    isUpdated = false;
+    x_ofs = (align == AlignRight) ? -w0 : (align == AlignCenter) ? -w0/2 : 0; // previous x_ofs
+    canvas->getTextBounds(str, 0, 0, &x0, &y0, &new_w0, &h0, encoding); // get next smallest rectangle (get correct new_w0)
+    new_x_ofs = (align == AlignRight) ? -new_w0 : (align == AlignCenter) ? -new_w0/2 : 0;
+    if (new_x_ofs > x_ofs) { // clear left-over rectangle
+        tft->fillRect(pos_x+x_ofs, pos_y+y0, new_x_ofs-x_ofs, h0, bgColor);
+    }
+    if (new_x_ofs+new_w0 < x_ofs+w0) { // clear right-over rectangle
+        tft->fillRect(pos_x+new_x_ofs+new_w0, pos_y+y0, x_ofs+w0-new_x_ofs-new_w0, h0, bgColor);
+    }
+    // update info
+    w0 = new_w0;
+    x_ofs = new_x_ofs;
+    // Flicker less draw (width must be NFTextBox's width)
+    //tft->drawBitmap(pos_x+x_ofs, pos_y, canvas->getBuffer(), width, FONT_HEIGHT, fgColor, bgColor);
+    {
+        int16_t x = pos_x+x_ofs;
+        int16_t y = pos_y;
+        const uint8_t *bitmap = canvas->getBuffer();
+        int16_t w = width;
+        int16_t h = FONT_HEIGHT;
+        uint16_t color = fgColor;
+        uint16_t bg = bgColor;
+
+        int16_t byteWidth = (w + 7) / 8; // Bitmap scanline pad = whole byte
+        uint8_t byte = 0;
+
+        tft->startWrite();
+        for (int16_t j = 0; j < h; j++, y++) {
+            for (int16_t i = 0; i < w; i++) {
+                if (i & 7) {
+                    byte <<= 1;
+                } else {
+                    byte = pgm_read_byte(&bitmap[j * byteWidth + i / 8]);
+                }
+                if (x+i >= pos_x+x_ofs && x+i < pos_x+x_ofs+w0) {
+                    tft->writePixel(x+i, y, (byte & 0x80) ? color : bg);
+                }
+            }
+        }
+        tft->endWrite();
+    }
+}
+
+void NFTextBox::setText(const char *str, encoding_t encoding)
+{
+    if (strncmp(this->str, str, charSize) == 0) { return; }
+    this->encoding = encoding;
+    update();
+    //strncpy(this->str, str, charSize);
+    memcpy(this->str, str, charSize);
+    canvas->fillRect(0, 0, width, FONT_HEIGHT, bgColor);
+    canvas->setCursor(0, 0);
+    canvas->print(str, encoding);
 }
 
 //=================================
@@ -178,6 +283,12 @@ ScrollTextBox::ScrollTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint1
     canvas->setTextWrap(false);
     canvas->setTextSize(1);
     canvas->getTextBounds(str, 0, 0, &x0, &y0, &w0, &h0, encoding); // idle-run because first time fails somehow
+}
+
+ScrollTextBox::~ScrollTextBox()
+{
+    // deleting object of polymorphic class type 'GFXcanvas1' which has non-virtual destructor might cause undefined behaviour
+    //delete canvas;
 }
 
 void ScrollTextBox::setFgColor(uint16_t fgColor)

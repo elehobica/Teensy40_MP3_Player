@@ -94,9 +94,10 @@ public:
 	TextBox(int16_t pos_x, int16_t pos_y, const char *str, align_enm align, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
 	void setFgColor(uint16_t fgColor);
 	void setBgColor(uint16_t bgColor);
+	void setEncoding(encoding_t encoding);
 	virtual void update();
 	void draw(Adafruit_ST7735 *tft);
-	void setText(const char *str);
+	virtual void setText(const char *str, encoding_t encoding = none);
 	void setFormatText(const char *fmt, ...);
 	void setInt(int value);
 	static const int charSize = 256;
@@ -109,6 +110,26 @@ protected:
 	uint16_t w0, h0; // previous rectangle size
 	align_enm align;
 	char str[charSize];
+	encoding_t encoding;
+};
+
+//=================================
+// Definition of NFTextBox class < TextBox
+// (Non-Flicker TextBox)
+//=================================
+class NFTextBox : public TextBox
+{
+public:
+	NFTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
+	NFTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, align_enm align, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
+	NFTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, const char *str, align_enm align, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
+	virtual ~NFTextBox();
+	void draw(Adafruit_ST7735 *tft);
+	virtual void setText(const char *str, encoding_t encoding = none);
+protected:
+	GFXcanvas1 *canvas;
+	uint16_t width;
+	void initCanvas();
 };
 
 //=================================
@@ -134,12 +155,13 @@ class ScrollTextBox : public Box
 {
 public:
 	ScrollTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
+	virtual ~ScrollTextBox();
 	void setFgColor(uint16_t fgColor);
 	void setBgColor(uint16_t bgColor);
 	virtual void update();
 	void draw(Adafruit_ST7735 *tft);
 	void setScroll(bool scr_en);
-	void setText(const char *str, encoding_t encoding = none);
+	virtual void setText(const char *str, encoding_t encoding = none);
 	static const int charSize = 256;
 protected:
 	bool isUpdated;
@@ -217,7 +239,7 @@ protected:
 	IconBox battery = IconBox(16*7, 16*0, ICON16x16_BATTERY, ST77XX_GRAY);
 	IconTextBox volume = IconTextBox(16*0, 16*0, ICON16x16_VOLUME, ST77XX_GRAY);
 	TextBox bitRate = TextBox(16*4, 16*0, AlignCenter, ST77XX_GRAY);
-	TextBox playTime = TextBox(16*8-1, 16*9, AlignRight, ST77XX_GRAY);
+	NFTextBox playTime = NFTextBox(width(), 16*9, width(), AlignRight, ST77XX_GRAY);
 	IconScrollTextBox title = IconScrollTextBox(16*0, 16*4, ICON16x16_TITLE, width());
 	IconScrollTextBox artist = IconScrollTextBox(16*0, 16*5, ICON16x16_ARTIST, width());
 	IconScrollTextBox album = IconScrollTextBox(16*0, 16*6, ICON16x16_ALBUM, width());
