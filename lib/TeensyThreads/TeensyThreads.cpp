@@ -677,3 +677,30 @@ int __attribute__ ((noinline)) Threads::Mutex::unlock() {
   threads.start(p);
   return 1;
 }
+
+void Threads::Event::trigger()
+{
+  Threads::Scope scope(lock);
+  flag = true;
+}
+
+void Threads::Event::clear()
+{
+  Threads::Scope scope(lock);
+  flag = false;
+}
+
+int Threads::Event::wait(unsigned int timeout_ms)
+{
+  uint32_t start = systick_millis_count;
+  while (!flag) {
+    if (timeout_ms && (systick_millis_count - start > timeout_ms)) return 0;
+    threads.yield();
+  }
+  return 1;
+}
+
+bool Threads::Event::getState()
+{
+  return flag;
+}

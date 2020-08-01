@@ -329,6 +329,17 @@ public:
     ~Suspend();     // Restore saved state
   };
 
+  class Event {
+  private:
+    Threads::Mutex lock;
+    volatile bool flag = 0;
+  public:
+    void trigger();
+    void clear();
+    int wait(unsigned int timeout_ms = 0);
+    bool getState();
+  };
+
   template <class C> class GrabTemp {
     private:
       Mutex *lkp;
