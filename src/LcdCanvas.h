@@ -279,8 +279,9 @@ protected:
 	Box *groupFileView[10] = {
 		&fileItem[0], &fileItem[1], &fileItem[2], &fileItem[3], &fileItem[4], &fileItem[5], &fileItem[6], &fileItem[7], &fileItem[8],  &fileItem[9]
 	};
-	Box *groupPlay0[7] = {&battery, &volume, &bitRate, &playTime, &title, &artist, &album};
-	Box *groupPlay1[5] = {&battery, &volume, &bitRate, &playTime, &albumArt};
+	Box *groupPlay[4] = {&battery, &volume, &bitRate, &playTime}; // Common for Play mode 0 and 1
+	Box *groupPlay0[3] = {&title, &artist, &album}; // Play mode 0 only
+	Box *groupPlay1[1] = {&albumArt}; // Play mode 1 only
 	Box *groupPowerOff[1] = {&bye_msg};
 };
 

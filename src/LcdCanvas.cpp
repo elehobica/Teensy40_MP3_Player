@@ -613,8 +613,14 @@ void LcdCanvas::switchToPlay()
 {
     mode = Play;
     clear();
+    for (int i = 0; i < (int) (sizeof(groupPlay)/sizeof(*groupPlay)); i++) {
+        groupPlay[i]->update();
+    }
     for (int i = 0; i < (int) (sizeof(groupPlay0)/sizeof(*groupPlay0)); i++) {
         groupPlay0[i]->update();
+    }
+    for (int i = 0; i < (int) (sizeof(groupPlay1)/sizeof(*groupPlay1)); i++) {
+        groupPlay1[i]->update();
     }
     play_count = 0;
 }
@@ -640,6 +646,9 @@ void LcdCanvas::draw()
             groupFileView[i]->draw(this);
         }
     } else if (mode == Play) {
+        for (int i = 0; i < (int) (sizeof(groupPlay)/sizeof(*groupPlay)); i++) {
+            groupPlay[i]->draw(this);
+        }
         if (play_count % play_cycle < play_change) {
             for (int i = 0; i < (int) (sizeof(groupPlay0)/sizeof(*groupPlay0)); i++) {
                 groupPlay0[i]->draw(this);
