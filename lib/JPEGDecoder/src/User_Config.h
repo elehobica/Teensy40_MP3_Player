@@ -2,7 +2,7 @@
 // Commenting out the line is NOT essential but will save some FLASH space if
 // SD Card access is not needed. Note: use of SdFat is currently untested!
 
-#define LOAD_SD_LIBRARY // Default SD Card library
+//#define LOAD_SD_LIBRARY // Default SD Card library
 //#define LOAD_SDFAT_LIBRARY // Use SdFat library instead, so SD Card SPI can be bit bashed
 
 
@@ -39,4 +39,9 @@ File jpegFile = SD.open( filename, FILE_READ);
 	// order is not right for your sketch!
 	
 	// #define SWAP_BYTES // Deprecated, only included for backwards compatibility
+#endif
+
+#if defined(__IMXRT1052__) || defined(__IMXRT1062__)
+#undef LOAD_SD_LIBRARY
+#undef LOAD_SDFAT_LIBRARY
 #endif

@@ -2,6 +2,7 @@
 #define __LCDCANVAS_H_INCLUDED__
 
 #include <Adafruit_ST7735.h> // Hardware-specific library for ST7735
+#include <JPEGDecoder.h>
 //#include <Fonts/FreeMono9pt7b.h>
 #include "Nimbus_Sans_L_Regular_Condensed_12.h"
 
@@ -57,10 +58,31 @@ public:
 	virtual void setBgColor(uint16_t bgColor) = 0;
 	virtual void update() = 0;
 	virtual void draw(Adafruit_ST7735 *tft) = 0;
+	virtual void clear(Adafruit_ST7735 *tft) = 0;
 };
 
 //=================================
-// Definition of Box class < Box
+// Definition of ImageBox class < Box
+//=================================
+class ImageBox : public Box
+{
+public:
+	ImageBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t height, uint16_t bgColor = ST77XX_BLACK);
+	void setBgColor(uint16_t bgColor);
+	void update();
+	void draw(Adafruit_ST7735 *tft);
+	void clear(Adafruit_ST7735 *tft);
+	void setJpegBin(uint8_t *ptr, size_t size);
+protected:
+	bool isUpdated;
+	int16_t pos_x, pos_y;
+	uint16_t width, height;
+	uint16_t bgColor;
+	uint16_t *image;
+};
+
+//=================================
+// Definition of IconBox class < Box
 //=================================
 class IconBox : public Box
 {
@@ -95,8 +117,9 @@ public:
 	void setFgColor(uint16_t fgColor);
 	void setBgColor(uint16_t bgColor);
 	void setEncoding(encoding_t encoding);
-	virtual void update();
+	void update();
 	void draw(Adafruit_ST7735 *tft);
+	void clear(Adafruit_ST7735 *tft);
 	virtual void setText(const char *str, encoding_t encoding = none);
 	void setFormatText(const char *fmt, ...);
 	void setInt(int value);
@@ -125,6 +148,7 @@ public:
 	NFTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, const char *str, align_enm align, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
 	virtual ~NFTextBox();
 	void draw(Adafruit_ST7735 *tft);
+	void clear(Adafruit_ST7735 *tft);
 	virtual void setText(const char *str, encoding_t encoding = none);
 protected:
 	GFXcanvas1 *canvas;
@@ -143,6 +167,7 @@ public:
 	void setBgColor(uint16_t bgColor);
 	void update();
 	void draw(Adafruit_ST7735 *tft);
+	void clear(Adafruit_ST7735 *tft);
 	void setIcon(uint8_t *icon);
 protected:
 	IconBox iconBox;
@@ -158,8 +183,9 @@ public:
 	virtual ~ScrollTextBox();
 	void setFgColor(uint16_t fgColor);
 	void setBgColor(uint16_t bgColor);
-	virtual void update();
+	void update();
 	void draw(Adafruit_ST7735 *tft);
+	void clear(Adafruit_ST7735 *tft);
 	void setScroll(bool scr_en);
 	virtual void setText(const char *str, encoding_t encoding = none);
 	static const int charSize = 256;
@@ -190,6 +216,7 @@ public:
 	void setBgColor(uint16_t bgColor);
 	void update();
 	void draw(Adafruit_ST7735 *tft);
+	void clear(Adafruit_ST7735 *tft);
 	void setIcon(uint8_t *icon);
 protected:
 	IconBox iconBox;
@@ -217,6 +244,7 @@ public:
 	void setTitle(const char *str, encoding_t encoding = none);
 	void setAlbum(const char *str, encoding_t encoding = none);
 	void setArtist(const char *str, encoding_t encoding = none);
+	void setAlbumArtJpeg(uint8_t *ptr, size_t size);
 	void switchToFileView();
 	void switchToPlay();
 	void switchToPowerOff();
@@ -224,6 +252,9 @@ public:
 
 protected:
 	mode_enm mode;
+	int play_count;
+	const int play_cycle = 150;
+	const int play_change = 100;
 	IconScrollTextBox fileItem[10] = {
 		IconScrollTextBox(16*0, 16*0, width(), ST77XX_GRAY),
 		IconScrollTextBox(16*0, 16*1, width(), ST77XX_GRAY),
@@ -244,10 +275,12 @@ protected:
 	IconScrollTextBox artist = IconScrollTextBox(16*0, 16*5, ICON16x16_ARTIST, width());
 	IconScrollTextBox album = IconScrollTextBox(16*0, 16*6, ICON16x16_ALBUM, width());
 	TextBox bye_msg = TextBox(width()/2, height()/2-FONT_HEIGHT, "Bye", AlignCenter);
+	ImageBox albumArt = ImageBox(0, (height() - width())/2, width(), width());
 	Box *groupFileView[10] = {
 		&fileItem[0], &fileItem[1], &fileItem[2], &fileItem[3], &fileItem[4], &fileItem[5], &fileItem[6], &fileItem[7], &fileItem[8],  &fileItem[9]
 	};
-	Box *groupPlay[7] = {&battery, &volume, &bitRate, &playTime, &title, &artist, &album};
+	Box *groupPlay0[7] = {&battery, &volume, &bitRate, &playTime, &title, &artist, &album};
+	Box *groupPlay1[5] = {&battery, &volume, &bitRate, &playTime, &albumArt};
 	Box *groupPowerOff[1] = {&bye_msg};
 };
 

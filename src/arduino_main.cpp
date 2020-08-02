@@ -390,6 +390,24 @@ int get_mp3_file(uint16_t idx, int seq_flg, FsBaseFile *f)
     }
 }
 
+void loadID3(FsBaseFile *file)
+{
+    char __str[256];
+    mime_t mime;
+    ptype_t ptype;
+    char *ptr;
+    size_t size;
+
+    id3.loadFile(file);
+    if (id3.getUTF8Title(__str, sizeof(__str))) lcd.setTitle(__str, utf8);
+    if (id3.getUTF8Album(__str, sizeof(__str))) lcd.setAlbum(__str, utf8);
+    if (id3.getUTF8Artist(__str, sizeof(__str))) lcd.setArtist(__str, utf8);
+    id3.getPicturePtr(&mime, &ptype, &ptr, &size);
+    if (mime == jpeg) {
+        lcd.setAlbumArtJpeg(ptr, size);
+    }
+}
+
 void setup() {
     Serial.begin(115200);
     loadFromEEPROM();
@@ -466,19 +484,8 @@ void loop() {
             idx_play = get_mp3_file(idx_play, 0, &file);
             if (idx_play) {
                 mode = Play;
-                id3.loadFile(&file);
-                char __str[256];
-                if (id3.getUTF8Title(__str, sizeof(__str))) lcd.setTitle(__str, utf8);
-                if (id3.getUTF8Album(__str, sizeof(__str))) lcd.setAlbum(__str, utf8);
-                if (id3.getUTF8Artist(__str, sizeof(__str))) lcd.setArtist(__str, utf8);
-                mime_t mime;
-                ptype_t ptype;
-                char *ptr;
-                size_t size;
-                id3.getPicturePtr(&mime, &ptype, &ptr, &size);
-                Serial.print("size: ");
-                Serial.println(size);
                 playMp3.play(&file);
+                loadID3(&file);
                 idx_play_count = 0;
                 idx_idle_count = 0;
                 lcd.switchToPlay();
@@ -586,12 +593,8 @@ void loop() {
             if (!playMp3.isPlaying() || (playMp3.positionMillis() + 150 > playMp3.lengthMillis())) {
                 idx_play = get_mp3_file(idx_play+1, 1, &file);
                 if (idx_play) {
-                    id3.loadFile(&file);
-                    char __str[256];
-                    if (id3.getUTF8Title(__str, sizeof(__str))) lcd.setTitle(__str, utf8);
-                    if (id3.getUTF8Album(__str, sizeof(__str))) lcd.setAlbum(__str, utf8);
-                    if (id3.getUTF8Artist(__str, sizeof(__str))) lcd.setArtist(__str, utf8);
                     playMp3.standby_play(&file);
+                    loadID3(&file);
                 } else {
                     while (playMp3.isPlaying()) { delay(1); } // minimize gap between tracks
                     playMp3.stop();

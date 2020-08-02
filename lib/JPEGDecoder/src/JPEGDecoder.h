@@ -57,9 +57,9 @@ https://github.com/Bodmer/JPEGDecoder
 
   #if defined (LOAD_SD_LIBRARY) || defined (LOAD_SDFAT_LIBRARY)
     #ifdef LOAD_SDFAT_LIBRARY
-      #include <SdFat.h> // Alternative where we might need to bit bash the SPI
+      //#include <SdFat.h> // Alternative where we might need to bit bash the SPI
     #else
-      #include <SD.h>    // Default
+      //#include <SD.h>    // Default
     #endif
   #endif
 

@@ -2,6 +2,109 @@
 #include "iconfont.h"
 
 //=================================
+// Implementation of ImageBox class
+//=================================
+ImageBox::ImageBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t height, uint16_t bgColor)
+    : isUpdated(true), pos_x(pos_x), pos_y(pos_y), width(width), height(height), bgColor(bgColor), image(NULL)
+{
+    image = (uint16_t *) calloc(2, width * height);
+}
+
+void ImageBox::setBgColor(uint16_t bgColor)
+{
+    if (this->bgColor == bgColor) { return; }
+    this->bgColor = bgColor;
+    update();
+}
+
+void ImageBox::update()
+{
+    isUpdated = true;
+}
+
+void ImageBox::draw(Adafruit_ST7735 *tft)
+{
+    if (!isUpdated || image == NULL) { return; }
+    isUpdated = false;
+    tft->drawRGBBitmap(pos_x, pos_y, image, width, height);
+}
+
+void ImageBox::clear(Adafruit_ST7735 *tft)
+{
+    tft->fillRect(pos_x, pos_y, width, height, bgColor); // clear Icon rectangle
+}
+
+// set JPEG binary and fit to width/height by Nearest Neighbor
+void ImageBox::setJpegBin(uint8_t *ptr, size_t size)
+{
+    bool decoded = JpegDec.decodeArray((const uint8_t *) ptr, (uint32_t) size);
+    if (!decoded) { return; }
+    Serial.println("JPEG info: ");
+    Serial.println(JpegDec.width);
+    Serial.println(JpegDec.height);
+    Serial.println(JpegDec.MCUWidth);
+    Serial.println(JpegDec.MCUHeight);
+    uint16_t jpg_w = JpegDec.width;
+    uint16_t jpg_h = JpegDec.height;
+    uint16_t mcu_w = JpegDec.MCUWidth;
+    uint16_t mcu_h = JpegDec.MCUHeight;
+    while (JpegDec.read()) {
+        int idx = 0;
+        int16_t x, y;
+        int16_t mcu_x = JpegDec.MCUx;
+        int16_t mcu_y = JpegDec.MCUy;
+        int16_t mod_y = jpg_h;
+        int16_t plot_y = 0;
+        for (y = 0; y < mcu_h * mcu_y; y++) { // preset mod_y condition
+            if (mod_y < 0) {
+                mod_y += jpg_h;
+                plot_y++;
+            }
+            mod_y -= height;
+        }
+        for (int16_t mcu_ofs_y = 0; mcu_ofs_y < mcu_h; mcu_ofs_y++) {
+            y = mcu_h * mcu_y + mcu_ofs_y;
+            if (y >= jpg_h) break;
+            int16_t mod_x = jpg_w;
+            int16_t plot_x = 0;
+            for (x = 0; x < mcu_w * mcu_x; x++) { // preset mod_x condition
+                while (mod_x < 0) {
+                    mod_x += jpg_w;
+                    plot_x++;
+                }
+                mod_x -= width;
+            }
+            for (int16_t mcu_ofs_x = 0; mcu_ofs_x < mcu_w; mcu_ofs_x++) {
+                x = mcu_w * mcu_x + mcu_ofs_x;
+                if (x >= jpg_w) break;
+                while (mod_x < 0) {
+                    if (mod_y < 0) {
+                        image[width*plot_y+plot_x] = JpegDec.pImage[idx];
+                    }
+                    mod_x += jpg_w;
+                    plot_x++;
+                }
+                mod_x -= width;
+                idx++;
+            }
+            if (mod_y < 0) {
+                mod_y += jpg_h;
+                plot_y++;
+                while (mod_y < 0) { // repeat previous line in case of shrinking
+                    for (plot_x = 0; plot_x < width; plot_x++) {
+                        image[width*plot_y+plot_x] = image[width*(plot_y-1)+plot_x];
+                    }
+                    mod_y += jpg_h;
+                    plot_y++;
+                }
+            }
+            mod_y -= height;
+        }
+    }
+    update();
+}
+
+//=================================
 // Implementation of IconBox class
 //=================================
 IconBox::IconBox(int16_t pos_x, int16_t pos_y, uint16_t fgColor, uint16_t bgColor)
@@ -95,7 +198,8 @@ void TextBox::draw(Adafruit_ST7735 *tft)
     if (!isUpdated) { return; }
     int16_t x_ofs;
     isUpdated = false;
-    tft->fillRect(x0, y0, w0, h0, bgColor); // clear previous rectangle
+    TextBox::clear(tft); // call clear() of this class
+    //tft->fillRect(x0, y0, w0, h0, bgColor); // clear previous rectangle
     tft->setTextColor(fgColor);
     x_ofs = (align == AlignRight) ? -w0 : (align == AlignCenter) ? -w0/2 : 0; // at this point, w0 could be not correct
     tft->getTextBounds(str, pos_x+x_ofs, pos_y, &x0, &y0, &w0, &h0, encoding); // update next smallest rectangle (get correct w0)
@@ -103,6 +207,11 @@ void TextBox::draw(Adafruit_ST7735 *tft)
     tft->getTextBounds(str, pos_x+x_ofs, pos_y, &x0, &y0, &w0, &h0, encoding); // update next smallest rectangle (get total correct info)
     tft->setCursor(pos_x+x_ofs, pos_y);
     tft->println(str, encoding);
+}
+
+void TextBox::clear(Adafruit_ST7735 *tft)
+{
+    tft->fillRect(x0, y0, w0, h0, bgColor); // clear previous rectangle
 }
 
 void TextBox::setText(const char *str, encoding_t encoding)
@@ -216,6 +325,12 @@ void NFTextBox::draw(Adafruit_ST7735 *tft)
     }
 }
 
+void NFTextBox::clear(Adafruit_ST7735 *tft)
+{
+    int16_t x_ofs = (align == AlignRight) ? -w0 : (align == AlignCenter) ? -w0/2 : 0; // previous x_ofs
+    tft->fillRect(pos_x+x_ofs, pos_y+y0, w0, h0, bgColor);
+}
+
 void NFTextBox::setText(const char *str, encoding_t encoding)
 {
     if (strncmp(this->str, str, charSize) == 0) { return; }
@@ -236,20 +351,20 @@ IconTextBox::IconTextBox(int16_t pos_x, int16_t pos_y, uint8_t *icon, uint16_t f
 
 void IconTextBox::setFgColor(uint16_t fgColor)
 {
-    TextBox::setFgColor(fgColor);
     iconBox.setFgColor(fgColor);
+    TextBox::setFgColor(fgColor);
 }
 
 void IconTextBox::setBgColor(uint16_t bgColor)
 {
-    TextBox::setBgColor(bgColor);
     iconBox.setBgColor(bgColor);
+    TextBox::setBgColor(bgColor);
 }
 
 void IconTextBox::update()
 {
-    TextBox::update();
     iconBox.update();
+    TextBox::update();
 }
 
 void IconTextBox::draw(Adafruit_ST7735 *tft)
@@ -262,6 +377,12 @@ void IconTextBox::draw(Adafruit_ST7735 *tft)
     }
     // For TextBox
     TextBox::draw(tft);
+}
+
+void IconTextBox::clear(Adafruit_ST7735 *tft)
+{
+    iconBox.clear(tft);
+    TextBox::clear(tft);
 }
 
 void IconTextBox::setIcon(uint8_t *icon)
@@ -377,6 +498,11 @@ void ScrollTextBox::draw(Adafruit_ST7735 *tft)
     }
 }
 
+void ScrollTextBox::clear(Adafruit_ST7735 *tft)
+{
+    tft->fillRect(pos_x, pos_y, width, FONT_HEIGHT, bgColor);
+}
+
 void ScrollTextBox::setScroll(bool scr_en)
 {
     if (this->scr_en == scr_en) { return; }
@@ -413,20 +539,20 @@ IconScrollTextBox::IconScrollTextBox(int16_t pos_x, int16_t pos_y, uint8_t *icon
 
 void IconScrollTextBox::setFgColor(uint16_t fgColor)
 {
-    ScrollTextBox::setFgColor(fgColor);
     iconBox.setFgColor(fgColor);
+    ScrollTextBox::setFgColor(fgColor);
 }
 
 void IconScrollTextBox::setBgColor(uint16_t bgColor)
 {
-    ScrollTextBox::setBgColor(bgColor);
     iconBox.setBgColor(bgColor);
+    ScrollTextBox::setBgColor(bgColor);
 }
 
 void IconScrollTextBox::update()
 {
-    ScrollTextBox::update();
     iconBox.update();
+    ScrollTextBox::update();
 }
 
 void IconScrollTextBox::draw(Adafruit_ST7735 *tft)
@@ -441,6 +567,12 @@ void IconScrollTextBox::draw(Adafruit_ST7735 *tft)
     ScrollTextBox::draw(tft);
 }
 
+void IconScrollTextBox::clear(Adafruit_ST7735 *tft)
+{
+    iconBox.clear(tft);
+    ScrollTextBox::clear(tft);
+}
+
 void IconScrollTextBox::setIcon(uint8_t *icon)
 {
     iconBox.setIcon(icon);
@@ -449,7 +581,7 @@ void IconScrollTextBox::setIcon(uint8_t *icon)
 //=================================
 // Implementation of LcdCanvas class
 //=================================
-LcdCanvas::LcdCanvas(int8_t cs, int8_t dc, int8_t rst) : Adafruit_ST7735(cs, dc, rst), mode(FileView)
+LcdCanvas::LcdCanvas(int8_t cs, int8_t dc, int8_t rst) : Adafruit_ST7735(cs, dc, rst), mode(FileView), play_count(0)
 {
     initR(INITR_BLACKTAB);      // Init ST7735S chip, black tab
     setTextWrap(false);
@@ -481,9 +613,10 @@ void LcdCanvas::switchToPlay()
 {
     mode = Play;
     clear();
-    for (int i = 0; i < (int) (sizeof(groupPlay)/sizeof(*groupPlay)); i++) {
-        groupPlay[i]->update();
+    for (int i = 0; i < (int) (sizeof(groupPlay0)/sizeof(*groupPlay0)); i++) {
+        groupPlay0[i]->update();
     }
+    play_count = 0;
 }
 
 void LcdCanvas::switchToPowerOff()
@@ -507,9 +640,32 @@ void LcdCanvas::draw()
             groupFileView[i]->draw(this);
         }
     } else if (mode == Play) {
-        for (int i = 0; i < (int) (sizeof(groupPlay)/sizeof(*groupPlay)); i++) {
-            groupPlay[i]->draw(this);
+        if (play_count % play_cycle < play_change) {
+            for (int i = 0; i < (int) (sizeof(groupPlay0)/sizeof(*groupPlay0)); i++) {
+                groupPlay0[i]->draw(this);
+            }
+            if (play_count % play_cycle == play_change-1) {
+                for (int i = 0; i < (int) (sizeof(groupPlay0)/sizeof(*groupPlay0)); i++) {
+                    groupPlay0[i]->clear(this);
+                }
+                for (int i = 0; i < (int) (sizeof(groupPlay1)/sizeof(*groupPlay1)); i++) {
+                    groupPlay1[i]->update();
+                }
+            }
+        } else {
+            for (int i = 0; i < (int) (sizeof(groupPlay1)/sizeof(*groupPlay1)); i++) {
+                groupPlay1[i]->draw(this);
+            }
+            if (play_count % play_cycle == play_cycle-1) {
+                for (int i = 0; i < (int) (sizeof(groupPlay1)/sizeof(*groupPlay1)); i++) {
+                    groupPlay1[i]->clear(this);
+                }
+                for (int i = 0; i < (int) (sizeof(groupPlay0)/sizeof(*groupPlay0)); i++) {
+                    groupPlay0[i]->update();
+                }
+            }
         }
+        play_count++;
     } else if (mode == PowerOff) {
         for (int i = 0; i < (int) (sizeof(groupPowerOff)/sizeof(*groupPowerOff)); i++) {
             groupPowerOff[i]->draw(this);
@@ -555,4 +711,9 @@ void LcdCanvas::setAlbum(const char *str, encoding_t encoding)
 void LcdCanvas::setArtist(const char *str, encoding_t encoding)
 {
     artist.setText(str, encoding);
+}
+
+void LcdCanvas::setAlbumArtJpeg(uint8_t *ptr, size_t size)
+{
+    albumArt.setJpegBin(ptr, size);
 }

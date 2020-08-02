@@ -19,14 +19,15 @@ ID3Read::~ID3Read()
 
 int ID3Read::loadFile(FsBaseFile* infile)
 {
+    Threads::Scope scope(mylock);
     int result;
     if (id3v1) ID31Free(id3v1);
     if (id3v2) ID32Free(id3v2);
     file = FsBaseFile(*infile);
     result = GetID3HeadersFull(&file, 1, &id3v1, &id3v2); // 1: no-debug display, 0: debug display
-    mylock.lock();
+    //mylock.lock();
     infile->rewind();
-    mylock.unlock();
+    //mylock.unlock();
     return result;
 }
 
@@ -38,10 +39,10 @@ int ID3Read::GetID3HeadersFull(FsBaseFile* infile, int testfail, id31** id31save
     id32* id32header;
     int fail = 0;
     // seek to start of header
-    mylock.lock();
+    //mylock.lock();
     //result = fseek(infile, 0 - sizeof(id31), SEEK_END);
     infile->seekSet(infile->size() - sizeof(id31)); // seekEnd doesn't work. if return value, seekSet fails anyhow
-    mylock.unlock();
+    //mylock.unlock();
     /*
     if (result) {
         Serial.print("Error seeking to header");
@@ -51,10 +52,10 @@ int ID3Read::GetID3HeadersFull(FsBaseFile* infile, int testfail, id31** id31save
   
     // read in to buffer
     input = (char *) malloc(sizeof(id31));
-    mylock.lock();
+    //mylock.lock();
     //result = fread(input, 1, sizeof(id31), infile);
     result = infile->read(input, sizeof(id31));
-    mylock.unlock();
+    //mylock.unlock();
     if (result != sizeof(id31)) {
         char str[256];
         sprintf(str, "Read fail: expected %d bytes but got %d", sizeof(id31), result);
@@ -108,17 +109,17 @@ id32* ID3Read::ID32Detect(FsBaseFile* infile)
     id32frame* lastframe = NULL;
     id322frame* lastframev2 = NULL;
     // seek to start
-    mylock.lock();
+    //mylock.lock();
     //fseek(infile, 0, SEEK_SET);
     infile->seekSet(0);
-    mylock.unlock();
+    //mylock.unlock();
     // read in first 10 bytes
     buffer = (unsigned char *) calloc(1, 11);
     id32header = (id32 *) calloc(1, sizeof(id32));
-    mylock.lock();
+    //mylock.lock();
     //result = fread(buffer, 1, 10, infile);
     result = infile->read(buffer, 10);
-    mylock.unlock();
+    //mylock.unlock();
     filepos += result;
     // make sure we have 10 bytes
     if (result != 10) {
@@ -181,10 +182,10 @@ id32* ID3Read::ID32Detect(FsBaseFile* infile)
             id322frame* frame = (id322frame *) calloc(1, sizeof(id322frame));
             frame->next = NULL;
             // populate from file
-            mylock.lock();
+            //mylock.lock();
             //result = fread(frame, 1, 6, infile);
             result = infile->read(frame, 6);
-            mylock.unlock();
+            //mylock.unlock();
             if (result != 6) {
                 char str[256];
                 sprintf(str, "Expected to read 6 bytes, only got %d, from point %d in the file", result, filepos);
@@ -215,10 +216,10 @@ id32* ID3Read::ID32Detect(FsBaseFile* infile)
             free(buffer);
             // read in the data
             frame->data = (char *) calloc(1, frame->size);
-            mylock.lock();
+            //mylock.lock();
             //result = fread(frame->data, 1, frame->size, infile);
             result = infile->read(frame->data, frame->size);
-            mylock.unlock();
+            //mylock.unlock();
             filepos += result;
             if (result != (int) frame->size) {
                 char str[256];
@@ -243,10 +244,10 @@ id32* ID3Read::ID32Detect(FsBaseFile* infile)
             id32frame* frame = (id32frame *) calloc(1, sizeof(id32frame));
             frame->next = NULL;
             // populate from file
-            mylock.lock();
+            //mylock.lock();
             //result = fread(frame, 1, 10, infile);
             result = infile->read(frame, 10);
-            mylock.unlock();
+            //mylock.unlock();
             if (result != 10) {
                 char str[256];
                 sprintf(str, "Expected to read 10 bytes, only got %d, from point %d in the file", result, filepos);
@@ -297,10 +298,10 @@ id32* ID3Read::ID32Detect(FsBaseFile* infile)
             free(buffer);
             // read in the data
             frame->data = (char *) calloc(1, frame->size);
-            mylock.lock();
+            //mylock.lock();
             //result = fread(frame->data, 1, frame->size, infile);
             result = infile->read(frame->data, frame->size);
-            mylock.unlock();
+            //mylock.unlock();
             filepos += result;
             if (result != (int) frame->size) {
                 char str[256];
@@ -610,12 +611,13 @@ void ID3Read::ID32Finalise(id32flat* gary)
 
 int ID3Read::ID32Append(id32flat* gary, char* filename)
 {
+    Threads::Scope scope(mylock);
     char* mp3;
     unsigned long size;
     FsFile infile;
     char str[256];
     // then read in, and write to file :D
-    mylock.lock();
+    //mylock.lock();
     //infile = fopen(filename, "r");
     infile.open(filename, O_RDONLY);
     //fseek(infile, 0, SEEK_END);
@@ -647,7 +649,7 @@ int ID3Read::ID32Append(id32flat* gary, char* filename)
     infile.write(mp3, size);
     //fclose(infile);
     infile.close();
-    mylock.unlock();
+    //mylock.unlock();
     return 0;
 }
 
