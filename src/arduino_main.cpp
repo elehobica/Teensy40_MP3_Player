@@ -483,8 +483,8 @@ void loop() {
             idx_play = get_mp3_file(idx_play, 0, &file);
             if (idx_play) {
                 mode = Play;
-                playMp3.play(&file);
                 loadID3(&file);
+                playMp3.play(&file);
                 idx_play_count = 0;
                 idx_idle_count = 0;
                 lcd.switchToPlay();
@@ -589,11 +589,11 @@ void loop() {
         idx_idle_count = 0;
     } else {
         if (mode == Play) {
-            if (!playMp3.isPlaying() || (playMp3.positionMillis() + 150 > playMp3.lengthMillis())) {
+            if (!playMp3.isPlaying() || (playMp3.positionMillis() + 1000 > playMp3.lengthMillis())) {
                 idx_play = get_mp3_file(idx_play+1, 1, &file);
                 if (idx_play) {
-                    playMp3.standby_play(&file);
                     loadID3(&file);
+                    playMp3.standby_play(&file);
                 } else {
                     while (playMp3.isPlaying()) { delay(1); } // minimize gap between tracks
                     playMp3.stop();
