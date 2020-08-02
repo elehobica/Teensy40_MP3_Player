@@ -365,9 +365,9 @@ int get_mp3_file(uint16_t idx, int seq_flg, FsBaseFile *f)
     char str[256];
     //Serial.print("get_mp3_file: ");
     //Serial.println(millis());
-    mylock.lock();
+    Threads::Scope scope(mylock);
     while (idx + ofs < file_menu_get_size()) {
-        file_menu_get_obj(idx, f);
+        file_menu_get_obj(idx + ofs, f);
         f->getName(str, sizeof(str));
         char* ext_pos = strrchr(str, '.');
         if (ext_pos) {
@@ -382,7 +382,6 @@ int get_mp3_file(uint16_t idx, int seq_flg, FsBaseFile *f)
     }
     //Serial.print("get_mp3_file done: ");
     //Serial.println(millis());
-    mylock.unlock();
     if (flg) {
         return idx + ofs;
     } else {
