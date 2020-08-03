@@ -170,7 +170,7 @@ id32* ID3Read::ID32Detect(FsBaseFile* infile)
         return NULL;
     }
     // make sure its version 3
-    if (id32header->version[0] != 3) {
+    if (id32header->version[0] != 3) { // not ID3v2.3
         //char str[256];
         //sprintf(str, "Want version 3, have version %d", id32header->version[0]);
         //Serial.println(str);
@@ -215,21 +215,27 @@ id32* ID3Read::ID32Detect(FsBaseFile* infile)
             //}
             free(buffer);
             //mylock.lock();
+            frame->pos = infile->position();
             if (frame->size < frame_size_limit) {
                 // read in the data
                 frame->data = (char *) calloc(1, frame->size);
                 //result = fread(frame->data, 1, frame->size, infile);
                 result = infile->read(frame->data, frame->size);
-            } else { // ignore contents due to size over
+                frame->hasFullData = true;
+            } else { // give up to get full contents due to size over
+                /*
                 char str[256];
                 sprintf(str, "frameID: %c%c%c size over %d", frame->ID[0], frame->ID[1], frame->ID[2], frame->size);
                 Serial.println(str);
-                frame->data = NULL;
-                if (infile->seekCur(frame->size)) {
+                */
+                frame->data = (char *) calloc(1, frame_start_bytes); // for frame parsing
+                infile->read(frame->data, frame_start_bytes);
+                if (infile->seekCur(frame->size - frame_start_bytes)) {
                     result = frame->size;
                 } else {
                     result = 0;
                 }
+                frame->hasFullData = false;
             }
             //mylock.unlock();
             filepos += result;
@@ -248,7 +254,7 @@ id32* ID3Read::ID32Detect(FsBaseFile* infile)
             lastframev2=frame;
             // then loop until we've filled the struct
         }
-    } else {
+    } else { // ID3v2.3
         // start reading frames
         while (filepos-10 < (int) id32header->size) {
             // make space for new frame
@@ -311,21 +317,27 @@ id32* ID3Read::ID32Detect(FsBaseFile* infile)
 
 
             //mylock.lock();
+            frame->pos = infile->position();
             if (frame->size < frame_size_limit) {
                 // read in the data
                 frame->data = (char *) calloc(1, frame->size);
                 //result = fread(frame->data, 1, frame->size, infile);
                 result = infile->read(frame->data, frame->size);
-            } else { // ignore contents due to size over
+                frame->hasFullData = true;
+            } else { // give up to get full contents due to size over
+                /*
                 char str[256];
                 sprintf(str, "frameID: %c%c%c%c size over %d", frame->ID[0], frame->ID[1], frame->ID[2], frame->ID[3], frame->size);
                 Serial.println(str);
-                frame->data = NULL;
-                if (infile->seekCur(frame->size)) {
+                */
+                frame->data = (char *) calloc(1, frame_start_bytes); // for frame parsing
+                infile->read(frame->data, frame_start_bytes);
+                if (infile->seekCur(frame->size - frame_start_bytes)) {
                     result = frame->size;
                 } else {
                     result = 0;
                 }
+                frame->hasFullData = false;
             }
             //mylock.unlock();
             filepos += result;
@@ -366,10 +378,24 @@ int ID3Read::getUTF8Artist(char* str, size_t size)
 
 int ID3Read::getPicturePtr(mime_t *mime, ptype_t *ptype, char **ptr, size_t *size)
 {
+    uint64_t pos;
+    return getPicture(mime, ptype, &pos, ptr, size);
+}
+
+int ID3Read::getPicturePos(mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size)
+{
+    char *ptr;
+    getPicture(mime, ptype, pos, &ptr, size);
+    return (*size != 0);
+}
+
+int ID3Read::getPicture(mime_t *mime, ptype_t *ptype, uint64_t *pos, char **ptr, size_t *size)
+{
     *mime = non;
     *ptype = other;
     *ptr = NULL;
     *size = 0;
+    bool hasFullData = false;
     if (!id3v2) { return 0; }
     id32frame* thisframe;
     int ver = id3v2->version[0];
@@ -387,6 +413,7 @@ int ID3Read::getPicturePtr(mime_t *mime, ptype_t *ptype, char **ptr, size_t *siz
                             *ptr = &thisframe->data[1+11+1+1];
                             *size = thisframe->size - (1+11+1+1);
                         }
+                        hasFullData = thisframe->hasFullData;
                     } else if (!strncmp("image/png", &thisframe->data[1], 9)) {
                         *mime = png;
                         *ptype = static_cast<ptype_t>(thisframe->data[1+10]);
@@ -394,6 +421,7 @@ int ID3Read::getPicturePtr(mime_t *mime, ptype_t *ptype, char **ptr, size_t *siz
                             *ptr = &thisframe->data[1+10+1+1];
                             *size = thisframe->size - (1+10+1+1);
                         }
+                        hasFullData = thisframe->hasFullData;
                     }
                 }
                 break;
@@ -410,6 +438,7 @@ int ID3Read::getPicturePtr(mime_t *mime, ptype_t *ptype, char **ptr, size_t *siz
                             *ptr = &tframe->data[1+3+1+1];
                             *size = tframe->size - (1+3+1+1);
                         }
+                        hasFullData = tframe->hasFullData;
                     } else if (!strncmp("PNG", &tframe->data[1], 3)) {
                         *mime = png;
                         *ptype = static_cast<ptype_t>(tframe->data[1+3]);
@@ -417,6 +446,7 @@ int ID3Read::getPicturePtr(mime_t *mime, ptype_t *ptype, char **ptr, size_t *siz
                             *ptr = &tframe->data[1+3+1+1];
                             *size = tframe->size - (1+3+1+1);
                         }
+                        hasFullData = tframe->hasFullData;
                     }
                 }
                 break;
@@ -424,7 +454,7 @@ int ID3Read::getPicturePtr(mime_t *mime, ptype_t *ptype, char **ptr, size_t *siz
         }
         thisframe = (ver == 3) ? thisframe->next : (id32frame*) ((id322frame*) thisframe)->next;
     }
-    return (*ptr != NULL);
+    return (hasFullData == true);
 }
 
 int ID3Read::GetID32(const char *id3v22, const char *id3v23, char *str, size_t size)

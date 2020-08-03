@@ -280,7 +280,7 @@ int JPEGDecoder::decodeFile(const char *pFilename){
 	return decodeFsFile(pFilename);
 #endif
 
-#if defined (LOAD_SD_LIBRARY) || defined (LOAD_SDFAT_LIBRARY)
+#ifdef LOAD_SD_LIBRARY
 	return decodeSdFile(pFilename);
 #endif
 
@@ -296,7 +296,7 @@ int JPEGDecoder::decodeFile(const String& pFilename){
 	return decodeFsFile(pFilename);
 #endif
 
-#if defined (LOAD_SD_LIBRARY) || defined (LOAD_SDFAT_LIBRARY)
+#ifdef  LOAD_SD_LIBRARY
 	return decodeSdFile(pFilename);
 #endif
 
@@ -345,7 +345,7 @@ int JPEGDecoder::decodeFsFile(fs::File jpgFile) { // This is for the SPIFFS libr
 #endif
 
 
-#if defined (LOAD_SD_LIBRARY) || defined (LOAD_SDFAT_LIBRARY)
+#ifdef LOAD_SD_LIBRARY
 
 // Call specific to SD filing system in case leading / is used
 int JPEGDecoder::decodeSdFile(const char *pFilename) {
@@ -391,6 +391,34 @@ int JPEGDecoder::decodeSdFile(File jpgFile) { // This is for the SD library
 }
 #endif
 
+#ifdef LOAD_SDFAT_LIBRARY
+int JPEGDecoder::decodeSdFile (FsBaseFile jpgFile, uint64_t pos, size_t size) { // This is for the SdFat library
+
+	g_pInFileSd = FsBaseFile(jpgFile);
+
+	jpg_source = JPEG_SD_FILE; // Flag to indicate a SD file
+
+	if (!g_pInFileSd) {
+		#ifdef DEBUG
+		Serial.println("ERROR: SD file not found!");
+		#endif
+
+		return -1;
+	}
+
+	g_nInFileOfs = 0;
+
+	if (pos == 0) {
+		g_nInFileSize = g_pInFileSd.size();
+	} else {
+		g_pInFileSd.seekSet(pos);
+		g_nInFileSize = size;
+	}
+
+	return decodeCommon();
+
+}
+#endif
 
 int JPEGDecoder::decodeArray(const uint8_t array[], uint32_t  array_size) {
 

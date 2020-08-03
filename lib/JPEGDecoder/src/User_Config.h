@@ -3,7 +3,7 @@
 // SD Card access is not needed. Note: use of SdFat is currently untested!
 
 //#define LOAD_SD_LIBRARY // Default SD Card library
-//#define LOAD_SDFAT_LIBRARY // Use SdFat library instead, so SD Card SPI can be bit bashed
+#define LOAD_SDFAT_LIBRARY // Use SdFat library instead, so SD Card SPI can be bit bashed
 
 
 // Note for ESP8266 users:
@@ -43,5 +43,5 @@ File jpegFile = SD.open( filename, FILE_READ);
 
 #if defined(__IMXRT1052__) || defined(__IMXRT1062__)
 #undef LOAD_SD_LIBRARY
-#undef LOAD_SDFAT_LIBRARY
+//#undef LOAD_SDFAT_LIBRARY
 #endif

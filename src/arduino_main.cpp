@@ -394,7 +394,7 @@ void loadID3(FsBaseFile *file)
     char str[256];
     mime_t mime;
     ptype_t ptype;
-    char *ptr;
+    uint64_t pos;
     size_t size;
 
     lcd.resetAlbumArt();
@@ -402,8 +402,17 @@ void loadID3(FsBaseFile *file)
     if (id3.getUTF8Title(str, sizeof(str))) { lcd.setTitle(str, utf8); }
     if (id3.getUTF8Album(str, sizeof(str))) { lcd.setAlbum(str, utf8); }
     if (id3.getUTF8Artist(str, sizeof(str))) { lcd.setArtist(str, utf8); }
+    /*
+    // old version (Direct Frame Contens)
+    //  Frame needs to have large data
+    char *ptr;
     if (id3.getPicturePtr(&mime, &ptype, &ptr, &size)) {
         if (mime == jpeg) { lcd.setAlbumArtJpeg(ptr, size); }
+    }
+    */
+    // new version (Frame Contens in File)
+    if (id3.getPicturePos(&mime, &ptype, &pos, &size)) {
+        if (mime == jpeg) { lcd.setAlbumArtJpeg(file, pos, size); }
     }
 }
 

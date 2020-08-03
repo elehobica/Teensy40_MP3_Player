@@ -85,7 +85,8 @@ public:
 	void draw(Adafruit_ST7735 *tft);
 	void clear(Adafruit_ST7735 *tft);
 	void setModes(interpolation_t interpolation, fitting_t fitting, align_t align = center);
-	void loadJpegBin(uint8_t *ptr, size_t size);
+	void loadJpegBin(char *ptr, size_t size);
+	void loadJpegFile(FsBaseFile *file, uint64_t pos, size_t size);
 	void unload();
 	bool isLoaded();
 protected:
@@ -99,6 +100,7 @@ protected:
 	interpolation_t interpolation;
 	fitting_t fitting;
 	align_t align;
+	void loadJpeg();
 };
 
 //=================================
@@ -264,7 +266,8 @@ public:
 	void setTitle(const char *str, encoding_t encoding = none);
 	void setAlbum(const char *str, encoding_t encoding = none);
 	void setArtist(const char *str, encoding_t encoding = none);
-	void setAlbumArtJpeg(uint8_t *ptr, size_t size);
+	void setAlbumArtJpeg(char *ptr, size_t size);
+	void setAlbumArtJpeg(FsBaseFile *file, uint64_t pos, size_t size);
 	void resetAlbumArt();
 	void switchToFileView();
 	void switchToPlay();

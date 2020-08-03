@@ -49,11 +49,25 @@ void ImageBox::setModes(interpolation_t interpolation, fitting_t fitting, align_
     this->align = align;
 }
 
-// set JPEG binary and fit to width/height by Nearest Neighbor
-void ImageBox::loadJpegBin(uint8_t *ptr, size_t size)
+// load from JPEG binary
+void ImageBox::loadJpegBin(char *ptr, size_t size)
 {
     bool decoded = JpegDec.decodeArray((const uint8_t *) ptr, (uint32_t) size);
     if (!decoded) { return; }
+    loadJpeg();
+}
+
+// load from JPEG File
+void ImageBox::loadJpegFile(FsBaseFile *file, uint64_t pos, size_t size)
+{
+    bool decoded = JpegDec.decodeSdFile(*file, pos, size);
+    if (!decoded) { return; }
+    loadJpeg();
+}
+
+// load JPEG to fit to width/height by Nearest Neighbor
+void ImageBox::loadJpeg()
+{
     uint16_t jpg_w = JpegDec.width;
     uint16_t jpg_h = JpegDec.height;
     uint16_t mcu_w = JpegDec.MCUWidth;
@@ -799,9 +813,14 @@ void LcdCanvas::setArtist(const char *str, encoding_t encoding)
     artist.setText(str, encoding);
 }
 
-void LcdCanvas::setAlbumArtJpeg(uint8_t *ptr, size_t size)
+void LcdCanvas::setAlbumArtJpeg(char *ptr, size_t size)
 {
     albumArt.loadJpegBin(ptr, size);
+}
+
+void LcdCanvas::setAlbumArtJpeg(FsBaseFile *file, uint64_t pos, size_t size)
+{
+    albumArt.loadJpegFile(file, pos, size);
 }
 
 void LcdCanvas::resetAlbumArt()

@@ -57,7 +57,7 @@ https://github.com/Bodmer/JPEGDecoder
 
   #if defined (LOAD_SD_LIBRARY) || defined (LOAD_SDFAT_LIBRARY)
     #ifdef LOAD_SDFAT_LIBRARY
-      //#include <SdFat.h> // Alternative where we might need to bit bash the SPI
+      #include <SdFat.h> // Alternative where we might need to bit bash the SPI
     #else
       //#include <SD.h>    // Default
     #endif
@@ -87,9 +87,13 @@ typedef unsigned int uint;
 class JPEGDecoder {
 
 private:
-#if defined (LOAD_SD_LIBRARY) || defined (LOAD_SDFAT_LIBRARY)
+#ifdef LOAD_SD_LIBRARY
   File g_pInFileSd;
 #endif
+#ifdef LOAD_SDFAT_LIBRARY
+  FsBaseFile g_pInFileSd;
+#endif
+
 #ifdef LOAD_SPIFFS
   fs::File g_pInFileFs;
 #endif
@@ -99,8 +103,8 @@ private:
   int is_available;
   int mcu_x;
   int mcu_y;
-  uint g_nInFileSize;
-  uint g_nInFileOfs;
+  uint64_t g_nInFileSize;
+  uint64_t g_nInFileOfs;
   uint row_pitch;
   uint decoded_width, decoded_height;
   uint row_blocks_per_mcu, col_blocks_per_mcu;
@@ -138,10 +142,14 @@ public:
   int decodeFile (const char *pFilename);
   int decodeFile (const String& pFilename);
   
-#if defined (LOAD_SD_LIBRARY) || defined (LOAD_SDFAT_LIBRARY)
+#ifdef LOAD_SD_LIBRARY
   int decodeSdFile (const char *pFilename);
   int decodeSdFile (const String& pFilename);
   int decodeSdFile (File g_pInFile);
+#endif
+
+#ifdef LOAD_SDFAT_LIBRARY
+  int decodeSdFile (FsBaseFile jpgFile, uint64_t pos = 0, size_t size = 0);
 #endif
 
 #ifdef LOAD_SPIFFS

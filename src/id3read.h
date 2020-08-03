@@ -19,16 +19,20 @@ typedef struct _id32frame {
     char ID[4];
     unsigned char sizebytes[4];
     char flags[2];
+    uint64_t pos; // position in the file
     size_t size;
     char* data;
+    bool hasFullData;
     struct _id32frame* next;
 } id32frame;
 
 typedef struct _id322frame {
     char ID[3];
     unsigned char sizebytes[3];
+    uint64_t pos; // position in the file
     size_t size;
     char* data;
+    bool hasFullData;
     struct _id322frame* next;
 } id322frame;
 
@@ -74,7 +78,8 @@ typedef enum _ptype_t {
     pub_logo = 0x14
 } ptype_t;
 
-const size_t frame_size_limit = 100*1024;
+const size_t frame_size_limit = 1024;
+const size_t frame_start_bytes = 16;
 
 class ID3Read
 {
@@ -86,6 +91,7 @@ public:
     int getUTF8Album(char *str, size_t size);
     int getUTF8Artist(char *str, size_t size);
     int getPicturePtr(mime_t *mime, ptype_t *ptype, char **ptr, size_t *size);
+    int getPicturePos(mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size);
 
 private:
     FsBaseFile file;
@@ -105,6 +111,7 @@ private:
     id31* ID31Detect(char* header);
     void ID31Print(id31* id31header);
     void ID31Free(id31* id31header);
+    int getPicture(mime_t *mime, ptype_t *ptype, uint64_t *pos, char **ptr, size_t *size);
 };
 
 #endif //_ID3READ_H_
