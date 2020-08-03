@@ -5,7 +5,7 @@
 // Implementation of ImageBox class
 //=================================
 ImageBox::ImageBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t height, uint16_t bgColor)
-    : isUpdated(true), pos_x(pos_x), pos_y(pos_y), width(width), height(height), bgColor(bgColor), image(NULL)
+    : isUpdated(true), pos_x(pos_x), pos_y(pos_y), width(width), height(height), bgColor(bgColor), image(NULL), isImageLoaded(false), interpolation(NearestNeighbor), fitting(keepAspectRatio)
 {
     image = (uint16_t *) calloc(2, width * height);
 }
@@ -34,20 +34,26 @@ void ImageBox::clear(Adafruit_ST7735 *tft)
     tft->fillRect(pos_x, pos_y, width, height, bgColor); // clear Icon rectangle
 }
 
+void ImageBox::setModes(interpolation_t interpolation, fitting_t fitting)
+{
+    this->interpolation = interpolation;
+    this->fitting = fitting;
+}
+
 // set JPEG binary and fit to width/height by Nearest Neighbor
-void ImageBox::setJpegBin(uint8_t *ptr, size_t size)
+void ImageBox::loadJpegBin(uint8_t *ptr, size_t size)
 {
     bool decoded = JpegDec.decodeArray((const uint8_t *) ptr, (uint32_t) size);
     if (!decoded) { return; }
-    Serial.println("JPEG info: ");
-    Serial.println(JpegDec.width);
-    Serial.println(JpegDec.height);
-    Serial.println(JpegDec.MCUWidth);
-    Serial.println(JpegDec.MCUHeight);
     uint16_t jpg_w = JpegDec.width;
     uint16_t jpg_h = JpegDec.height;
     uint16_t mcu_w = JpegDec.MCUWidth;
     uint16_t mcu_h = JpegDec.MCUHeight;
+    { // DEBUG
+        char str[256];
+        sprintf(str, "JPEG info: (w, h) = (%d, %d), (mcu_w, mcu_h) = (%d, %d)", jpg_w, jpg_h, mcu_w, mcu_h);
+        Serial.println(str);
+    }
     while (JpegDec.read()) {
         int idx = 0;
         int16_t x, y;
@@ -101,7 +107,18 @@ void ImageBox::setJpegBin(uint8_t *ptr, size_t size)
             mod_y -= height;
         }
     }
+    isImageLoaded = true;
     update();
+}
+
+void ImageBox::unload()
+{
+    isImageLoaded = false;
+}
+
+bool ImageBox::isLoaded()
+{
+    return isImageLoaded;
 }
 
 //=================================
@@ -649,11 +666,11 @@ void LcdCanvas::draw()
         for (int i = 0; i < (int) (sizeof(groupPlay)/sizeof(*groupPlay)); i++) {
             groupPlay[i]->draw(this);
         }
-        if (play_count % play_cycle < play_change) {
+        if (play_count % play_cycle < play_change || !albumArt.isLoaded()) {
             for (int i = 0; i < (int) (sizeof(groupPlay0)/sizeof(*groupPlay0)); i++) {
                 groupPlay0[i]->draw(this);
             }
-            if (play_count % play_cycle == play_change-1) {
+            if (play_count % play_cycle == play_change-1 && albumArt.isLoaded()) {
                 for (int i = 0; i < (int) (sizeof(groupPlay0)/sizeof(*groupPlay0)); i++) {
                     groupPlay0[i]->clear(this);
                 }
@@ -724,5 +741,10 @@ void LcdCanvas::setArtist(const char *str, encoding_t encoding)
 
 void LcdCanvas::setAlbumArtJpeg(uint8_t *ptr, size_t size)
 {
-    albumArt.setJpegBin(ptr, size);
+    albumArt.loadJpegBin(ptr, size);
+}
+
+void LcdCanvas::resetAlbumArt()
+{
+    albumArt.unload();
 }

@@ -214,11 +214,23 @@ id32* ID3Read::ID32Detect(FsBaseFile* infile)
             //    Serial.println(str);
             //}
             free(buffer);
-            // read in the data
-            frame->data = (char *) calloc(1, frame->size);
             //mylock.lock();
-            //result = fread(frame->data, 1, frame->size, infile);
-            result = infile->read(frame->data, frame->size);
+            if (frame->size < frame_size_limit) {
+                // read in the data
+                frame->data = (char *) calloc(1, frame->size);
+                //result = fread(frame->data, 1, frame->size, infile);
+                result = infile->read(frame->data, frame->size);
+            } else { // ignore contents due to size over
+                char str[256];
+                sprintf(str, "frameID: %c%c%c size over %d", frame->ID[0], frame->ID[1], frame->ID[2], frame->size);
+                Serial.println(str);
+                frame->data = NULL;
+                if (infile->seekCur(frame->size)) {
+                    result = frame->size;
+                } else {
+                    result = 0;
+                }
+            }
             //mylock.unlock();
             filepos += result;
             if (result != (int) frame->size) {
@@ -296,11 +308,25 @@ id32* ID3Read::ID32Detect(FsBaseFile* infile)
             //    Serial.println(str);
             //}
             free(buffer);
-            // read in the data
-            frame->data = (char *) calloc(1, frame->size);
+
+
             //mylock.lock();
-            //result = fread(frame->data, 1, frame->size, infile);
-            result = infile->read(frame->data, frame->size);
+            if (frame->size < frame_size_limit) {
+                // read in the data
+                frame->data = (char *) calloc(1, frame->size);
+                //result = fread(frame->data, 1, frame->size, infile);
+                result = infile->read(frame->data, frame->size);
+            } else { // ignore contents due to size over
+                char str[256];
+                sprintf(str, "frameID: %c%c%c%c size over %d", frame->ID[0], frame->ID[1], frame->ID[2], frame->ID[3], frame->size);
+                Serial.println(str);
+                frame->data = NULL;
+                if (infile->seekCur(frame->size)) {
+                    result = frame->size;
+                } else {
+                    result = 0;
+                }
+            }
             //mylock.unlock();
             filepos += result;
             if (result != (int) frame->size) {
@@ -351,7 +377,7 @@ int ID3Read::getPicturePtr(mime_t *mime, ptype_t *ptype, char **ptr, size_t *siz
     thisframe = id3v2->firstframe;
     while (thisframe != NULL) {
         if (id3v2->version[0] == 3) {
-            if (!strncmp("APIC", thisframe->ID, 4)) {
+            if (!strncmp("APIC", thisframe->ID, 4) && thisframe->data != NULL) {
                 // encoding(1) + mime(\0) + ptype(1) + desc(1) + binary
                 if (thisframe->data[0] == 0) { // ISO-8859-1
                     if (!strncmp("image/jpeg", &thisframe->data[1], 10)) {
@@ -374,7 +400,7 @@ int ID3Read::getPicturePtr(mime_t *mime, ptype_t *ptype, char **ptr, size_t *siz
             }
         } else if (id3v2->version[0] == 2) {
             id322frame* tframe = (id322frame*) thisframe;
-            if (!strncmp("PIC", tframe->ID, 3)) {
+            if (!strncmp("PIC", tframe->ID, 3) && tframe->data != NULL) {
                 // encoding(1) + mime(3) + ptype(1) + desc(1) + binary
                 if (tframe->data[0] == 0) { // ISO-8859-1
                     if (!strncmp("JPG", &tframe->data[1], 3)) {

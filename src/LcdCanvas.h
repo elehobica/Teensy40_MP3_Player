@@ -67,18 +67,31 @@ public:
 class ImageBox : public Box
 {
 public:
+	typedef enum _interpolation_t {
+		NearestNeighbor = 0
+	} interpolation_t;
+	typedef enum _fitting_t {
+		fitXY = 0,
+		keepAspectRatio
+	} fitting_t;
 	ImageBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t height, uint16_t bgColor = ST77XX_BLACK);
 	void setBgColor(uint16_t bgColor);
 	void update();
 	void draw(Adafruit_ST7735 *tft);
 	void clear(Adafruit_ST7735 *tft);
-	void setJpegBin(uint8_t *ptr, size_t size);
+	void setModes(interpolation_t interpolation, fitting_t fitting);
+	void loadJpegBin(uint8_t *ptr, size_t size);
+	void unload();
+	bool isLoaded();
 protected:
 	bool isUpdated;
 	int16_t pos_x, pos_y;
 	uint16_t width, height;
 	uint16_t bgColor;
 	uint16_t *image;
+	bool isImageLoaded;
+	interpolation_t interpolation;
+	fitting_t fitting;
 };
 
 //=================================
@@ -245,6 +258,7 @@ public:
 	void setAlbum(const char *str, encoding_t encoding = none);
 	void setArtist(const char *str, encoding_t encoding = none);
 	void setAlbumArtJpeg(uint8_t *ptr, size_t size);
+	void resetAlbumArt();
 	void switchToFileView();
 	void switchToPlay();
 	void switchToPowerOff();
@@ -271,9 +285,9 @@ protected:
 	IconTextBox volume = IconTextBox(16*0, 16*0, ICON16x16_VOLUME, ST77XX_GRAY);
 	TextBox bitRate = TextBox(16*4, 16*0, AlignCenter, ST77XX_GRAY);
 	NFTextBox playTime = NFTextBox(width(), 16*9, width(), AlignRight, ST77XX_GRAY);
-	IconScrollTextBox title = IconScrollTextBox(16*0, 16*4, ICON16x16_TITLE, width());
-	IconScrollTextBox artist = IconScrollTextBox(16*0, 16*5, ICON16x16_ARTIST, width());
-	IconScrollTextBox album = IconScrollTextBox(16*0, 16*6, ICON16x16_ALBUM, width());
+	IconScrollTextBox title = IconScrollTextBox(16*0, 16*3, ICON16x16_TITLE, width());
+	IconScrollTextBox artist = IconScrollTextBox(16*0, 16*4, ICON16x16_ARTIST, width());
+	IconScrollTextBox album = IconScrollTextBox(16*0, 16*5, ICON16x16_ALBUM, width());
 	TextBox bye_msg = TextBox(width()/2, height()/2-FONT_HEIGHT, "Bye", AlignCenter);
 	ImageBox albumArt = ImageBox(0, (height() - width())/2, width(), width());
 	Box *groupFileView[10] = {

@@ -74,6 +74,8 @@ typedef enum _ptype_t {
     pub_logo = 0x14
 } ptype_t;
 
+const size_t frame_size_limit = 100*1024;
+
 class ID3Read
 {
 public:

@@ -391,19 +391,19 @@ int get_mp3_file(uint16_t idx, int seq_flg, FsBaseFile *f)
 
 void loadID3(FsBaseFile *file)
 {
-    char __str[256];
+    char str[256];
     mime_t mime;
     ptype_t ptype;
     char *ptr;
     size_t size;
 
+    lcd.resetAlbumArt();
     id3.loadFile(file);
-    if (id3.getUTF8Title(__str, sizeof(__str))) lcd.setTitle(__str, utf8);
-    if (id3.getUTF8Album(__str, sizeof(__str))) lcd.setAlbum(__str, utf8);
-    if (id3.getUTF8Artist(__str, sizeof(__str))) lcd.setArtist(__str, utf8);
-    id3.getPicturePtr(&mime, &ptype, &ptr, &size);
-    if (mime == jpeg) {
-        lcd.setAlbumArtJpeg(ptr, size);
+    if (id3.getUTF8Title(str, sizeof(str))) { lcd.setTitle(str, utf8); }
+    if (id3.getUTF8Album(str, sizeof(str))) { lcd.setAlbum(str, utf8); }
+    if (id3.getUTF8Artist(str, sizeof(str))) { lcd.setArtist(str, utf8); }
+    if (id3.getPicturePtr(&mime, &ptype, &ptr, &size)) {
+        if (mime == jpeg) { lcd.setAlbumArtJpeg(ptr, size); }
     }
 }
 
