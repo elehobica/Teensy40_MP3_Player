@@ -71,15 +71,20 @@ public:
 		NearestNeighbor = 0
 	} interpolation_t;
 	typedef enum _fitting_t {
-		fitXY = 0,
+		noFit = 0, // 1:1, no scaling
+		fitXY,
 		keepAspectRatio
 	} fitting_t;
+	typedef enum _align_t {
+		origin = 0, // x=0, y=0
+		center
+	} align_t;
 	ImageBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t height, uint16_t bgColor = ST77XX_BLACK);
 	void setBgColor(uint16_t bgColor);
 	void update();
 	void draw(Adafruit_ST7735 *tft);
 	void clear(Adafruit_ST7735 *tft);
-	void setModes(interpolation_t interpolation, fitting_t fitting);
+	void setModes(interpolation_t interpolation, fitting_t fitting, align_t align = center);
 	void loadJpegBin(uint8_t *ptr, size_t size);
 	void unload();
 	bool isLoaded();
@@ -89,9 +94,11 @@ protected:
 	uint16_t width, height;
 	uint16_t bgColor;
 	uint16_t *image;
+	uint16_t img_w, img_h;
 	bool isImageLoaded;
 	interpolation_t interpolation;
 	fitting_t fitting;
+	align_t align;
 };
 
 //=================================
