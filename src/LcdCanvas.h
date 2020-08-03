@@ -101,6 +101,8 @@ protected:
 	fitting_t fitting;
 	align_t align;
 	void loadJpeg();
+	void loadJpegNoFit();
+	void loadJpegResize();
 };
 
 //=================================

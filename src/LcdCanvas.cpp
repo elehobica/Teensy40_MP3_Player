@@ -65,8 +65,155 @@ void ImageBox::loadJpegFile(FsBaseFile *file, uint64_t pos, size_t size)
     loadJpeg();
 }
 
+#if 1
 // load JPEG to fit to width/height by Nearest Neighbor
 void ImageBox::loadJpeg()
+{
+    uint16_t jpg_w = JpegDec.width;
+    uint16_t jpg_h = JpegDec.height;
+    uint16_t mcu_w = JpegDec.MCUWidth;
+    uint16_t mcu_h = JpegDec.MCUHeight;
+    { // DEBUG
+        char str[256];
+        sprintf(str, "JPEG info: (w, h) = (%d, %d), (mcu_w, mcu_h) = (%d, %d)", jpg_w, jpg_h, mcu_w, mcu_h);
+        Serial.println(str);
+    }
+    int16_t mcu_y_prev = 0;
+    int16_t mod_y_start = 0;
+    int16_t plot_y_start = 0;
+    while (JpegDec.read()) {
+        int idx = 0;
+        int16_t x, y;
+        int16_t mcu_x = JpegDec.MCUx;
+        int16_t mcu_y = JpegDec.MCUy;
+        int16_t mod_y_pls = (fitting != keepAspectRatio || jpg_h >= jpg_w) ? jpg_h : jpg_w;
+        int16_t mod_y = mod_y_pls;
+        int16_t plot_y = 0;
+        // prepare plot_y (, mod_y) condition
+        if (fitting == noFit) {
+            plot_y = mcu_h * mcu_y;
+            if (plot_y >= height) continue; // don't use break because MCU order is not always left-to-right and top-to-bottom
+        } else {
+            if (mcu_y != mcu_y_prev) {
+                for (y = 0; y < mcu_h * mcu_y; y++) {
+                    while (mod_y < 0) {
+                        mod_y += mod_y_pls;
+                        plot_y++;
+                    }
+                    mod_y -= height;
+                }
+                // memorize plot_y (, mod_y) start condition
+                mcu_y_prev = mcu_y;
+                mod_y_start = mod_y;
+                plot_y_start = plot_y;
+            } else {
+                // reuse plot_y (, mod_y) start condition
+                mod_y = mod_y_start;
+                plot_y = plot_y_start;
+            }
+        }
+        int16_t mod_x_start = 0;
+        int16_t plot_x_start = 0;
+        for (int16_t mcu_ofs_y = 0; mcu_ofs_y < mcu_h; mcu_ofs_y++) {
+            y = mcu_h * mcu_y + mcu_ofs_y;
+            if (y >= jpg_h) break;
+            int16_t mod_x_pls = (fitting != keepAspectRatio || jpg_w >= jpg_h) ? jpg_w : jpg_h;
+            int16_t mod_x = mod_x_pls;
+            int16_t plot_x = 0;
+            // prepare plot_x (, mod_x) condition
+            if (fitting == noFit) {
+                plot_x = mcu_w * mcu_x;
+                if (plot_x >= width) break;
+            } else {
+                if (mcu_ofs_y == 0) {
+                    for (x = 0; x < mcu_w * mcu_x; x++) {
+                        while (mod_x < 0) {
+                            mod_x += mod_x_pls;
+                            plot_x++;
+                        }
+                        mod_x -= width;
+                    }
+                    // memorize plot_x (, mod_x) start condition
+                    mod_x_start = mod_x;
+                    plot_x_start = plot_x;
+                } else {
+                    // reuse plot_x (, mod_x) start condition
+                    mod_x = mod_x_start;
+                    plot_x = plot_x_start;
+                }
+            }
+            // actual plot_x
+            for (int16_t mcu_ofs_x = 0; mcu_ofs_x < mcu_w; mcu_ofs_x++) {
+                x = mcu_w * mcu_x + mcu_ofs_x;
+                if (x >= jpg_w) {
+                    idx += mcu_w - jpg_w%mcu_w; // skip horizontal padding area
+                    break;
+                }
+                if (fitting == noFit) {
+                    if (plot_x >= width) break;
+                    image[width*plot_y+plot_x] = JpegDec.pImage[idx];
+                    if (plot_x+1 > img_w) { img_w = plot_x+1; }
+                    plot_x++;
+                } else {
+                    if (mod_y < 0) {
+                        while (mod_x < 0) {
+                            if (plot_x >= width) break;
+                            image[width*plot_y+plot_x] = JpegDec.pImage[idx];
+                            if (plot_x+1 > img_w) { img_w = plot_x+1; }
+                            mod_x += mod_x_pls;
+                            plot_x++;
+                        }
+                        mod_x -= width;
+                    }
+                }
+                idx++;
+            }
+            if (fitting == noFit) {
+                if (plot_y+1 > img_h) { img_h = plot_y+1; }
+                plot_y++;
+                if (plot_y >= height) break;
+            } else {
+                while (mod_y < 0) { // repeat previous line in case of expanding
+                    if (plot_y+1 > img_h) { img_h = plot_y+1; }
+                    mod_y += mod_y_pls;
+                    plot_y++;
+                    if (plot_y >= height) break;
+                    if (mod_y < 0) {
+                        for (x = plot_x_start; x < plot_x; x++) {
+                            image[width*plot_y+x] = image[width*(plot_y-1)+x];
+                        }
+                    }
+                }
+                mod_y -= height;
+            }
+        }
+    }
+    { // DEBUG
+        char str[256];
+        sprintf(str, "Resized to (img_w, img_h) = (%d, %d)", img_w, img_h);
+        Serial.println(str);
+    }
+    if (img_w < width) { // delete horizontal blank
+        for (int16_t plot_y = 1; plot_y < img_h; plot_y++) {
+            memmove(&image[img_w*plot_y], &image[width*plot_y], img_w*2);
+        }
+    }
+    isImageLoaded = true;
+    update();
+}
+#else
+
+void ImageBox::loadJpeg()
+{
+    if (fitting == noFit) {
+        loadJpegNoFit();
+    } else {
+        loadJpegResize();
+    }
+}
+
+// load JPEG to fit to width/height by Nearest Neighbor
+void ImageBox::loadJpegNoFit()
 {
     uint16_t jpg_w = JpegDec.width;
     uint16_t jpg_h = JpegDec.height;
@@ -82,43 +229,16 @@ void ImageBox::loadJpeg()
         int16_t x, y;
         int16_t mcu_x = JpegDec.MCUx;
         int16_t mcu_y = JpegDec.MCUy;
-        int16_t mod_y_pls = (fitting != keepAspectRatio || jpg_h >= jpg_w) ? jpg_h : jpg_w;
-        int16_t mod_y = mod_y_pls;
         int16_t plot_y = 0;
         // prepare plot_y (, mod_y) condition
-        if (fitting == noFit) {
-            plot_y = mcu_h * mcu_y;
-            if (plot_y >= height) continue; // don't use break because MCU order is not always left-to-right and top-to-bottom
-        } else {
-            for (y = 0; y < mcu_h * mcu_y; y++) {
-                while (mod_y < 0) {
-                    mod_y += mod_y_pls;
-                    plot_y++;
-                }
-                mod_y -= height;
-            }
-        }
+        plot_y = mcu_h * mcu_y;
+        if (plot_y >= height) continue; // don't use break because MCU order is not always left-to-right and top-to-bottom
         for (int16_t mcu_ofs_y = 0; mcu_ofs_y < mcu_h; mcu_ofs_y++) {
             y = mcu_h * mcu_y + mcu_ofs_y;
             if (y >= jpg_h) break;
-            int16_t mod_x_pls = (fitting != keepAspectRatio || jpg_w >= jpg_h) ? jpg_w : jpg_h;
-            int16_t mod_x = mod_x_pls;
             int16_t plot_x = 0;
-            int16_t plot_start_x = 0;
-            // prepare plot_x (, mod_x) condition
-            if (fitting == noFit) {
-                plot_x = mcu_w * mcu_x;
-                if (plot_x >= width) break;
-            } else {
-                for (x = 0; x < mcu_w * mcu_x; x++) {
-                    while (mod_x < 0) {
-                        mod_x += mod_x_pls;
-                        plot_x++;
-                    }
-                    mod_x -= width;
-                }
-                plot_start_x = plot_x;
-            }
+            plot_x = mcu_w * mcu_x;
+            if (plot_x >= width) break;
             // actual plot_x
             for (int16_t mcu_ofs_x = 0; mcu_ofs_x < mcu_w; mcu_ofs_x++) {
                 x = mcu_w * mcu_x + mcu_ofs_x;
@@ -126,47 +246,129 @@ void ImageBox::loadJpeg()
                     idx += mcu_w - jpg_w%mcu_w; // skip horizontal padding area
                     break;
                 }
-                if (fitting == noFit) {
-                    if (plot_x >= width) break;
-                    image[width*plot_y+plot_x] = JpegDec.pImage[idx];
-                    if (plot_x+1 > img_w) { img_w = plot_x+1; }
-                    plot_x++;
-                } else {
+                if (plot_x >= width) break;
+                image[width*plot_y+plot_x] = JpegDec.pImage[idx];
+                if (plot_x+1 > img_w) { img_w = plot_x+1; }
+                plot_x++;
+                idx++;
+            }
+            if (plot_y+1 > img_h) { img_h = plot_y+1; }
+            plot_y++;
+            if (plot_y >= height) break;
+        }
+    }
+    { // DEBUG
+        char str[256];
+        sprintf(str, "Resized to (img_w, img_h) = (%d, %d)", img_w, img_h);
+        Serial.println(str);
+    }
+    if (img_w < width) { // delete horizontal blank
+        for (int16_t plot_y = 1; plot_y < img_h; plot_y++) {
+            memmove(&image[img_w*plot_y], &image[width*plot_y], img_w*2);
+        }
+    }
+    isImageLoaded = true;
+    update();
+}
+#endif
+
+// load JPEG to fit to width/height by Nearest Neighbor
+void ImageBox::loadJpegResize()
+{
+    uint16_t jpg_w = JpegDec.width;
+    uint16_t jpg_h = JpegDec.height;
+    uint16_t mcu_w = JpegDec.MCUWidth;
+    uint16_t mcu_h = JpegDec.MCUHeight;
+    { // DEBUG
+        char str[256];
+        sprintf(str, "JPEG info: (w, h) = (%d, %d), (mcu_w, mcu_h) = (%d, %d)", jpg_w, jpg_h, mcu_w, mcu_h);
+        Serial.println(str);
+    }
+    int16_t mcu_y_prev = 0;
+    int16_t mod_y_start = 0;
+    int16_t plot_y_start = 0;
+    while (JpegDec.read()) {
+        int idx = 0;
+        int16_t x, y;
+        int16_t mcu_x = JpegDec.MCUx;
+        int16_t mcu_y = JpegDec.MCUy;
+        int16_t mod_y_pls = (fitting != keepAspectRatio || jpg_h >= jpg_w) ? jpg_h : jpg_w;
+        int16_t mod_y = mod_y_pls;
+        int16_t plot_y = 0;
+        // prepare plot_y (, mod_y) condition
+        if (mcu_y != mcu_y_prev) {
+            for (y = 0; y < mcu_h * mcu_y; y++) {
+                while (mod_y < 0) {
+                    mod_y += mod_y_pls;
+                    plot_y++;
+                }
+                mod_y -= height;
+            }
+            // memorize plot_y (, mod_y) start condition
+            mcu_y_prev = mcu_y;
+            mod_y_start = mod_y;
+            plot_y_start = plot_y;
+        } else {
+            // reuse plot_y (, mod_y) start condition
+            mod_y = mod_y_start;
+            plot_y = plot_y_start;
+        }
+        int16_t mod_x_start = 0;
+        int16_t plot_x_start = 0;
+        for (int16_t mcu_ofs_y = 0; mcu_ofs_y < mcu_h; mcu_ofs_y++) {
+            y = mcu_h * mcu_y + mcu_ofs_y;
+            if (y >= jpg_h) break;
+            int16_t mod_x_pls = (fitting != keepAspectRatio || jpg_w >= jpg_h) ? jpg_w : jpg_h;
+            int16_t mod_x = mod_x_pls;
+            int16_t plot_x = 0;
+            // prepare plot_x (, mod_x) condition
+            if (mcu_ofs_y == 0) {
+                for (x = 0; x < mcu_w * mcu_x; x++) {
                     while (mod_x < 0) {
-                        if (plot_x >= width) break;
-                        if (mod_y < 0) {
-                            { // DEBUG
-                                char str[256];
-                                sprintf(str, "plot_x, plot_y = %d, %d", plot_x, plot_y);
-                            }
-                            image[width*plot_y+plot_x] = JpegDec.pImage[idx];
-                            if (plot_x+1 > img_w) { img_w = plot_x+1; }
-                        }
                         mod_x += mod_x_pls;
                         plot_x++;
                     }
                     mod_x -= width;
                 }
-                idx++;
+                // memorize plot_x (, mod_x) start condition
+                mod_x_start = mod_x;
+                plot_x_start = plot_x;
+            } else {
+                // reuse plot_x (, mod_x) start condition
+                mod_x = mod_x_start;
+                plot_x = plot_x_start;
             }
-            if (fitting == noFit) {
+            if (mod_y < 0) {
+                // actual plot_x
+                for (int16_t mcu_ofs_x = 0; mcu_ofs_x < mcu_w; mcu_ofs_x++) {
+                    x = mcu_w * mcu_x + mcu_ofs_x;
+                    if (x >= jpg_w) {
+                        idx += mcu_w - jpg_w%mcu_w; // skip horizontal padding area
+                        break;
+                    }
+                    while (mod_x < 0) {
+                        if (plot_x >= width) break;
+                        image[width*plot_y+plot_x] = JpegDec.pImage[idx];
+                        if (plot_x+1 > img_w) { img_w = plot_x+1; }
+                        mod_x += mod_x_pls;
+                        plot_x++;
+                    }
+                    mod_x -= width;
+                    idx++;
+                }
+            }
+            while (mod_y < 0) { // repeat previous line in case of expanding
                 if (plot_y+1 > img_h) { img_h = plot_y+1; }
+                mod_y += mod_y_pls;
                 plot_y++;
                 if (plot_y >= height) break;
-            } else {
-                while (mod_y < 0) { // repeat previous line in case of expanding
-                    if (plot_y+1 > img_h) { img_h = plot_y+1; }
-                    mod_y += mod_y_pls;
-                    plot_y++;
-                    if (plot_y >= height) break;
-                    if (mod_y < 0) {
-                        for (x = plot_start_x; x < plot_x; x++) {
-                            image[width*plot_y+x] = image[width*(plot_y-1)+x];
-                        }
+                if (mod_y < 0) {
+                    for (x = plot_x_start; x < plot_x; x++) {
+                        image[width*plot_y+x] = image[width*(plot_y-1)+x];
                     }
                 }
-                mod_y -= height;
             }
+            mod_y -= height;
         }
     }
     { // DEBUG
