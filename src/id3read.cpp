@@ -363,37 +363,35 @@ id32* ID3Read::ID32Detect(FsBaseFile* infile)
 
 int ID3Read::getUTF8Title(char* str, size_t size)
 {
-    return GetID32("TT2", "TIT2", str, size);
+    return GetID32UTF8("TT2", "TIT2", str, size);
 }
 
 int ID3Read::getUTF8Album(char* str, size_t size)
 {
-    return GetID32("TAL", "TALB", str, size);
+    return GetID32UTF8("TAL", "TALB", str, size);
 }
 
 int ID3Read::getUTF8Artist(char* str, size_t size)
 {
-    return GetID32("TP1", "TPE1", str, size);
+    return GetID32UTF8("TP1", "TPE1", str, size);
 }
 
-int ID3Read::getPicturePtr(mime_t *mime, ptype_t *ptype, char **ptr, size_t *size)
+int ID3Read::getPictureCount()
 {
-    uint64_t pos;
-    return getPicture(mime, ptype, &pos, ptr, size);
+    return GetIDCount("PIC", "APIC");
 }
 
-int ID3Read::getPicturePos(mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size)
+int ID3Read::getPicturePos(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size)
 {
-    char *ptr;
-    getPicture(mime, ptype, pos, &ptr, size);
+    getPicture(idx, mime, ptype, pos, size);
     return (*size != 0);
 }
 
-int ID3Read::getPicture(mime_t *mime, ptype_t *ptype, uint64_t *pos, char **ptr, size_t *size)
+int ID3Read::getPicture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size)
 {
+    int count = 0;
     *mime = non;
     *ptype = other;
-    *ptr = NULL;
     *size = 0;
     bool hasFullData = false;
     if (!id3v2) { return 0; }
@@ -404,52 +402,62 @@ int ID3Read::getPicture(mime_t *mime, ptype_t *ptype, uint64_t *pos, char **ptr,
     while (thisframe != NULL) {
         if (id3v2->version[0] == 3) {
             if (!strncmp("APIC", thisframe->ID, 4) && thisframe->data != NULL) {
-                // encoding(1) + mime(\0) + ptype(1) + desc(1) + binary
-                if (thisframe->data[0] == 0) { // ISO-8859-1
-                    if (!strncmp("image/jpeg", &thisframe->data[1], 10)) {
-                        *mime = jpeg;
-                        *ptype = static_cast<ptype_t>(thisframe->data[1+11]);
-                        if (thisframe->data[1+11+1] == 0) {
-                            *ptr = &thisframe->data[1+11+1+1];
-                            *size = thisframe->size - (1+11+1+1);
+                if (idx == count) {
+                    // encoding(1) + mime(\0) + ptype(1) + desc(1) + binary
+                    if (thisframe->data[0] == 0) { // ISO-8859-1
+                        if (!strncmp("image/jpeg", &thisframe->data[1], 10)) {
+                            *mime = jpeg;
+                            *ptype = static_cast<ptype_t>(thisframe->data[1+11]);
+                            if (thisframe->data[1+11+1] == 0) {
+                                //*ptr = &thisframe->data[1+11+1+1];
+                                *size = thisframe->size - (1+11+1+1);
+                                *pos = thisframe->pos + (1+11+1+1);
+                            }
+                            hasFullData = thisframe->hasFullData;
+                        } else if (!strncmp("image/png", &thisframe->data[1], 9)) {
+                            *mime = png;
+                            *ptype = static_cast<ptype_t>(thisframe->data[1+10]);
+                            if (thisframe->data[1+10+1] == 0) {
+                                //*ptr = &thisframe->data[1+10+1+1];
+                                *size = thisframe->size - (1+10+1+1);
+                                *pos = thisframe->pos + (1+10+1+1);
+                            }
+                            hasFullData = thisframe->hasFullData;
                         }
-                        hasFullData = thisframe->hasFullData;
-                    } else if (!strncmp("image/png", &thisframe->data[1], 9)) {
-                        *mime = png;
-                        *ptype = static_cast<ptype_t>(thisframe->data[1+10]);
-                        if (thisframe->data[1+10+1] == 0) {
-                            *ptr = &thisframe->data[1+10+1+1];
-                            *size = thisframe->size - (1+10+1+1);
-                        }
-                        hasFullData = thisframe->hasFullData;
                     }
+                    break;
                 }
-                break;
+                count++;
             }
         } else if (id3v2->version[0] == 2) {
             id322frame* tframe = (id322frame*) thisframe;
             if (!strncmp("PIC", tframe->ID, 3) && tframe->data != NULL) {
-                // encoding(1) + mime(3) + ptype(1) + desc(1) + binary
-                if (tframe->data[0] == 0) { // ISO-8859-1
-                    if (!strncmp("JPG", &tframe->data[1], 3)) {
-                        *mime = jpeg;
-                        *ptype = static_cast<ptype_t>(tframe->data[1+3]);
-                        if (tframe->data[1+3+1] == 0) {
-                            *ptr = &tframe->data[1+3+1+1];
-                            *size = tframe->size - (1+3+1+1);
+                if (idx == count) {
+                    // encoding(1) + mime(3) + ptype(1) + desc(1) + binary
+                    if (tframe->data[0] == 0) { // ISO-8859-1
+                        if (!strncmp("JPG", &tframe->data[1], 3)) {
+                            *mime = jpeg;
+                            *ptype = static_cast<ptype_t>(tframe->data[1+3]);
+                            if (tframe->data[1+3+1] == 0) {
+                                //*ptr = &tframe->data[1+3+1+1];
+                                *size = tframe->size - (1+3+1+1);
+                                *pos = tframe->pos + (1+3+1+1);
+                            }
+                            hasFullData = tframe->hasFullData;
+                        } else if (!strncmp("PNG", &tframe->data[1], 3)) {
+                            *mime = png;
+                            *ptype = static_cast<ptype_t>(tframe->data[1+3]);
+                            if (tframe->data[1+3+1] == 0) {
+                                //*ptr = &tframe->data[1+3+1+1];
+                                *size = tframe->size - (1+3+1+1);
+                                *pos = tframe->pos + (1+3+1+1);
+                            }
+                            hasFullData = tframe->hasFullData;
                         }
-                        hasFullData = tframe->hasFullData;
-                    } else if (!strncmp("PNG", &tframe->data[1], 3)) {
-                        *mime = png;
-                        *ptype = static_cast<ptype_t>(tframe->data[1+3]);
-                        if (tframe->data[1+3+1] == 0) {
-                            *ptr = &tframe->data[1+3+1+1];
-                            *size = tframe->size - (1+3+1+1);
-                        }
-                        hasFullData = tframe->hasFullData;
                     }
+                    break;
                 }
-                break;
+                count++;
             }
         }
         thisframe = (ver == 3) ? thisframe->next : (id32frame*) ((id322frame*) thisframe)->next;
@@ -457,7 +465,7 @@ int ID3Read::getPicture(mime_t *mime, ptype_t *ptype, uint64_t *pos, char **ptr,
     return (hasFullData == true);
 }
 
-int ID3Read::GetID32(const char *id3v22, const char *id3v23, char *str, size_t size)
+int ID3Read::GetID32UTF8(const char *id3v22, const char *id3v23, char *str, size_t size)
 {
     int flg = 0;
     if (!id3v2) { return 0; }
@@ -467,9 +475,7 @@ int ID3Read::GetID32(const char *id3v22, const char *id3v23, char *str, size_t s
     thisframe = id3v2->firstframe;
     while (thisframe != NULL) {
         if (id3v2->version[0] == 3) {
-            char buffer[5] = {};
-            memcpy(buffer, thisframe->ID, 4);
-            if (!strncmp(id3v23, buffer, sizeof(buffer))) {
+            if (!strncmp(id3v23, thisframe->ID, 4)) {
                 size_t max_size;
                 switch (thisframe->data[0]) { // data has no '\0' termination
                     case 0: // ISO-8859-1
@@ -495,9 +501,7 @@ int ID3Read::GetID32(const char *id3v22, const char *id3v23, char *str, size_t s
             }
         } else if (id3v2->version[0] == 2) {
             id322frame* tframe = (id322frame*) thisframe;
-            char buffer[4] = {};
-            memcpy(buffer, thisframe->ID, 3);
-            if (!strncmp(id3v22, buffer, sizeof(buffer))) {
+            if (!strncmp(id3v22, tframe->ID, 3)) {
                 size_t max_size;
                 switch (tframe->data[0]) { // data has no '\0' termination
                     case 0: // ISO-8859-1
@@ -525,6 +529,30 @@ int ID3Read::GetID32(const char *id3v22, const char *id3v23, char *str, size_t s
         thisframe = (ver == 3) ? thisframe->next : (id32frame*) ((id322frame*) thisframe)->next;
     }
     return flg;
+}
+
+int ID3Read::GetIDCount(const char *id3v22, const char *id3v23)
+{
+    int count = 0;
+    if (!id3v2) { return 0; }
+    id32frame* thisframe;
+    int ver = id3v2->version[0];
+    // loop through tags and process
+    thisframe = id3v2->firstframe;
+    while (thisframe != NULL) {
+        if (id3v2->version[0] == 3) {
+            if (!strncmp(id3v23, thisframe->ID, 4)) {
+                count++;
+            }
+        } else if (id3v2->version[0] == 2) {
+            id322frame* tframe = (id322frame*) thisframe;
+            if (!strncmp(id3v22, tframe->ID, 3)) {
+                count++;
+            }
+        }
+        thisframe = (ver == 3) ? thisframe->next : (id32frame*) ((id322frame*) thisframe)->next;
+    }
+    return count;
 }
 
 void ID3Read::ID32Print(id32* id32header)

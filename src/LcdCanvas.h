@@ -67,6 +67,7 @@ public:
 class ImageBox : public Box
 {
 public:
+	static const int MaxImgCnt = 4;
 	typedef enum _interpolation_t {
 		NearestNeighbor = 0
 	} interpolation_t;
@@ -79,16 +80,33 @@ public:
 		origin = 0, // x=0, y=0
 		center
 	} align_t;
+	typedef enum _media_src_t {
+		char_ptr = 0,
+		sdcard
+	} media_src_t;
+	typedef enum _img_fmt_t {
+		jpeg = 0,
+		png
+	} img_fmt_t;
+	typedef struct _image_t {
+		media_src_t media_src;
+		img_fmt_t img_fmt;
+		char *ptr;
+		FsBaseFile *file;
+		uint64_t file_pos;
+		size_t size;
+	} image_t;
 	ImageBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t height, uint16_t bgColor = ST77XX_BLACK);
 	void setBgColor(uint16_t bgColor);
 	void update();
 	void draw(Adafruit_ST7735 *tft);
 	void clear(Adafruit_ST7735 *tft);
 	void setModes(interpolation_t interpolation, fitting_t fitting, align_t align = center);
-	void loadJpegBin(char *ptr, size_t size);
-	void loadJpegFile(FsBaseFile *file, uint64_t pos, size_t size);
-	void unload();
-	bool isLoaded();
+	int addJpegBin(char *ptr, size_t size);
+	int addJpegFile(FsBaseFile *file, uint64_t pos, size_t size);
+	int getCount();
+	void deleteAll();
+	void loadNext();
 protected:
 	bool isUpdated;
 	int16_t pos_x, pos_y;
@@ -96,13 +114,20 @@ protected:
 	uint16_t bgColor;
 	uint16_t *image;
 	uint16_t img_w, img_h;
-	bool isImageLoaded;
+	bool isLoaded;
+	bool changeNext;
 	interpolation_t interpolation;
 	fitting_t fitting;
 	align_t align;
+	int image_count;
+	int image_idx;
+	image_t image_array[MaxImgCnt];
 	void loadJpeg();
 	void loadJpegNoFit();
 	void loadJpegResize();
+	void loadJpegBin(char *ptr, size_t size);
+	void loadJpegFile(FsBaseFile *file, uint64_t pos, size_t size);
+	void unload();
 };
 
 //=================================
@@ -268,9 +293,8 @@ public:
 	void setTitle(const char *str, encoding_t encoding = none);
 	void setAlbum(const char *str, encoding_t encoding = none);
 	void setArtist(const char *str, encoding_t encoding = none);
-	void setAlbumArtJpeg(char *ptr, size_t size);
-	void setAlbumArtJpeg(FsBaseFile *file, uint64_t pos, size_t size);
-	void resetAlbumArt();
+	void addAlbumArtJpeg(FsBaseFile *file, uint64_t pos, size_t size);
+	void deleteAlbumArt();
 	void switchToFileView();
 	void switchToPlay();
 	void switchToPowerOff();

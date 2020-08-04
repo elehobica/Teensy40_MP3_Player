@@ -90,8 +90,8 @@ public:
     int getUTF8Title(char *str, size_t size);
     int getUTF8Album(char *str, size_t size);
     int getUTF8Artist(char *str, size_t size);
-    int getPicturePtr(mime_t *mime, ptype_t *ptype, char **ptr, size_t *size);
-    int getPicturePos(mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size);
+    int getPictureCount();
+    int getPicturePos(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size);
 
 private:
     FsBaseFile file;
@@ -99,8 +99,8 @@ private:
     id32 *id3v2;
     int GetID3HeadersFull(FsBaseFile* infile, int testfail, id31** id31save, id32** id32save);
     id32* ID32Detect(FsBaseFile* infile);
-    int GetID32(const char *id3v22, const char *id3v23, char **str, size_t *size);
-    int GetID32(const char *id3v22, const char *id3v23, char *str, size_t size);
+    int GetID32UTF8(const char *id3v22, const char *id3v23, char *str, size_t size);
+    int GetIDCount(const char *id3v22, const char *id3v23);
     void ID32Print(id32* id32header);
     void ID32Free(id32* id32header);
     id32flat* ID32Create();
@@ -111,7 +111,7 @@ private:
     id31* ID31Detect(char* header);
     void ID31Print(id31* id31header);
     void ID31Free(id31* id31header);
-    int getPicture(mime_t *mime, ptype_t *ptype, uint64_t *pos, char **ptr, size_t *size);
+    int getPicture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size);
 };
 
 #endif //_ID3READ_H_

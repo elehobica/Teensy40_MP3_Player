@@ -418,7 +418,13 @@ int JPEGDecoder::decodeSdFile (FsBaseFile jpgFile, uint64_t pos, size_t size) { 
 		if (pos == 0) {
 			g_nInFileSize = g_pInFileSd.size();
 		} else {
-			g_pInFileSd.seekSet(pos);
+			//g_pInFileSd.rewind();
+			if (!g_pInFileSd.seekSet(pos)) {
+				#ifdef DEBUG
+				Serial.println("ERROR: seekSet failed");
+				#endif
+				return -1;
+			}
 			g_nInFileSize = size;
 		}
 	}
@@ -456,14 +462,15 @@ int JPEGDecoder::decodeCommon(void) {
 	status = pjpeg_decode_init(&image_info, pjpeg_callback, NULL, 0);
 
 	if (status) {
-		#ifdef DEBUG
+		//#ifdef DEBUG
 		Serial.print("pjpeg_decode_init() failed with status ");
 		Serial.println(status);
-
+		/*
 		if (status == PJPG_UNSUPPORTED_MODE) {
 			Serial.println("Progressive JPEG files are not supported.");
 		}
-		#endif
+		*/
+		//#endif
 
 		return 0;
 	}
@@ -509,6 +516,6 @@ void JPEGDecoder::abort(void) {
 	if (jpg_source == JPEG_SD_FILE) if (g_pInFileSd) g_pInFileSd.close();
 #endif
 #ifdef LOAD_SDFAT_LIBRARY
-	//if (jpg_source == JPEG_SD_FILE) if (g_pInFileSd) g_pInFileSd.close();
+	if (jpg_source == JPEG_SD_FILE) if (g_pInFileSd) g_pInFileSd.close();
 #endif
 }

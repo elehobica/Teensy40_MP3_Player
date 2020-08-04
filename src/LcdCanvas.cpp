@@ -6,7 +6,8 @@
 //=================================
 ImageBox::ImageBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t height, uint16_t bgColor)
     : isUpdated(true), pos_x(pos_x), pos_y(pos_y), width(width), height(height), bgColor(bgColor),
-        image(NULL), img_w(0), img_h(0), isImageLoaded(false), interpolation(NearestNeighbor), fitting(keepAspectRatio), align(center)
+        image(NULL), img_w(0), img_h(0), isLoaded(false), changeNext(true), interpolation(NearestNeighbor), fitting(keepAspectRatio), align(center),
+        image_count(0), image_idx(0)
 {
     image = (uint16_t *) calloc(2, width * height);
 }
@@ -25,7 +26,7 @@ void ImageBox::update()
 
 void ImageBox::draw(Adafruit_ST7735 *tft)
 {
-    if (!isUpdated || image == NULL) { return; }
+    if (!isUpdated || image == NULL || !isLoaded) { return; }
     isUpdated = false;
     int16_t ofs_x = 0;
     int16_t ofs_y = 0;
@@ -49,19 +50,70 @@ void ImageBox::setModes(interpolation_t interpolation, fitting_t fitting, align_
     this->align = align;
 }
 
+// add JPEG binary
+int ImageBox::addJpegBin(char *ptr, size_t size)
+{
+    if (image_count >= MaxImgCnt) { return 0; }
+    image_array[image_count].media_src = char_ptr;
+    image_array[image_count].img_fmt = jpeg;
+    image_array[image_count].ptr = ptr;
+    image_array[image_count].file = NULL;
+    image_array[image_count].file_pos = 0;
+    image_array[image_count].size = size;
+    image_count++;
+    return 1;
+}
+
+// add JPEG SdFat File
+int ImageBox::addJpegFile(FsBaseFile *file, uint64_t pos, size_t size)
+{
+    if (image_count >= MaxImgCnt) { return 0; }
+    image_array[image_count].media_src = sdcard;
+    image_array[image_count].img_fmt = jpeg;
+    image_array[image_count].ptr = NULL;
+    image_array[image_count].file = file;
+    image_array[image_count].file_pos = pos;
+    image_array[image_count].size = size;
+    image_count++;
+    return 1;
+}
+
+void ImageBox::loadNext()
+{
+    // If a single image, no need to reload
+    if (image_count <= 0 || !changeNext) { return; }
+
+    int image_idx_next;
+    unload();
+    if (image_array[image_idx].img_fmt == jpeg) {
+        if (image_array[image_idx].media_src == char_ptr) {
+            loadJpegBin(image_array[image_idx].ptr, image_array[image_idx].size);
+        } else if (image_array[image_idx].media_src == sdcard) {
+            loadJpegFile(image_array[image_idx].file, image_array[image_idx].file_pos, image_array[image_idx].size);
+        }
+    }
+    image_idx_next = (image_idx + 1) % image_count;
+    if (image_idx_next == image_idx) { // == 0
+        changeNext = false;
+    }
+    image_idx = image_idx_next;
+}
+
 // load from JPEG binary
 void ImageBox::loadJpegBin(char *ptr, size_t size)
 {
-    bool decoded = JpegDec.decodeArray((const uint8_t *) ptr, (uint32_t) size);
-    if (!decoded) { return; }
+    JpegDec.abort();
+    int decoded = JpegDec.decodeArray((const uint8_t *) ptr, (uint32_t) size);
+    if (decoded <= 0) { return; }
     loadJpeg();
 }
 
 // load from JPEG File
 void ImageBox::loadJpegFile(FsBaseFile *file, uint64_t pos, size_t size)
 {
+    JpegDec.abort();
     bool decoded = JpegDec.decodeSdFile(*file, pos, size);
-    if (!decoded) { return; }
+    if (decoded <= 0) { return; }
     loadJpeg();
 }
 
@@ -69,6 +121,7 @@ void ImageBox::loadJpegFile(FsBaseFile *file, uint64_t pos, size_t size)
 // load JPEG to fit to width/height by Nearest Neighbor
 void ImageBox::loadJpeg()
 {
+    if (image == NULL) { return; }
     uint16_t jpg_w = JpegDec.width;
     uint16_t jpg_h = JpegDec.height;
     uint16_t mcu_w = JpegDec.MCUWidth;
@@ -198,7 +251,7 @@ void ImageBox::loadJpeg()
             memmove(&image[img_w*plot_y], &image[width*plot_y], img_w*2);
         }
     }
-    isImageLoaded = true;
+    isLoaded = true;
     update();
 }
 #else
@@ -267,10 +320,9 @@ void ImageBox::loadJpegNoFit()
             memmove(&image[img_w*plot_y], &image[width*plot_y], img_w*2);
         }
     }
-    isImageLoaded = true;
+    isLoaded = true;
     update();
 }
-#endif
 
 // load JPEG to fit to width/height by Nearest Neighbor
 void ImageBox::loadJpegResize()
@@ -381,20 +433,35 @@ void ImageBox::loadJpegResize()
             memmove(&image[img_w*plot_y], &image[width*plot_y], img_w*2);
         }
     }
-    isImageLoaded = true;
+    isLoaded = true;
     update();
 }
+#endif
 
 void ImageBox::unload()
 {
     img_w = img_h = 0;
     memset(image, 0, width * height * 2);
-    isImageLoaded = false;
+    isLoaded = false;
 }
 
-bool ImageBox::isLoaded()
+void ImageBox::deleteAll()
 {
-    return isImageLoaded;
+    /*
+    img_w = img_h = 0;
+    memset(image, 0, width * height * 2);
+    isLoaded = false;
+    */
+    isLoaded = false;
+    changeNext = true;
+    image_count = 0;
+    image_idx = 0;
+
+}
+
+int ImageBox::getCount()
+{
+    return image_count;
 }
 
 //=================================
@@ -942,19 +1009,20 @@ void LcdCanvas::draw()
         for (int i = 0; i < (int) (sizeof(groupPlay)/sizeof(*groupPlay)); i++) {
             groupPlay[i]->draw(this);
         }
-        if (play_count % play_cycle < play_change || !albumArt.isLoaded()) {
+        if (play_count % play_cycle < play_change || albumArt.getCount() == 0) { // Title/Artist/Album display
             for (int i = 0; i < (int) (sizeof(groupPlay0)/sizeof(*groupPlay0)); i++) {
                 groupPlay0[i]->draw(this);
             }
-            if (play_count % play_cycle == play_change-1 && albumArt.isLoaded()) {
+            if (play_count % play_cycle == play_change-1 && albumArt.getCount() > 0) {
                 for (int i = 0; i < (int) (sizeof(groupPlay0)/sizeof(*groupPlay0)); i++) {
                     groupPlay0[i]->clear(this);
                 }
                 for (int i = 0; i < (int) (sizeof(groupPlay1)/sizeof(*groupPlay1)); i++) {
                     groupPlay1[i]->update();
                 }
+                albumArt.loadNext();
             }
-        } else {
+        } else { // Album Art display
             for (int i = 0; i < (int) (sizeof(groupPlay1)/sizeof(*groupPlay1)); i++) {
                 groupPlay1[i]->draw(this);
             }
@@ -1015,17 +1083,12 @@ void LcdCanvas::setArtist(const char *str, encoding_t encoding)
     artist.setText(str, encoding);
 }
 
-void LcdCanvas::setAlbumArtJpeg(char *ptr, size_t size)
+void LcdCanvas::addAlbumArtJpeg(FsBaseFile *file, uint64_t pos, size_t size)
 {
-    albumArt.loadJpegBin(ptr, size);
+    albumArt.addJpegFile(file, pos, size);
 }
 
-void LcdCanvas::setAlbumArtJpeg(FsBaseFile *file, uint64_t pos, size_t size)
+void LcdCanvas::deleteAlbumArt()
 {
-    albumArt.loadJpegFile(file, pos, size);
-}
-
-void LcdCanvas::resetAlbumArt()
-{
-    albumArt.unload();
+    albumArt.deleteAll();
 }

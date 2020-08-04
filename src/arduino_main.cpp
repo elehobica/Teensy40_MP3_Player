@@ -74,7 +74,6 @@ int aud_req = 0;
 
 uint16_t idx_head = 0;
 uint16_t idx_column = 0;
-uint16_t idx_play_count = 0;
 uint16_t idx_idle_count = 0;
 uint16_t idx_play;
 
@@ -397,22 +396,19 @@ void loadID3(FsBaseFile *file)
     uint64_t pos;
     size_t size;
 
-    lcd.resetAlbumArt();
     id3.loadFile(file);
+
+    // copy ID3 text
     if (id3.getUTF8Title(str, sizeof(str))) { lcd.setTitle(str, utf8); }
     if (id3.getUTF8Album(str, sizeof(str))) { lcd.setAlbum(str, utf8); }
     if (id3.getUTF8Artist(str, sizeof(str))) { lcd.setArtist(str, utf8); }
-    /*
-    // old version (Direct Frame Contens)
-    //  Frame needs to have large data
-    char *ptr;
-    if (id3.getPicturePtr(&mime, &ptype, &ptr, &size)) {
-        if (mime == jpeg) { lcd.setAlbumArtJpeg(ptr, size); }
-    }
-    */
-    // new version (Frame Contens in File)
-    if (id3.getPicturePos(&mime, &ptype, &pos, &size)) {
-        if (mime == jpeg) { lcd.setAlbumArtJpeg(file, pos, size); }
+
+    // copy ID3 image
+    lcd.deleteAlbumArt();
+    for (int i = 0; i < id3.getPictureCount(); i++) {
+        if (id3.getPicturePos(i, &mime, &ptype, &pos, &size)) {
+            if (mime == jpeg) { lcd.addAlbumArtJpeg(file, pos, size); }
+        }
     }
 }
 
@@ -494,7 +490,6 @@ void loop() {
                 mode = Play;
                 loadID3(&file);
                 playMp3.play(&file);
-                idx_play_count = 0;
                 idx_idle_count = 0;
                 lcd.switchToPlay();
             }
@@ -538,7 +533,6 @@ void loop() {
           } else {
               audio_play(idx_head + idx_column);
           }
-          idx_play_count = 0;
           idx_idle_count = 0;
           */
         }
