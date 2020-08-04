@@ -38,8 +38,10 @@ Bodmer (24/1/17): Correct greyscale images, update examples
 
 #include "JPEGDecoder.h"
 #include "picojpeg.h"
+#include <TeensyThreads.h>
 
 JPEGDecoder JpegDec;
+extern Threads::Mutex mylock;
 
 JPEGDecoder::JPEGDecoder(){
 	mcu_x = 0 ;
@@ -81,7 +83,10 @@ uint8_t JPEGDecoder::pjpeg_need_bytes_callback(uint8_t* pBuf, uint8_t buf_size, 
 #endif
 
 #if defined (LOAD_SD_LIBRARY) || defined (LOAD_SDFAT_LIBRARY)
-	if (jpg_source == JPEG_SD_FILE) g_pInFileSd.read(pBuf,n); // else we are handling a file
+	{
+		Threads::Scope scope(mylock);
+		if (jpg_source == JPEG_SD_FILE) g_pInFileSd.read(pBuf,n); // else we are handling a file
+	}
 #endif
 
 	*pBytes_actually_read = (uint8_t)(n);
@@ -408,11 +413,14 @@ int JPEGDecoder::decodeSdFile (FsBaseFile jpgFile, uint64_t pos, size_t size) { 
 
 	g_nInFileOfs = 0;
 
-	if (pos == 0) {
-		g_nInFileSize = g_pInFileSd.size();
-	} else {
-		g_pInFileSd.seekSet(pos);
-		g_nInFileSize = size;
+	{
+		Threads::Scope scope(mylock);
+		if (pos == 0) {
+			g_nInFileSize = g_pInFileSd.size();
+		} else {
+			g_pInFileSd.seekSet(pos);
+			g_nInFileSize = size;
+		}
 	}
 
 	return decodeCommon();
@@ -497,7 +505,10 @@ void JPEGDecoder::abort(void) {
 	if (jpg_source == JPEG_FS_FILE) if (g_pInFileFs) g_pInFileFs.close();
 #endif
 
-#if defined (LOAD_SD_LIBRARY) || defined (LOAD_SDFAT_LIBRARY)
+#ifdef LOAD_SD_LIBRARY
 	if (jpg_source == JPEG_SD_FILE) if (g_pInFileSd) g_pInFileSd.close();
+#endif
+#ifdef LOAD_SDFAT_LIBRARY
+	//if (jpg_source == JPEG_SD_FILE) if (g_pInFileSd) g_pInFileSd.close();
 #endif
 }
