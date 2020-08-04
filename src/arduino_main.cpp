@@ -65,7 +65,7 @@ stack_data_t item;
 int stack_count;
 
 // FileView Menu
-mode_enm mode = FileView;
+LcdCanvas::mode_enm mode = LcdCanvas::FileView;
 
 #define NUM_IDX_ITEMS         10
 int idx_req = 1;
@@ -295,7 +295,7 @@ void tick_100ms(void)
                 sprintf(_str, "center_clicks = %d", center_clicks);
                 Serial.println(_str);
             }
-            if (mode == FileView) {
+            if (mode == LcdCanvas::FileView) {
                 if (center_clicks == 1) {
                     idx_open();
                 } else if (center_clicks == 2) {
@@ -303,7 +303,7 @@ void tick_100ms(void)
                 } else if (center_clicks == 3) {
                     //idx_random_open();
                 }
-            } else if (mode == Play) {
+            } else if (mode == LcdCanvas::Play) {
                 if (center_clicks == 1) {
                     aud_pause();
                 } else if (center_clicks == 2) {
@@ -313,15 +313,15 @@ void tick_100ms(void)
         }
     } else if (button_prv[0] == HP_BUTTON_OPEN) { // push
         if (button == HP_BUTTON_D || button == HP_BUTTON_PLUS) {
-            if (mode == FileView) {
+            if (mode == LcdCanvas::FileView) {
                 idx_dec();
-            } else if (mode == Play) {
+            } else if (mode == LcdCanvas::Play) {
                 volume_up();
             }
         } else if (button == HP_BUTTON_MINUS) {
-            if (mode == FileView) {
+            if (mode == LcdCanvas::FileView) {
                 idx_inc();
-            } else if (mode == Play) {
+            } else if (mode == LcdCanvas::Play) {
                 volume_down();
             }
         }
@@ -329,21 +329,21 @@ void tick_100ms(void)
         if (button == HP_BUTTON_CENTER) {
             button_repeat_count++; // only once and step to longer push event
         } else if (button == HP_BUTTON_D || button == HP_BUTTON_PLUS) {
-            if (mode == FileView) {
+            if (mode == LcdCanvas::FileView) {
                 idx_fast_dec();
-            } else if (mode == Play) {
+            } else if (mode == LcdCanvas::Play) {
                 volume_up();
             }
         } else if (button == HP_BUTTON_MINUS) {
-            if (mode == FileView) {
+            if (mode == LcdCanvas::FileView) {
                 idx_fast_inc();
-            } else if (mode == Play) {
+            } else if (mode == LcdCanvas::Play) {
                 volume_down();
             }
         }
     } else if (button_repeat_count == 30) { // long long push
         if (button == HP_BUTTON_CENTER) {
-            mode = PowerOff;
+            mode = LcdCanvas::PowerOff;
         }
         button_repeat_count++; // only once and step to longer push event
     } else if (button == button_prv[0]) {
@@ -452,7 +452,7 @@ void loop() {
         aud_req = 0;
     } else if (aud_req == 2) {
         playMp3.stop();
-        mode = FileView;
+        mode = LcdCanvas::FileView;
         lcd.switchToFileView();
         aud_req = 0;
         idx_req = 1;
@@ -487,7 +487,7 @@ void loop() {
             idx_play = idx_head + idx_column;
             idx_play = get_mp3_file(idx_play, 0, &file);
             if (idx_play) {
-                mode = Play;
+                mode = LcdCanvas::Play;
                 loadID3(&file);
                 playMp3.play(&file);
                 idx_idle_count = 0;
@@ -504,7 +504,7 @@ void loop() {
           // After audio_init(), Never call file_menu_xxx() functions!
           // Otherwise, it causes conflict between main and int routine
           audio_init();
-          mode = Play;
+          mode = LcdCanvas::Play;
           // Load cover art
           fr = f_open(&fil, "cover.bin", FA_READ);
           if (fr == FR_OK) {
@@ -591,7 +591,7 @@ void loop() {
         idx_req = 0;
         idx_idle_count = 0;
     } else {
-        if (mode == Play) {
+        if (mode == LcdCanvas::Play) {
             if (!playMp3.isPlaying() || (playMp3.positionMillis() + 1000 > playMp3.lengthMillis())) {
                 idx_play = get_mp3_file(idx_play+1, 1, &file);
                 if (idx_play) {
@@ -600,7 +600,7 @@ void loop() {
                 } else {
                     while (playMp3.isPlaying()) { delay(1); } // minimize gap between tracks
                     playMp3.stop();
-                    mode = FileView;
+                    mode = LcdCanvas::FileView;
                     lcd.switchToFileView();
                     idx_req = 1;
                     idx_idle_count = 0;
@@ -609,12 +609,12 @@ void loop() {
             lcd.setVolume(i2s1.get_volume());
             lcd.setBitRate(playMp3.bitRate());
             lcd.setPlayTime(playMp3.positionMillis()/1000, playMp3.lengthMillis()/1000);
-        } else if (mode == FileView) {
+        } else if (mode == LcdCanvas::FileView) {
             idx_idle_count++;
             if (idx_idle_count > 100) {
                 file_menu_idle();
             }
-        } else if (mode == PowerOff) {
+        } else if (mode == LcdCanvas::PowerOff) {
             power_off();
         }
     }

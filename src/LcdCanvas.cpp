@@ -6,7 +6,7 @@
 //=================================
 ImageBox::ImageBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t height, uint16_t bgColor)
     : isUpdated(true), pos_x(pos_x), pos_y(pos_y), width(width), height(height), bgColor(bgColor),
-        image(NULL), img_w(0), img_h(0), isLoaded(false), changeNext(true), interpolation(NearestNeighbor), fitting(keepAspectRatio), align(center),
+        image(NULL), img_w(0), img_h(0), isLoaded(false), changeNext(true), resizeFit(true), keepAspectRatio(true), align(center),
         image_count(0), image_idx(0)
 {
     image = (uint16_t *) calloc(2, width * height);
@@ -43,11 +43,14 @@ void ImageBox::clear(Adafruit_ST7735 *tft)
     tft->fillRect(pos_x, pos_y, width, height, bgColor); // clear Icon rectangle
 }
 
-void ImageBox::setModes(interpolation_t interpolation, fitting_t fitting, align_t align)
+void ImageBox::setResizeFit(bool flg)
 {
-    this->interpolation = interpolation;
-    this->fitting = fitting;
-    this->align = align;
+    resizeFit = flg;
+}
+
+void ImageBox::setKeepAspectRatio(bool flg)
+{
+    keepAspectRatio = flg;
 }
 
 // add JPEG binary
@@ -139,11 +142,11 @@ void ImageBox::loadJpeg()
         int16_t x, y;
         int16_t mcu_x = JpegDec.MCUx;
         int16_t mcu_y = JpegDec.MCUy;
-        int16_t mod_y_pls = (fitting != keepAspectRatio || jpg_h >= jpg_w) ? jpg_h : jpg_w;
+        int16_t mod_y_pls = (!keepAspectRatio || jpg_h >= jpg_w) ? jpg_h : jpg_w;
         int16_t mod_y = mod_y_pls;
         int16_t plot_y = 0;
         // prepare plot_y (, mod_y) condition
-        if (fitting == noFit) {
+        if (!resizeFit) {
             plot_y = mcu_h * mcu_y;
             if (plot_y >= height) continue; // don't use break because MCU order is not always left-to-right and top-to-bottom
         } else {
@@ -170,11 +173,11 @@ void ImageBox::loadJpeg()
         for (int16_t mcu_ofs_y = 0; mcu_ofs_y < mcu_h; mcu_ofs_y++) {
             y = mcu_h * mcu_y + mcu_ofs_y;
             if (y >= jpg_h) break;
-            int16_t mod_x_pls = (fitting != keepAspectRatio || jpg_w >= jpg_h) ? jpg_w : jpg_h;
+            int16_t mod_x_pls = (!keepAspectRatio || jpg_w >= jpg_h) ? jpg_w : jpg_h;
             int16_t mod_x = mod_x_pls;
             int16_t plot_x = 0;
             // prepare plot_x (, mod_x) condition
-            if (fitting == noFit) {
+            if (!resizeFit) {
                 plot_x = mcu_w * mcu_x;
                 if (plot_x >= width) break;
             } else {
@@ -202,7 +205,7 @@ void ImageBox::loadJpeg()
                     idx += mcu_w - jpg_w%mcu_w; // skip horizontal padding area
                     break;
                 }
-                if (fitting == noFit) {
+                if (!resizeFit) {
                     if (plot_x >= width) break;
                     image[width*plot_y+plot_x] = JpegDec.pImage[idx];
                     if (plot_x+1 > img_w) { img_w = plot_x+1; }
@@ -221,7 +224,7 @@ void ImageBox::loadJpeg()
                 }
                 idx++;
             }
-            if (fitting == noFit) {
+            if (!resizeFit) {
                 if (plot_y+1 > img_h) { img_h = plot_y+1; }
                 plot_y++;
                 if (plot_y >= height) break;
@@ -258,7 +261,7 @@ void ImageBox::loadJpeg()
 
 void ImageBox::loadJpeg()
 {
-    if (fitting == noFit) {
+    if (!resizeFit) {
         loadJpegNoFit();
     } else {
         loadJpegResize();
@@ -344,7 +347,7 @@ void ImageBox::loadJpegResize()
         int16_t x, y;
         int16_t mcu_x = JpegDec.MCUx;
         int16_t mcu_y = JpegDec.MCUy;
-        int16_t mod_y_pls = (fitting != keepAspectRatio || jpg_h >= jpg_w) ? jpg_h : jpg_w;
+        int16_t mod_y_pls = (!keepAspectRatio || jpg_h >= jpg_w) ? jpg_h : jpg_w;
         int16_t mod_y = mod_y_pls;
         int16_t plot_y = 0;
         // prepare plot_y (, mod_y) condition
@@ -370,7 +373,7 @@ void ImageBox::loadJpegResize()
         for (int16_t mcu_ofs_y = 0; mcu_ofs_y < mcu_h; mcu_ofs_y++) {
             y = mcu_h * mcu_y + mcu_ofs_y;
             if (y >= jpg_h) break;
-            int16_t mod_x_pls = (fitting != keepAspectRatio || jpg_w >= jpg_h) ? jpg_w : jpg_h;
+            int16_t mod_x_pls = (!keepAspectRatio || jpg_w >= jpg_h) ? jpg_w : jpg_h;
             int16_t mod_x = mod_x_pls;
             int16_t plot_x = 0;
             // prepare plot_x (, mod_x) condition
@@ -518,7 +521,7 @@ void IconBox::setIcon(uint8_t *icon)
 // Implementation of TextBox class
 //=================================
 TextBox::TextBox(int16_t pos_x, int16_t pos_y, uint16_t fgColor, uint16_t bgColor)
-    : isUpdated(true), pos_x(pos_x), pos_y(pos_y), fgColor(fgColor), bgColor(bgColor), align(AlignLeft), str(""), encoding(none) {}
+    : isUpdated(true), pos_x(pos_x), pos_y(pos_y), fgColor(fgColor), bgColor(bgColor), align(Box::AlignLeft), str(""), encoding(none) {}
 
 TextBox::TextBox(int16_t pos_x, int16_t pos_y, align_enm align, uint16_t fgColor, uint16_t bgColor)
     : isUpdated(true), pos_x(pos_x), pos_y(pos_y), fgColor(fgColor), bgColor(bgColor), align(align), str(""), encoding(none) {}
@@ -561,9 +564,9 @@ void TextBox::draw(Adafruit_ST7735 *tft)
     TextBox::clear(tft); // call clear() of this class
     //tft->fillRect(x0, y0, w0, h0, bgColor); // clear previous rectangle
     tft->setTextColor(fgColor);
-    x_ofs = (align == AlignRight) ? -w0 : (align == AlignCenter) ? -w0/2 : 0; // at this point, w0 could be not correct
+    x_ofs = (align == Box::AlignRight) ? -w0 : (align == Box::AlignCenter) ? -w0/2 : 0; // at this point, w0 could be not correct
     tft->getTextBounds(str, pos_x+x_ofs, pos_y, &x0, &y0, &w0, &h0, encoding); // update next smallest rectangle (get correct w0)
-    x_ofs = (align == AlignRight) ? -w0 : (align == AlignCenter) ? -w0/2 : 0;
+    x_ofs = (align == Box::AlignRight) ? -w0 : (align == Box::AlignCenter) ? -w0/2 : 0;
     tft->getTextBounds(str, pos_x+x_ofs, pos_y, &x0, &y0, &w0, &h0, encoding); // update next smallest rectangle (get total correct info)
     tft->setCursor(pos_x+x_ofs, pos_y);
     tft->println(str, encoding);
@@ -603,7 +606,7 @@ void TextBox::setInt(int value)
 // Implementation of NFTextBox class
 //=================================
 NFTextBox::NFTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t fgColor, uint16_t bgColor)
-    : TextBox(pos_x, pos_y, "", AlignLeft, fgColor, bgColor), width(width)
+    : TextBox(pos_x, pos_y, "", Box::AlignLeft, fgColor, bgColor), width(width)
 {
     initCanvas();
 }
@@ -642,9 +645,9 @@ void NFTextBox::draw(Adafruit_ST7735 *tft)
     int16_t new_x_ofs;
     uint16_t new_w0;
     isUpdated = false;
-    x_ofs = (align == AlignRight) ? -w0 : (align == AlignCenter) ? -w0/2 : 0; // previous x_ofs
+    x_ofs = (align == Box::AlignRight) ? -w0 : (align == Box::AlignCenter) ? -w0/2 : 0; // previous x_ofs
     canvas->getTextBounds(str, 0, 0, &x0, &y0, &new_w0, &h0, encoding); // get next smallest rectangle (get correct new_w0)
-    new_x_ofs = (align == AlignRight) ? -new_w0 : (align == AlignCenter) ? -new_w0/2 : 0;
+    new_x_ofs = (align == Box::AlignRight) ? -new_w0 : (align == Box::AlignCenter) ? -new_w0/2 : 0;
     if (new_x_ofs > x_ofs) { // clear left-over rectangle
         tft->fillRect(pos_x+x_ofs, pos_y+y0, new_x_ofs-x_ofs, h0, bgColor);
     }
@@ -687,7 +690,7 @@ void NFTextBox::draw(Adafruit_ST7735 *tft)
 
 void NFTextBox::clear(Adafruit_ST7735 *tft)
 {
-    int16_t x_ofs = (align == AlignRight) ? -w0 : (align == AlignCenter) ? -w0/2 : 0; // previous x_ofs
+    int16_t x_ofs = (align == Box::AlignRight) ? -w0 : (align == Box::AlignCenter) ? -w0/2 : 0; // previous x_ofs
     tft->fillRect(pos_x+x_ofs, pos_y+y0, w0, h0, bgColor);
 }
 

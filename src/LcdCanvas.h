@@ -30,30 +30,16 @@ extern uint8_t Icon16[];
 #define ICON16x16_VOLUME	&Icon16[32*5]
 #define ICON16x16_BATTERY	&Icon16[32*6]
 
-/*
-typedef enum _encoding {
-	none = 0,	// ISO-8859-1
-	utf8		// UTF-8
-} encoding_t;
-*/
-
-typedef enum _mode_enm {
-	FileView = 0,
-	Play,
-	PowerOff
-} mode_enm;
-
-typedef enum _align_enm {
-	AlignLeft = 0,
-	AlignRight,
-	AlignCenter
-} align_enm;
-
 //=================================
 // Definition of Box interface
 //=================================
 class Box {
 public:
+	typedef enum _align_enm {
+		AlignLeft = 0,
+		AlignRight,
+		AlignCenter
+	} align_enm;
 	//virtual ~Box() {}
 	virtual void setBgColor(uint16_t bgColor) = 0;
 	virtual void update() = 0;
@@ -68,14 +54,6 @@ class ImageBox : public Box
 {
 public:
 	static const int MaxImgCnt = 4;
-	typedef enum _interpolation_t {
-		NearestNeighbor = 0
-	} interpolation_t;
-	typedef enum _fitting_t {
-		noFit = 0, // 1:1, no scaling
-		fitXY,
-		keepAspectRatio
-	} fitting_t;
 	typedef enum _align_t {
 		origin = 0, // x=0, y=0
 		center
@@ -101,7 +79,8 @@ public:
 	void update();
 	void draw(Adafruit_ST7735 *tft);
 	void clear(Adafruit_ST7735 *tft);
-	void setModes(interpolation_t interpolation, fitting_t fitting, align_t align = center);
+	void setResizeFit(bool flg);
+	void setKeepAspectRatio(bool flg);
 	int addJpegBin(char *ptr, size_t size);
 	int addJpegFile(FsBaseFile *file, uint64_t pos, size_t size);
 	int getCount();
@@ -116,8 +95,8 @@ protected:
 	uint16_t img_w, img_h;
 	bool isLoaded;
 	bool changeNext;
-	interpolation_t interpolation;
-	fitting_t fitting;
+	bool resizeFit; // true: resize to fit ImageBox size, false: original size (1:1)
+	bool keepAspectRatio; // keep Aspect Ratio when resizeFit == true
 	align_t align;
 	int image_count;
 	int image_idx;
@@ -277,6 +256,12 @@ protected:
 class LcdCanvas : public Adafruit_ST7735
 {
 public:
+	typedef enum _mode_enm {
+		FileView = 0,
+		Play,
+		PowerOff
+	} mode_enm;
+
 	//LcdCanvas(int8_t cs, int8_t dc, int8_t mosi, int8_t sclk, int8_t rst) : Adafruit_ST7735(cs, dc, mosi, sclk, rst) {}
 	LcdCanvas(int8_t cs, int8_t dc, int8_t rst);
 #if !defined(ESP8266)
@@ -319,12 +304,12 @@ protected:
 	};
 	IconBox battery = IconBox(16*7, 16*0, ICON16x16_BATTERY, ST77XX_GRAY);
 	IconTextBox volume = IconTextBox(16*0, 16*0, ICON16x16_VOLUME, ST77XX_GRAY);
-	TextBox bitRate = TextBox(16*4, 16*0, AlignCenter, ST77XX_GRAY);
-	NFTextBox playTime = NFTextBox(width(), 16*9, width(), AlignRight, ST77XX_GRAY);
+	TextBox bitRate = TextBox(16*4, 16*0, Box::AlignCenter, ST77XX_GRAY);
+	NFTextBox playTime = NFTextBox(width(), 16*9, width(), Box::AlignRight, ST77XX_GRAY);
 	IconScrollTextBox title = IconScrollTextBox(16*0, 16*3, ICON16x16_TITLE, width());
 	IconScrollTextBox artist = IconScrollTextBox(16*0, 16*4, ICON16x16_ARTIST, width());
 	IconScrollTextBox album = IconScrollTextBox(16*0, 16*5, ICON16x16_ALBUM, width());
-	TextBox bye_msg = TextBox(width()/2, height()/2-FONT_HEIGHT, "Bye", AlignCenter);
+	TextBox bye_msg = TextBox(width()/2, height()/2-FONT_HEIGHT, "Bye", Box::AlignCenter);
 	ImageBox albumArt = ImageBox(0, (height() - width())/2, width(), width());
 	Box *groupFileView[10] = {
 		&fileItem[0], &fileItem[1], &fileItem[2], &fileItem[3], &fileItem[4], &fileItem[5], &fileItem[6], &fileItem[7], &fileItem[8],  &fileItem[9]
