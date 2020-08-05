@@ -102,10 +102,10 @@ int JPEGDecoder::decode_mcu(void) {
 		is_available = 0 ;
 
 		if (status != PJPG_NO_MORE_BLOCKS) {
-			#ifdef DEBUG
+			//#ifdef DEBUG
 			Serial.print("pjpeg_decode_mcu() failed with status ");
 			Serial.println(status);
-			#endif
+			//#endif
 
 			return -1;
 		}

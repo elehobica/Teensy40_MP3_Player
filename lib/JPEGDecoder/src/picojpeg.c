@@ -16,8 +16,10 @@
 //------------------------------------------------------------------------------
 typedef unsigned char   uint8;
 typedef unsigned short  uint16;
+typedef unsigned long   uint32;
 typedef signed char     int8;
 typedef signed short    int16;
+typedef signed long     int32;
 //------------------------------------------------------------------------------
 #if PJPG_RIGHT_SHIFT_IS_ALWAYS_UNSIGNED
 static int16 replicateSignBit16(int8 n)
@@ -146,9 +148,11 @@ static uint8 gMCUBufR[256];
 static uint8 gMCUBufG[256];
 static uint8 gMCUBufB[256];
 
-// 256 bytes
+// 512 bytes
 static int16 gQuant0[8*8];
 static int16 gQuant1[8*8];
+static int16 gQuant2[8*8];
+static int16 gQuant3[8*8];
 
 // 6 bytes
 static int16 gLastDC[3];
@@ -211,7 +215,7 @@ static uint8 gMaxMCUXSize;
 static uint8 gMaxMCUYSize;
 static uint16 gMaxMCUSPerRow;
 static uint16 gMaxMCUSPerCol;
-static uint16 gNumMCUSRemaining;
+static uint32 gNumMCUSRemaining;
 static uint8 gMCUOrg[6];
 
 static pjpeg_need_bytes_callback_t g_pNeedBytesCallback;
@@ -572,10 +576,13 @@ static uint8 readDQTMarker(void)
 
       n &= 0x0F;
 
-      if (n > 1)
+      if (n > 3)
          return PJPG_BAD_DQT_TABLE;
 
-      gValidQuantTables |= (n ? 2 : 1);         
+      int16 *pQ = (n == 0) ? gQuant0 : (n == 1) ? gQuant1 : (n == 2) ? gQuant2 : gQuant3;
+
+      //gValidQuantTables |= (n ? 2 : 1);
+      gValidQuantTables = (n+1 > gValidQuantTables) ? n+1 : gValidQuantTables;
 
       // read quantization entries, in zag order
       for (i = 0; i < 64; i++)
@@ -585,13 +592,10 @@ static uint8 readDQTMarker(void)
          if (prec)
             temp = (temp << 8) + getBits1(8);
 
-         if (n)
-            gQuant1[i] = (int16)temp;            
-         else
-            gQuant0[i] = (int16)temp;            
+         pQ[i] = (int16)temp;
       }
       
-      createWinogradQuant(n ? gQuant1 : gQuant0);
+      createWinogradQuant(pQ);
 
       totalRead = 64 + 1;
 
@@ -640,7 +644,7 @@ static uint8 readSOFMarker(void)
       gCompVSamp[i] = (uint8)getBits1(4);
       gCompQuant[i] = (uint8)getBits1(8);
       
-      if (gCompQuant[i] > 1)
+      if (gCompQuant[i] > 3)
          return PJPG_UNSUPPORTED_QUANT_TABLE;
    }
    
@@ -1072,10 +1076,15 @@ static uint8 checkQuantTables(void)
 
    for (i = 0; i < gCompsInScan; i++)
    {
+      /*
       uint8 compQuantMask = gCompQuant[gCompList[i]] ? 2 : 1;
       
       if ((gValidQuantTables & compQuantMask) == 0)
          return PJPG_UNDEFINED_QUANT_TABLE;
+      */
+      if (gValidQuantTables <= gCompQuant[gCompList[i]]) {
+         return PJPG_UNDEFINED_QUANT_TABLE;
+      }
    }         
 
    return 0;         
@@ -1196,7 +1205,7 @@ static uint8 initFrame(void)
    gMaxMCUSPerRow = (gImageXSize + (gMaxMCUXSize - 1)) >> ((gMaxMCUXSize == 8) ? 3 : 4);
    gMaxMCUSPerCol = (gImageYSize + (gMaxMCUYSize - 1)) >> ((gMaxMCUYSize == 8) ? 3 : 4);
    
-   gNumMCUSRemaining = gMaxMCUSPerRow * gMaxMCUSPerCol;
+   gNumMCUSRemaining = ((uint32) gMaxMCUSPerRow) * ((uint32) gMaxMCUSPerCol);
    
    return 0;
 }
@@ -2138,7 +2147,7 @@ static uint8 decodeNextMCU(void)
       uint8 compQuant = gCompQuant[componentID];	
       uint8 compDCTab = gCompDCTab[componentID];
       uint8 numExtraBits, compACTab, k;
-      const int16* pQ = compQuant ? gQuant1 : gQuant0;
+      const int16* pQ = (compQuant == 0) ? gQuant0 : (compQuant == 1) ? gQuant1 : (compQuant == 2) ? gQuant2 : gQuant3;
       uint16 r, dc;
 
       uint8 s = huffDecode(compDCTab ? &gHuffTab1 : &gHuffTab0, compDCTab ? gHuffVal1 : gHuffVal0);
