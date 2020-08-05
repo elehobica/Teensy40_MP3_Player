@@ -506,11 +506,12 @@ void ImageBox::unload()
 
 void ImageBox::deleteAll()
 {
+    isUpdated = true;
     isLoaded = false;
     changeNext = true;
     image_count = 0;
     image_idx = 0;
-
+    unload();
 }
 
 int ImageBox::getCount()
