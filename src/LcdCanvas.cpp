@@ -102,57 +102,93 @@ void ImageBox::loadNext()
     image_idx = image_idx_next;
 }
 
+// ==================================================================================
+// load JPEG with resize policy
+// Step 1. use reduce mode of picojpeg if image is 8x larger (1/1, 1/8)
+// Step 2. use MCU unit accumulation if image is 2x larger (1/1, 1/2, 1/4, 1/8, 1/16)
+// Step 3. fit to width/height by Nearest Neighbor (shrink or expand)
+// ==================================================================================
+
 // load from JPEG binary
 void ImageBox::loadJpegBin(char *ptr, size_t size)
 {
+    int decoded;
+    bool reduce = false;
+    uint16_t jpg_w, jpg_h;
     JpegDec.abort();
-    int decoded = JpegDec.decodeArray((const uint8_t *) ptr, (uint32_t) size);
+    decoded = JpegDec.decodeArray((const uint8_t *) ptr, (uint32_t) size, 0); // reduce == 0
     if (decoded <= 0) { return; }
-    loadJpeg();
+    jpg_w = JpegDec.width;
+    jpg_h = JpegDec.height;
+    if (resizeFit && (
+        (keepAspectRatio && (jpg_w >= width*8 && jpg_h >= height*8)) ||
+        (!keepAspectRatio && (jpg_w >= width*8 || jpg_h >= height*8))
+    )) { // Use reduce decode for x8 larger image
+        reduce = true;
+        JpegDec.abort();
+        decoded = JpegDec.decodeArray((const uint8_t *) ptr, (uint32_t) size, 1); // reduce == 1
+        if (decoded <= 0) { return; }
+    }
+    loadJpeg(reduce);
 }
 
 // load from JPEG File
 void ImageBox::loadJpegFile(FsBaseFile *file, uint64_t pos, size_t size)
 {
+    int decoded;
+    bool reduce = false;
+    uint16_t jpg_w, jpg_h;
     JpegDec.abort();
-    bool decoded = JpegDec.decodeSdFile(*file, pos, size);
+    decoded = JpegDec.decodeSdFile(*file, pos, size, 0); // reduce == 0
     if (decoded <= 0) { return; }
-    loadJpeg();
+    jpg_w = JpegDec.width;
+    jpg_h = JpegDec.height;
+    if (resizeFit && (
+        (keepAspectRatio && (jpg_w >= width*8 && jpg_h >= height*8)) ||
+        (!keepAspectRatio && (jpg_w >= width*8 || jpg_h >= height*8))
+    )) { // Use reduce decode for x8 larger image
+        reduce = true;
+        JpegDec.abort();
+        decoded = JpegDec.decodeSdFile(*file, pos, size, 1); // reduce == 1
+        if (decoded <= 0) { return; }
+    }
+    loadJpeg(reduce);
 }
 
 // MCU block 1/2 Accumulation (Shrink) x count times
-void ImageBox::jpegMcu2sAccum(int count, uint16_t *mcu_w, uint16_t *mcu_h, uint16_t *pImage)
+void ImageBox::jpegMcu2sAccum(int count, uint16_t mcu_w, uint16_t mcu_h, uint16_t *pImage)
 {
-    *mcu_w = JpegDec.MCUWidth;
-    *mcu_h = JpegDec.MCUHeight;
-    for (int i = 0; i < count; i++) {
-        for (int16_t mcu_ofs_y = 0; mcu_ofs_y < *mcu_h; mcu_ofs_y+=2) {
-            for (int16_t mcu_ofs_x = 0; mcu_ofs_x < *mcu_w; mcu_ofs_x+=2) {
+    int i;
+    mcu_w <<= count;
+    mcu_h <<= count;
+    for (i = 0; i < count; i++) {
+        for (int16_t mcu_ofs_y = 0; mcu_ofs_y < mcu_h; mcu_ofs_y+=2) {
+            for (int16_t mcu_ofs_x = 0; mcu_ofs_x < mcu_w; mcu_ofs_x+=2) {
                 uint32_t r = 0;
                 uint32_t g = 0;
                 uint32_t b = 0;
                 for (int y = 0; y < 2; y++) {
                     for (int x = 0; x < 2; x++) {
                         // RGB565 format
-                        r += pImage[*mcu_w*(mcu_ofs_y+y)+mcu_ofs_x+x] & 0xf800;
-                        g += pImage[*mcu_w*(mcu_ofs_y+y)+mcu_ofs_x+x] & 0x07e0;
-                        b += pImage[*mcu_w*(mcu_ofs_y+y)+mcu_ofs_x+x] & 0x001f;
+                        r += pImage[mcu_w*(mcu_ofs_y+y)+mcu_ofs_x+x] & 0xf800;
+                        g += pImage[mcu_w*(mcu_ofs_y+y)+mcu_ofs_x+x] & 0x07e0;
+                        b += pImage[mcu_w*(mcu_ofs_y+y)+mcu_ofs_x+x] & 0x001f;
                     }
                 }
                 r = (r / 4) & 0xf800;
                 g = (g / 4) & 0x07e0;
                 b = (b / 4) & 0x001f;
-                pImage[*mcu_w/2*(mcu_ofs_y/2)+mcu_ofs_x/2] = ((uint16_t) r | (uint16_t) g | (uint16_t) b);
+                pImage[mcu_w/2*(mcu_ofs_y/2)+mcu_ofs_x/2] = ((uint16_t) r | (uint16_t) g | (uint16_t) b);
             }
         }
-        *mcu_w /= 2;
-        *mcu_h /= 2;
+        mcu_w /= 2;
+        mcu_h /= 2;
     }
 }
 
 #if 1
-// load JPEG to fit to width/height by Nearest Neighbor
-void ImageBox::loadJpeg()
+
+void ImageBox::loadJpeg(bool reduce)
 {
     if (image == NULL) { return; }
     uint16_t jpg_w = JpegDec.width;
@@ -164,27 +200,40 @@ void ImageBox::loadJpeg()
         sprintf(str, "JPEG info: (w, h) = (%d, %d), (mcu_w, mcu_h) = (%d, %d)", jpg_w, jpg_h, mcu_w, mcu_h);
         Serial.println(str);
     }
-    // Calculate MCU 2's Accumulation Count
-    int mcu2saccum_count = 0;
-    while (1) {
-        if (!resizeFit) break;
-        if (keepAspectRatio) {
-            if (jpg_w <= width * 2 && jpg_h <= height * 2) break;
-        } else {
-            if (jpg_w <= width * 2 || jpg_h <= height * 2) break;
+   if (reduce) {
+        jpg_w /= 8;
+        jpg_h /= 8;
+        mcu_w /= 8;
+        mcu_h /= 8;
+        { // DEBUG
+            char str[256];
+            sprintf(str, "Reduce applied:  (w, h) = (%d, %d), (virtual) (mcu_w, mcu_h) = (%d, %d)", jpg_w, jpg_h, mcu_w, mcu_h);
+            Serial.println(str);
         }
-        if (mcu_w == 1 || mcu_h == 1) break;
-        jpg_w /= 2;
-        jpg_h /= 2;
-        mcu_w /= 2;
-        mcu_h /= 2;
-        mcu2saccum_count++;
-    }
-    { // DEBUG
-        if (mcu2saccum_count > 0) {
-        char str[256];
-        sprintf(str, "Accumulated: (w, h) = (%d, %d), (mcu_w, mcu_h) = (%d, %d)", jpg_w, jpg_h, mcu_w, mcu_h);
-        Serial.println(str);
+   }
+    // Calculate MCU 2's Accumulation Count
+    int mcu_2s_accum_cnt = 0;
+    {
+        while (1) {
+            if (!resizeFit) break;
+            if (keepAspectRatio) {
+                if (jpg_w <= width * 2 && jpg_h <= height * 2) break;
+            } else {
+                if (jpg_w <= width * 2 || jpg_h <= height * 2) break;
+            }
+            if (mcu_w == 1 || mcu_h == 1) break;
+            jpg_w /= 2;
+            jpg_h /= 2;
+            mcu_w /= 2;
+            mcu_h /= 2;
+            mcu_2s_accum_cnt++;
+        }
+        { // DEBUG
+            if (mcu_2s_accum_cnt > 0) {
+                char str[256];
+                sprintf(str, "Accumulated %d times: (w, h) = (%d, %d), (mcu_w, mcu_h) = (%d, %d)", mcu_2s_accum_cnt, jpg_w, jpg_h, mcu_w, mcu_h);
+                Serial.println(str);
+            }
         }
     }
 
@@ -193,7 +242,7 @@ void ImageBox::loadJpeg()
     int16_t plot_y_start = 0;
     while (JpegDec.read()) {
         // MCU 2's Accumulation
-        jpegMcu2sAccum(mcu2saccum_count, &mcu_w, &mcu_h, JpegDec.pImage);
+        jpegMcu2sAccum(mcu_2s_accum_cnt, mcu_w, mcu_h, JpegDec.pImage);
         int idx = 0;
         int16_t x, y;
         int16_t mcu_x = JpegDec.MCUx;

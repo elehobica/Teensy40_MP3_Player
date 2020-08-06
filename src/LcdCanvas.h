@@ -101,8 +101,8 @@ protected:
 	int image_count;
 	int image_idx;
 	image_t image_array[MaxImgCnt];
-	void jpegMcu2sAccum(int count, uint16_t *mcu_w, uint16_t *mcu_h, uint16_t *pImage);
-	void loadJpeg();
+	void jpegMcu2sAccum(int count, uint16_t mcu_w, uint16_t mcu_h, uint16_t *pImage);
+	void loadJpeg(bool reduce);
 	//void loadJpegNoFit();
 	//void loadJpegResize();
 	void loadJpegBin(char *ptr, size_t size);

@@ -105,6 +105,7 @@ private:
   int mcu_y;
   uint64_t g_nInFileSize;
   uint64_t g_nInFileOfs;
+  uint8_t g_reduce = 0;
   uint row_pitch;
   uint decoded_width, decoded_height;
   uint row_blocks_per_mcu, col_blocks_per_mcu;
@@ -115,7 +116,7 @@ private:
   static uint8 pjpeg_callback(unsigned char* pBuf, unsigned char buf_size, unsigned char *pBytes_actually_read, void *pCallback_data);
   uint8 pjpeg_need_bytes_callback(unsigned char* pBuf, unsigned char buf_size, unsigned char *pBytes_actually_read, void *pCallback_data);
   int decode_mcu(void);
-  int decodeCommon(void);
+  int decodeCommon();
 public:
 
   uint16_t *pImage;
@@ -137,10 +138,11 @@ public:
 
   int available(void);
   int read(void);
-  int readSwappedBytes(void);
   
+#ifdef GENERIC_SD_LIBRARY
   int decodeFile (const char *pFilename);
   int decodeFile (const String& pFilename);
+#endif
   
 #ifdef LOAD_SD_LIBRARY
   int decodeSdFile (const char *pFilename);
@@ -148,8 +150,11 @@ public:
   int decodeSdFile (File g_pInFile);
 #endif
 
+// reduce:
+//  0: normal MCU size
+//  1: 1/8 MCU size for x, y
 #ifdef LOAD_SDFAT_LIBRARY
-  int decodeSdFile (FsBaseFile jpgFile, uint64_t pos = 0, size_t size = 0);
+  int decodeSdFile (FsBaseFile jpgFile, uint64_t pos = 0, size_t size = 0, uint8_t reduce = 0);
 #endif
 
 #ifdef LOAD_SPIFFS
@@ -158,7 +163,7 @@ public:
   int decodeFsFile (fs::File g_pInFile);
 #endif
 
-  int decodeArray(const uint8_t array[], uint32_t  array_size);
+  int decodeArray(const uint8_t array[], uint32_t  array_size, uint8_t reduce = 0);
   void abort(void);
 
 };

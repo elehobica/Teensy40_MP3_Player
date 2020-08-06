@@ -116,7 +116,7 @@ int JPEGDecoder::decode_mcu(void) {
 
 int JPEGDecoder::read(void) {
 	int y, x;
-	uint16_t *pDst_row;
+	uint16_t *pDst;
 
 	if(is_available == 0 || mcu_y >= image_info.m_MCUSPerCol) {
 		abort();
@@ -124,13 +124,12 @@ int JPEGDecoder::read(void) {
 	}
 	
 	// Copy MCU's pixel blocks into the destination bitmap.
-	pDst_row = pImage;
 	for (y = 0; y < image_info.m_MCUHeight; y += 8) {
 
-		const int by_limit = jpg_min(8, image_info.m_height - (mcu_y * image_info.m_MCUHeight + y));
+		int by_limit = jpg_min(8, image_info.m_height - (mcu_y * image_info.m_MCUHeight + y));
+		if (g_reduce) by_limit /= 8;
 
 		for (x = 0; x < image_info.m_MCUWidth; x += 8) {
-			uint16_t *pDst_block = pDst_row + x;
 
 			// Compute source byte offset of the block in the decoder's MCU buffer.
 			uint src_ofs = (x * 8U) + (y * 16U);
@@ -138,12 +137,18 @@ int JPEGDecoder::read(void) {
 			const uint8_t *pSrcG = image_info.m_pMCUBufG + src_ofs;
 			const uint8_t *pSrcB = image_info.m_pMCUBufB + src_ofs;
 
-			const int bx_limit = jpg_min(8, image_info.m_width - (mcu_x * image_info.m_MCUWidth + x));
+			int bx_limit = jpg_min(8, image_info.m_width - (mcu_x * image_info.m_MCUWidth + x));
+			if (g_reduce) bx_limit /= 8;
+
+			if (!g_reduce) {
+				pDst = pImage + row_pitch * y + x;
+			} else {
+				pDst = pImage + row_pitch * y/8 + x/8;
+			}
 
 			if (image_info.m_scanType == PJPG_GRAYSCALE) {
 				int bx, by;
 				for (by = 0; by < by_limit; by++) {
-					uint16_t *pDst = pDst_block;
 
 					for (bx = 0; bx < bx_limit; bx++) {
 #ifdef SWAP_BYTES
@@ -151,18 +156,24 @@ int JPEGDecoder::read(void) {
 #else
 						*pDst++ = (*pSrcR & 0xF8) << 8 | (*pSrcR & 0xFC) <<3 | *pSrcR >> 3;
 #endif
-						pSrcR++;
+						if (!g_reduce) {
+							pSrcR++;
+						} else {
+							pSrcR += 8;
+						}
 					}
 
-					pSrcR += (8 - bx_limit);
-
-					pDst_block += row_pitch;
+					if (!g_reduce) {
+						pSrcR += (8 - bx_limit);
+					} else {
+						pSrcR += (1 - bx_limit)*8 + (8-1)*8;
+					}
+					pDst += (row_pitch - bx_limit);
 				}
 			}
 			else {
 				int bx, by;
 				for (by = 0; by < by_limit; by++) {
-					uint16_t *pDst = pDst_block;
 
 					for (bx = 0; bx < bx_limit; bx++) {
 #ifdef SWAP_BYTES
@@ -170,18 +181,26 @@ int JPEGDecoder::read(void) {
 #else
 						*pDst++ = (*pSrcR & 0xF8) << 8 | (*pSrcG & 0xFC) <<3 | *pSrcB >> 3;
 #endif
-						pSrcR++; pSrcG++; pSrcB++;
+						if (!g_reduce) {
+							pSrcR++; pSrcG++; pSrcB++;
+						} else {
+							pSrcR += 8; pSrcG += 8; pSrcB += 8;
+						}
 					}
 
-					pSrcR += (8 - bx_limit);
-					pSrcG += (8 - bx_limit);
-					pSrcB += (8 - bx_limit);
-
-					pDst_block += row_pitch;
+					if (!g_reduce) {
+						pSrcR += (8 - bx_limit);
+						pSrcG += (8 - bx_limit);
+						pSrcB += (8 - bx_limit);
+					} else {
+						pSrcR += (1 - bx_limit)*8 + (8-1)*8;
+						pSrcG += (1 - bx_limit)*8 + (8-1)*8;
+						pSrcB += (1 - bx_limit)*8 + (8-1)*8;
+					}
+					pDst += (row_pitch - bx_limit);
 				}
 			}
 		}
-		pDst_row += (row_pitch * 8);
 	}
 
 	MCUx = mcu_x;
@@ -198,83 +217,7 @@ int JPEGDecoder::read(void) {
 	return 1;
 }
 
-int JPEGDecoder::readSwappedBytes(void) {
-	int y, x;
-	uint16_t *pDst_row;
-
-	if(is_available == 0 || mcu_y >= image_info.m_MCUSPerCol) {
-		abort();
-		return 0;
-	}
-	
-	// Copy MCU's pixel blocks into the destination bitmap.
-	pDst_row = pImage;
-	for (y = 0; y < image_info.m_MCUHeight; y += 8) {
-
-		const int by_limit = jpg_min(8, image_info.m_height - (mcu_y * image_info.m_MCUHeight + y));
-
-		for (x = 0; x < image_info.m_MCUWidth; x += 8) {
-			uint16_t *pDst_block = pDst_row + x;
-
-			// Compute source byte offset of the block in the decoder's MCU buffer.
-			uint src_ofs = (x * 8U) + (y * 16U);
-			const uint8_t *pSrcR = image_info.m_pMCUBufR + src_ofs;
-			const uint8_t *pSrcG = image_info.m_pMCUBufG + src_ofs;
-			const uint8_t *pSrcB = image_info.m_pMCUBufB + src_ofs;
-
-			const int bx_limit = jpg_min(8, image_info.m_width - (mcu_x * image_info.m_MCUWidth + x));
-
-			if (image_info.m_scanType == PJPG_GRAYSCALE) {
-				int bx, by;
-				for (by = 0; by < by_limit; by++) {
-					uint16_t *pDst = pDst_block;
-
-					for (bx = 0; bx < bx_limit; bx++) {
-
-						*pDst++ = (*pSrcR & 0xF8) | (*pSrcR & 0xE0) >> 5 | (*pSrcR & 0xF8) << 5 | (*pSrcR & 0x1C) << 11;
-
-						pSrcR++;
-					}
-				}
-			}
-			else {
-				int bx, by;
-				for (by = 0; by < by_limit; by++) {
-					uint16_t *pDst = pDst_block;
-
-					for (bx = 0; bx < bx_limit; bx++) {
-
-						*pDst++ = (*pSrcR & 0xF8) | (*pSrcG & 0xE0) >> 5 | (*pSrcB & 0xF8) << 5 | (*pSrcG & 0x1C) << 11;
-
-						pSrcR++; pSrcG++; pSrcB++;
-					}
-
-					pSrcR += (8 - bx_limit);
-					pSrcG += (8 - bx_limit);
-					pSrcB += (8 - bx_limit);
-
-					pDst_block += row_pitch;
-				}
-			}
-		}
-		pDst_row += (row_pitch * 8);
-	}
-
-	MCUx = mcu_x;
-	MCUy = mcu_y;
-
-	mcu_x++;
-	if (mcu_x == image_info.m_MCUSPerRow) {
-		mcu_x = 0;
-		mcu_y++;
-	}
-
-	if(decode_mcu()==-1) is_available = 0 ;
-
-	return 1;
-}
-
-
+#ifdef GENERIC_SD_LIBRARY
 // Generic file call for SD or SPIFFS, uses leading / to distinguish SPIFFS files
 int JPEGDecoder::decodeFile(const char *pFilename){
 
@@ -307,6 +250,7 @@ int JPEGDecoder::decodeFile(const String& pFilename){
 
 	return -1;
 }
+#endif // GENERIC_SD_LIBRARY
 
 
 #ifdef LOAD_SPIFFS
@@ -397,7 +341,7 @@ int JPEGDecoder::decodeSdFile(File jpgFile) { // This is for the SD library
 #endif
 
 #ifdef LOAD_SDFAT_LIBRARY
-int JPEGDecoder::decodeSdFile (FsBaseFile jpgFile, uint64_t pos, size_t size) { // This is for the SdFat library
+int JPEGDecoder::decodeSdFile (FsBaseFile jpgFile, uint64_t pos, size_t size, uint8_t reduce) { // This is for the SdFat library
 
 	g_pInFileSd = FsBaseFile(jpgFile);
 
@@ -429,12 +373,13 @@ int JPEGDecoder::decodeSdFile (FsBaseFile jpgFile, uint64_t pos, size_t size) { 
 		}
 	}
 
+	g_reduce = reduce;
 	return decodeCommon();
 
 }
 #endif
 
-int JPEGDecoder::decodeArray(const uint8_t array[], uint32_t  array_size) {
+int JPEGDecoder::decodeArray(const uint8_t array[], uint32_t  array_size, uint8_t reduce) {
 
 	jpg_source = JPEG_ARRAY; // We are not processing a file, use arrays
 
@@ -444,11 +389,12 @@ int JPEGDecoder::decodeArray(const uint8_t array[], uint32_t  array_size) {
 
 	g_nInFileSize = array_size;
 
+	g_reduce = reduce;
 	return decodeCommon();
 }
 
 
-int JPEGDecoder::decodeCommon(void) {
+int JPEGDecoder::decodeCommon() {
 
 	width = 0;
 	height = 0;
@@ -459,7 +405,7 @@ int JPEGDecoder::decodeCommon(void) {
 	MCUWidth = 0;
 	MCUHeight = 0;
 
-	status = pjpeg_decode_init(&image_info, pjpeg_callback, NULL, 0);
+	status = pjpeg_decode_init(&image_info, pjpeg_callback, NULL, g_reduce);
 
 	if (status) {
 		//#ifdef DEBUG
@@ -478,7 +424,7 @@ int JPEGDecoder::decodeCommon(void) {
 	decoded_width =  image_info.m_width;
 	decoded_height =  image_info.m_height;
 	
-	row_pitch = image_info.m_MCUWidth;
+	row_pitch = (!g_reduce) ? image_info.m_MCUWidth : image_info.m_MCUWidth/8;
 	pImage = new uint16_t[image_info.m_MCUWidth * image_info.m_MCUHeight];
 
 	memset(pImage , 0 , image_info.m_MCUWidth * image_info.m_MCUHeight * sizeof(*pImage));
