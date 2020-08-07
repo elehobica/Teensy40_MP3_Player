@@ -399,9 +399,22 @@ void loadID3(FsBaseFile *file)
     id3.loadFile(file);
 
     // copy ID3 text
-    if (id3.getUTF8Title(str, sizeof(str))) { lcd.setTitle(str, utf8); }
-    if (id3.getUTF8Album(str, sizeof(str))) { lcd.setAlbum(str, utf8); }
-    if (id3.getUTF8Artist(str, sizeof(str))) { lcd.setArtist(str, utf8); }
+    if (id3.getUTF8Title(str, sizeof(str))) {
+        lcd.setTitle(str, utf8);
+    } else { // display filename if no ID3
+        file->getUTF16Name((char16_t *) str, sizeof(str)/2);
+        lcd.setTitle(utf16_to_utf8((const char16_t *) str).c_str(), utf8);
+    }
+    if (id3.getUTF8Album(str, sizeof(str))) {
+        lcd.setAlbum(str, utf8);
+    } else {
+        lcd.setAlbum("");
+    }
+    if (id3.getUTF8Artist(str, sizeof(str))) {
+        lcd.setArtist(str, utf8);
+    } else {
+        lcd.setArtist("");
+    }
 
     // copy ID3 image
     lcd.deleteAlbumArt();
