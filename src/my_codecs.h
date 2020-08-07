@@ -163,10 +163,11 @@ protected:
 
 	unsigned short	_channels;
 	unsigned short	bitrate; // Kbps
+	unsigned int err_cnt;
 
 	volatile my_codec_playstate playing;
 
-	void initVars(void) {samples_played=_channels=bitrate=decode_cycles=decode_cycles_read=decode_cycles_max=decode_cycles_max_read = 0;playing=my_codec_stopped;}
+	void initVars(void) {samples_played=_channels=bitrate=decode_cycles=decode_cycles_read=decode_cycles_max=decode_cycles_max_read=err_cnt = 0;playing=my_codec_stopped;}
 	void initSwi(void) {PATCH_PRIO;NVIC_SET_PRIORITY(IRQ_AUDIOCODEC, IRQ_AUDIOCODEC_PRIO);NVIC_ENABLE_IRQ(IRQ_AUDIOCODEC);}
 
 };
