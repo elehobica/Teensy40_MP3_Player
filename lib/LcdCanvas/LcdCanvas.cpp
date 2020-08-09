@@ -1136,14 +1136,19 @@ void LcdCanvas::setFileItem(int column, const char *str, bool isDir, bool isFocu
     fileItem[column].setScroll(isFocused); // Scroll for focused item only
 }
 
+void LcdCanvas::setBitRate(uint16_t value)
+{
+    bitRate.setFormatText("%dKbps", (int) value);
+}
+
 void LcdCanvas::setVolume(uint8_t value)
 {
     volume.setInt((int) value);
 }
 
-void LcdCanvas::setBitRate(uint16_t value)
+void LcdCanvas::setTrack(const char *str, encoding_t encoding)
 {
-    bitRate.setFormatText("%dKbps", (int) value);
+    track.setText(str, encoding);
 }
 
 void LcdCanvas::setPlayTime(uint32_t positionSec, uint32_t lengthSec)
@@ -1164,6 +1169,11 @@ void LcdCanvas::setAlbum(const char *str, encoding_t encoding)
 void LcdCanvas::setArtist(const char *str, encoding_t encoding)
 {
     artist.setText(str, encoding);
+}
+
+void LcdCanvas::setYear(const char *str, encoding_t encoding)
+{
+    year.setText(str, encoding);
 }
 
 void LcdCanvas::addAlbumArtJpeg(FsBaseFile *file, uint64_t pos, size_t size)

@@ -361,6 +361,11 @@ id32* ID3Read::ID32Detect(FsBaseFile* infile)
     return id32header;
 }
 
+int ID3Read::getUTF8Track(char* str, size_t size)
+{
+    return GetID32UTF8("TRK", "TRCK", str, size);
+}
+
 int ID3Read::getUTF8Title(char* str, size_t size)
 {
     return GetID32UTF8("TT2", "TIT2", str, size);
@@ -374,6 +379,11 @@ int ID3Read::getUTF8Album(char* str, size_t size)
 int ID3Read::getUTF8Artist(char* str, size_t size)
 {
     return GetID32UTF8("TP1", "TPE1", str, size);
+}
+
+int ID3Read::getUTF8Year(char* str, size_t size)
+{
+    return GetID32UTF8("TYE", "TYER", str, size);
 }
 
 int ID3Read::getPictureCount()

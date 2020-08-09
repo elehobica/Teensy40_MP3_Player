@@ -87,9 +87,11 @@ public:
     ID3Read();
     ~ID3Read();
     int loadFile(FsBaseFile* infile);
+    int getUTF8Track(char *str, size_t size);
     int getUTF8Title(char *str, size_t size);
     int getUTF8Album(char *str, size_t size);
     int getUTF8Artist(char *str, size_t size);
+    int getUTF8Year(char *str, size_t size);
     int getPictureCount();
     int getPicturePos(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size);
 

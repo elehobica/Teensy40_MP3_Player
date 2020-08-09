@@ -398,6 +398,11 @@ void loadID3(FsBaseFile *file)
     id3.loadFile(file);
 
     // copy ID3 text
+    if (id3.getUTF8Track(str, sizeof(str))) {
+        lcd.setTrack(str, utf8);
+    } else {
+        lcd.setTrack("");
+    }
     if (id3.getUTF8Title(str, sizeof(str))) {
         lcd.setTitle(str, utf8);
     } else { // display filename if no ID3
@@ -413,6 +418,11 @@ void loadID3(FsBaseFile *file)
         lcd.setArtist(str, utf8);
     } else {
         lcd.setArtist("");
+    }
+    if (id3.getUTF8Year(str, sizeof(str))) {
+        lcd.setYear(str, utf8);
+    } else {
+        lcd.setYear("");
     }
 
     // copy ID3 image

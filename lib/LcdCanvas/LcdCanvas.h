@@ -28,6 +28,7 @@ extern uint8_t Icon16[];
 #define ICON16x16_FILE		&Icon16[32*4]
 #define ICON16x16_VOLUME	&Icon16[32*5]
 #define ICON16x16_BATTERY	&Icon16[32*6]
+#define ICON16x16_YEAR		&Icon16[32*7]
 
 //=================================
 // Definition of Box interface
@@ -282,9 +283,11 @@ public:
 	void setBitRate(uint16_t value);
 	void setVolume(uint8_t value);
 	void setPlayTime(uint32_t posionSec, uint32_t lengthSec);
+	void setTrack(const char *str, encoding_t encoding = none);
 	void setTitle(const char *str, encoding_t encoding = none);
 	void setAlbum(const char *str, encoding_t encoding = none);
 	void setArtist(const char *str, encoding_t encoding = none);
+	void setYear(const char *str, encoding_t encoding = none);
 	void addAlbumArtJpeg(FsBaseFile *file, uint64_t pos, size_t size);
 	void addAlbumArtPng(FsBaseFile *file, uint64_t pos, size_t size);
 	void deleteAlbumArt();
@@ -317,13 +320,15 @@ protected:
 	IconScrollTextBox title = IconScrollTextBox(16*0, 16*3, ICON16x16_TITLE, width());
 	IconScrollTextBox artist = IconScrollTextBox(16*0, 16*4, ICON16x16_ARTIST, width());
 	IconScrollTextBox album = IconScrollTextBox(16*0, 16*5, ICON16x16_ALBUM, width());
+	IconTextBox year = IconTextBox(16*0, 16*6, ICON16x16_YEAR);
+	TextBox track = TextBox(16*0, 16*9, Box::AlignLeft, ST77XX_GRAY);
 	TextBox bye_msg = TextBox(width()/2, height()/2-FONT_HEIGHT, "Bye", Box::AlignCenter);
 	ImageBox albumArt = ImageBox(0, (height() - width())/2, width(), width());
 	Box *groupFileView[10] = {
 		&fileItem[0], &fileItem[1], &fileItem[2], &fileItem[3], &fileItem[4], &fileItem[5], &fileItem[6], &fileItem[7], &fileItem[8],  &fileItem[9]
 	};
-	Box *groupPlay[4] = {&battery, &volume, &bitRate, &playTime}; // Common for Play mode 0 and 1
-	Box *groupPlay0[3] = {&title, &artist, &album}; // Play mode 0 only
+	Box *groupPlay[5] = {&battery, &volume, &bitRate, &playTime, &track}; // Common for Play mode 0 and 1
+	Box *groupPlay0[4] = {&title, &artist, &album, &year}; // Play mode 0 only
 	Box *groupPlay1[1] = {&albumArt}; // Play mode 1 only
 	Box *groupPowerOff[1] = {&bye_msg};
 };
