@@ -2,7 +2,6 @@
 #define __LCDCANVAS_H_INCLUDED__
 
 #include <Adafruit_ST7735.h> // Hardware-specific library for ST7735
-#include <JPEGDecoder.h>
 //#include <Fonts/FreeMono9pt7b.h>
 #include "Nimbus_Sans_L_Regular_Condensed_12.h"
 
@@ -81,18 +80,24 @@ public:
 	void clear(Adafruit_ST7735 *tft);
 	void setResizeFit(bool flg);
 	void setKeepAspectRatio(bool flg);
+	void setImageBuf(int16_t x, int16_t y, uint16_t rgb565);
 	int addJpegBin(char *ptr, size_t size);
 	int addJpegFile(FsBaseFile *file, uint64_t pos, size_t size);
+	int addPngBin(char *ptr, size_t size);
+	int addPngFile(FsBaseFile *file, uint64_t pos, size_t size);
 	int getCount();
 	void deleteAll();
 	void loadNext();
+	friend void cb_pngdec_draw_with_resize(void *cb_obj, uint32_t x, uint32_t y, uint16_t rgb565);
 protected:
 	bool isUpdated;
 	int16_t pos_x, pos_y;
-	uint16_t width, height;
+	uint16_t width, height; // ImageBox dimension
 	uint16_t bgColor;
 	uint16_t *image;
-	uint16_t img_w, img_h;
+	uint16_t img_w, img_h; // dimention of image stored
+	uint16_t src_w, src_h; // dimention of source image (JPEG/PNG)
+	uint32_t ratio256_w, ratio256_h; // img/src ratio (128 = x0.5, 256 = x1.0, 512 = x2.0)
 	bool isLoaded;
 	bool changeNext;
 	bool resizeFit; // true: resize to fit ImageBox size, false: original size (1:1)
@@ -102,11 +107,12 @@ protected:
 	int image_idx;
 	image_t image_array[MaxImgCnt];
 	void jpegMcu2sAccum(int count, uint16_t mcu_w, uint16_t mcu_h, uint16_t *pImage);
-	void loadJpeg(bool reduce);
-	//void loadJpegNoFit();
-	//void loadJpegResize();
 	void loadJpegBin(char *ptr, size_t size);
 	void loadJpegFile(FsBaseFile *file, uint64_t pos, size_t size);
+	void loadJpeg(bool reduce);
+	void loadPngBin(char *ptr, size_t size);
+	void loadPngFile(FsBaseFile *file, uint64_t pos, size_t size);
+	void loadPng(uint8_t reduce);
 	void unload();
 };
 
@@ -280,6 +286,7 @@ public:
 	void setAlbum(const char *str, encoding_t encoding = none);
 	void setArtist(const char *str, encoding_t encoding = none);
 	void addAlbumArtJpeg(FsBaseFile *file, uint64_t pos, size_t size);
+	void addAlbumArtPng(FsBaseFile *file, uint64_t pos, size_t size);
 	void deleteAlbumArt();
 	void switchToFileView();
 	void switchToPlay();

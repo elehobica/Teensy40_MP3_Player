@@ -10,9 +10,8 @@
 #include <SdFat.h>
 #include <EEPROM.h>
 #include <TeensyThreads.h>
-#include <Adafruit_GFX.h>
+#include <LcdCanvas.h>
 
-#include "LcdCanvas.h"
 #include "my_play_sd_mp3.h"
 #include "my_output_i2s.h"
 #include "ff_util.h"
@@ -421,6 +420,7 @@ void loadID3(FsBaseFile *file)
     for (int i = 0; i < id3.getPictureCount(); i++) {
         if (id3.getPicturePos(i, &mime, &ptype, &pos, &size)) {
             if (mime == jpeg) { lcd.addAlbumArtJpeg(file, pos, size); }
+            else if (mime == png) { lcd.addAlbumArtPng(file, pos, size); }
         }
     }
 }

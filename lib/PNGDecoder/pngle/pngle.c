@@ -106,6 +106,9 @@ struct _pngle_t {
 	// interlace
 	uint_fast8_t interlace_pass;
 
+	// reduce mode
+	uint8_t reduce; // 0: 1/1, 1: 1/2, 2: 1/4, 3: 1/8...
+
 	const char *error;
 
 #ifndef PNGLE_NO_GAMMA_CORRECTION
@@ -179,6 +182,8 @@ void pngle_reset(pngle_t *pngle)
 	memset(&pngle->hdr, 0, sizeof(pngle->hdr));
 	pngle->n_palettes = 0;
 	pngle->n_trans_palettes = 0;
+
+	pngle->reduce = 0;
 
 	tinfl_init(&pngle->inflator);
 }
@@ -339,11 +344,14 @@ static int pngle_draw_pixels(pngle_t *pngle, size_t scanline_ringbuf_xidx)
 			}
 #endif
 
-			pngle->draw_callback(pngle, pngle->drawing_x, pngle->drawing_y
-				, MIN(interlace_div_x[pngle->interlace_pass] - interlace_off_x[pngle->interlace_pass], pngle->hdr.width  - pngle->drawing_x)
-				, MIN(interlace_div_y[pngle->interlace_pass] - interlace_off_y[pngle->interlace_pass], pngle->hdr.height - pngle->drawing_y)
-				, rgba
-			);
+			uint32_t div = (1<<pngle->reduce);
+			if (pngle->drawing_x % div == 0 && pngle->drawing_y % div == 0) {
+				pngle->draw_callback(pngle, pngle->drawing_x/div, pngle->drawing_y/div
+					, MIN(interlace_div_x[pngle->interlace_pass] - interlace_off_x[pngle->interlace_pass], pngle->hdr.width  - pngle->drawing_x)/div
+					, MIN(interlace_div_y[pngle->interlace_pass] - interlace_off_y[pngle->interlace_pass], pngle->hdr.height - pngle->drawing_y)/div
+					, rgba
+				);
+			}
 		}
 	}
 
@@ -839,6 +847,12 @@ void pngle_set_display_gamma(pngle_t *pngle, double display_gamma)
 #else
 	PNGLE_UNUSED(display_gamma);
 #endif
+}
+
+void pngle_set_reduce(pngle_t *pngle, uint8_t reduce)
+{
+	if (!pngle) return ;
+	pngle->reduce = reduce;
 }
 
 void pngle_set_init_callback(pngle_t *pngle, pngle_init_callback_t callback)

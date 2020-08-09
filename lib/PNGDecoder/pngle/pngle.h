@@ -25,6 +25,7 @@
 #ifndef __PNGLE_H__
 #define __PNGLE_H__
 
+#include <stdio.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -56,6 +57,7 @@ void pngle_set_draw_callback(pngle_t *png, pngle_draw_callback_t callback);
 void pngle_set_done_callback(pngle_t *png, pngle_done_callback_t callback);
 
 void pngle_set_display_gamma(pngle_t *pngle, double display_gamma); // enables gamma correction by specifying display gamma, typically 2.2. No effect when gAMA chunk is missing
+void pngle_set_reduce(pngle_t *pngle, uint8_t reduce);
 
 void pngle_set_user_data(pngle_t *pngle, void *user_data);
 void *pngle_get_user_data(pngle_t *pngle);
