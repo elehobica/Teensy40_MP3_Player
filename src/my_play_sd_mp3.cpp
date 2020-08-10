@@ -481,3 +481,14 @@ void MyAudioPlaySdMp3::stop2(void)
 	//if (hMP3Decoder) {MP3FreeDecoder(hMP3Decoder);hMP3Decoder=NULL;};
 	fclose();
 }
+
+// lengthMillis (Override)
+unsigned MyAudioPlaySdMp3::lengthMillis(void)
+{
+	if (mp3FrameInfo.numFrames) { // VBR case
+		// numFrames - 1: Sub a frame where Xing Header exists
+		return ((unsigned long long) (mp3FrameInfo.numFrames - 1) * mp3FrameInfo.nChans * 576 * 1000 / AUDIO_SAMPLE_RATE_EXACT);
+	} else {
+		return max((fsize() - size_id3) * 8 / bitrate,  positionMillis());
+	}
+}

@@ -615,7 +615,7 @@ void loop() {
         idx_idle_count = 0;
     } else {
         if (mode == LcdCanvas::Play) {
-            if (!playMp3.isPlaying() || (playMp3.positionMillis() + 1000 > playMp3.lengthMillis())) {
+            if (!playMp3.isPlaying() || (playMp3.positionMillis() + 500 > playMp3.lengthMillis())) {
                 idx_play = get_mp3_file(idx_play+1, 1, &file);
                 if (idx_play) {
                     loadID3(&file);

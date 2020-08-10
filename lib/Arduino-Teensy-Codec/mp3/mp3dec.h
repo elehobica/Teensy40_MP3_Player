@@ -116,6 +116,7 @@ typedef struct _MP3FrameInfo {
 	int outputSamps;
 	int layer;
 	int version;
+	int numFrames;
 } MP3FrameInfo;
 
 /* public API */

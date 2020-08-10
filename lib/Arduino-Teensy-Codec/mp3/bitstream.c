@@ -409,3 +409,59 @@ int UnpackSideInfo(MP3DecInfo *mp3DecInfo, unsigned char *buf)
 	return nBytes;	
 }
 
+/**************************************************************************************
+ * Function:    UnpackXingHeader
+ *
+ * Description: parse the fields of the MP3 Xing Header
+ *
+ * Inputs:      MP3DecInfo structure filled by UnpackFrameHeader()
+ *              buffer pointing to next byte of the MP3 side info data end
+ *
+ * Outputs:     updated mainDataBegin in MP3DecInfo struct
+ *
+ * Return:      length (in bytes) of Xing Header data
+ *              -1 if null input pointers
+ **************************************************************************************/
+int UnpackXingHeader(MP3DecInfo *mp3DecInfo, unsigned char *buf)
+{
+	int nBytes = 0;
+	SideInfo *si;
+	//XingHeader *xh;
+
+	/* validate pointers and sync word */
+	if (!mp3DecInfo || !mp3DecInfo->FrameHeaderPS || !mp3DecInfo->SideInfoPS)
+		return -1;
+
+	si = ((SideInfo *)(mp3DecInfo->SideInfoPS));
+	//xh = ((XingHeader *)(mp3DecInfo->XingHeaderPS));
+
+	if (!(si->mainDataBegin == 0 && buf[0] == 'X' && buf[1] == 'i' && buf[2] == 'n' && buf[3] == 'g')) {
+		return 0;
+	}
+	nBytes += 4; // "Xing"
+	nBytes += 2; // empty
+
+	unsigned short flags = ((unsigned short) buf[nBytes]<<8) | ((unsigned short) buf[nBytes+1]);
+	//xh->flags = flags;
+	nBytes += 2;
+
+	if (flags & 0x0001) {
+		unsigned long numFrames = ((unsigned long) buf[nBytes]<<24) | ((unsigned long) buf[nBytes+1]<<16) | ((unsigned long) buf[nBytes+2]<<8) | ((unsigned long) buf[nBytes+3]);
+		//xh->numFrames = ((unsigned long) buf[nBytes]<<24) | ((unsigned long) buf[nBytes+1]<<16) | ((unsigned long) buf[nBytes+2]<<8) | ((unsigned long) buf[nBytes+3]);
+		mp3DecInfo->numFrames = numFrames;
+		nBytes += 4;
+	}
+	if (flags & 0x0002) {
+		//xh->numBytes = ((unsigned long) buf[nBytes]<<24) | ((unsigned long) buf[nBytes+1]<<16) | ((unsigned long) buf[nBytes+2]<<8) | ((unsigned long) buf[nBytes+3]);
+		nBytes += 4;
+	}
+	if (flags & 0x0004) {
+		//memcpy(xh->toc_entries, &buf[nBytes], 100);
+		nBytes += 100;
+	}
+	if (flags & 0x0008) {
+		//xh->qi = ((unsigned long) buf[nBytes]<<24) | ((unsigned long) buf[nBytes+1]<<16) | ((unsigned long) buf[nBytes+2]<<8) | ((unsigned long) buf[nBytes+3]);
+		nBytes += 4;
+	}
+	return nBytes;
+}
