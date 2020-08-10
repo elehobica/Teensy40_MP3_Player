@@ -237,21 +237,25 @@ void ImageBox::loadJpeg(bool reduce)
     src_h = JpegDec.height;
     uint16_t mcu_w = JpegDec.MCUWidth;
     uint16_t mcu_h = JpegDec.MCUHeight;
+    #ifdef DEBUG_LCD_CANVAS
     { // DEBUG
         char str[256];
         sprintf(str, "JPEG info: (w, h) = (%d, %d), (mcu_w, mcu_h) = (%d, %d)", src_w, src_h, mcu_w, mcu_h);
         Serial.println(str);
     }
+    #endif // DEBUG_LCD_CANVAS
    if (reduce) {
         src_w /= 8;
         src_h /= 8;
         mcu_w /= 8;
         mcu_h /= 8;
+        #ifdef DEBUG_LCD_CANVAS
         { // DEBUG
             char str[256];
             sprintf(str, "Reduce applied:  (w, h) = (%d, %d), (virtual) (mcu_w, mcu_h) = (%d, %d)", src_w, src_h, mcu_w, mcu_h);
             Serial.println(str);
         }
+        #endif // DEBUG_LCD_CANVAS
    }
     // Calculate MCU 2's Accumulation Count
     int mcu_2s_accum_cnt = 0;
@@ -270,6 +274,7 @@ void ImageBox::loadJpeg(bool reduce)
             mcu_h /= 2;
             mcu_2s_accum_cnt++;
         }
+        #ifdef DEBUG_LCD_CANVAS
         { // DEBUG
             if (mcu_2s_accum_cnt > 0) {
                 char str[256];
@@ -277,6 +282,7 @@ void ImageBox::loadJpeg(bool reduce)
                 Serial.println(str);
             }
         }
+        #endif // DEBUG_LCD_CANVAS
     }
 
     int16_t mcu_y_prev = 0;
@@ -391,11 +397,13 @@ void ImageBox::loadJpeg(bool reduce)
             }
         }
     }
+    #ifdef DEBUG_LCD_CANVAS
     { // DEBUG
         char str[256];
         sprintf(str, "Resized to (img_w, img_h) = (%d, %d)", img_w, img_h);
         Serial.println(str);
     }
+    #endif // DEBUG_LCD_CANVAS
     if (img_w < width) { // delete horizontal blank
         for (int16_t plot_y = 1; plot_y < img_h; plot_y++) {
             memmove(&image[img_w*plot_y], &image[width*plot_y], img_w*2);
@@ -482,19 +490,23 @@ void ImageBox::loadPng(uint8_t reduce)
     src_h = PngDec.height;
     //PngDec.linkImageBox(this);
     PngDec.set_draw_callback(this, cb_pngdec_draw_with_resize);
+    #ifdef DEBUG_LCD_CANVAS
     { // DEBUG
         char str[256];
         sprintf(str, "PNG info: (w, h) = (%d, %d)", src_w, src_h);
         Serial.println(str);
     }
+    #endif // DEBUG_LCD_CANVAS
     if (reduce) {
         src_w /= 1<<reduce;
         src_h /= 1<<reduce;
+        #ifdef DEBUG_LCD_CANVAS
         { // DEBUG
             char str[256];
             sprintf(str, "Reduce applied:  (w, h) = (%d, %d)", src_w, src_h);
             Serial.println(str);
         }
+        #endif // DEBUG_LCD_CANVAS
     }
     if (resizeFit) {
         ratio256_w = width * 256 / src_w;
@@ -516,11 +528,13 @@ void ImageBox::loadPng(uint8_t reduce)
             memmove(&image[img_w*plot_y], &image[width*plot_y], img_w*2);
         }
     }
+    #ifdef DEBUG_LCD_CANVAS
     { // DEBUG
         char str[256];
         sprintf(str, "Resized to (img_w, img_h) = (%d, %d)", img_w, img_h);
         Serial.println(str);
     }
+    #endif // DEBUG_LCD_CANVAS
 }
 
 void ImageBox::unload()
@@ -1031,8 +1045,6 @@ LcdCanvas::LcdCanvas(int8_t cs, int8_t dc, int8_t rst) : Adafruit_ST7735(cs, dc,
     fillScreen(ST77XX_BLACK);
     setFont(CUSTOM_FONT, CUSTOM_FONT_OFS_Y);
     setTextSize(1);
-    //Serial.println(width());
-    //Serial.println(height());
 
     // FileView parts (nothing to set here)
 

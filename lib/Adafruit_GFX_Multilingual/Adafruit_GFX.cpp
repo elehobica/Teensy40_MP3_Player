@@ -173,7 +173,7 @@ void Adafruit_GFX::loadUnifontFile(const char *dir, const char *file)
     if (unifont) free(unifont);
     unifont = (UnifontBlock*)malloc(256 * sizeof(UnifontBlock));
     memset(unifont, 0, 256 * sizeof(UnifontBlock));
-    for (int i = 0; i < (sizeof(BlocksInProgmem)/sizeof(*BlocksInProgmem)); i++)
+    for (int i = 0; i < (int) (sizeof(BlocksInProgmem)/sizeof(*BlocksInProgmem)); i++)
     {
         unifont[BlocksInProgmem[i].blockNumber] = BlocksInProgmem[i].blockData;
     }
@@ -191,13 +191,7 @@ void Adafruit_GFX::loadUnifontFile(const char *dir, const char *file)
         unifile = pythonfs.open(file, FILE_READ);
     #endif // UNIFONT_USE_FLASH
     #ifdef UNIFONT_USE_SDFAT
-    Serial.print("loadUnifontFile \"");
-    Serial.print(dir);
-    Serial.print(file);
-    Serial.print("\": ");
-    #ifdef UNIFONT_USE_SDFAT
     mylock.lock();
-    #endif //UNIFONT_USE_SDFAT
     unifile.open(dir);
     if (unifile.exists(file)) {
         unifile.open(file, O_RDONLY);
@@ -246,13 +240,25 @@ void Adafruit_GFX::loadUnifontFile(const char *dir, const char *file)
                     offset += 256 * w * h * multiplier / 8 + 32 * numBitmasks;
                 }
             }
+    #ifdef UNIFONT_USE_SDFAT
+    #ifdef DEBUG_ADAFRUIT_GFX_MULTILINGUAL
+            Serial.print("loadUnifontFile \"");
+            Serial.print(dir);
+            Serial.print(file);
+            Serial.print("\": ");
             Serial.println("Success");
+    #endif // DEBUG_ADAFRUIT_GFX_MULTILINGUAL
+    #endif //UNIFONT_USE_SDFAT
             return;
         }
     }
-    Serial.println("Failure");
     #ifdef UNIFONT_USE_SDFAT
-        mylock.unlock();
+    Serial.print("loadUnifontFile \"");
+    Serial.print(dir);
+    Serial.print(file);
+    Serial.print("\": ");
+    Serial.println("Failure");
+    mylock.unlock();
     #endif //UNIFONT_USE_SDFAT
 }
 #endif // if defined(UNIFONT_USE_FLASH) || defined(UNIFONT_USE_SDFAT)
@@ -1532,6 +1538,8 @@ size_t Adafruit_GFX::println(const char *string, encoding_t encoding) {
         size_t retVal = print(string);
         retVal += Print::print('\n');
         return retVal;
+    } else {
+        return 0;
     }
 }
 
@@ -1562,6 +1570,8 @@ size_t Adafruit_GFX::print(const char *string, encoding_t encoding) {
 
         free(codepointsToPrint);
         return len;
+    } else {
+        return 0;
     }
 }
 

@@ -369,7 +369,9 @@ void MyAudioPlaySdMp3::update(void)
 void my_decodeMp3(void)
 {
 	if (!mylock.try_lock()) {
+		#ifdef DEBUG_MY_PLAY_SD_MP3
 		Serial.println("my_decodeMp3: blocked");
+		#endif // DEBUG_MY_PLAY_SD_MP3
 		return;
 	}
 	MyAudioPlaySdMp3 *o = mp3objptr;

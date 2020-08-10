@@ -36,7 +36,9 @@ const uint8_t SD_CS_PIN = SDCARD_SS_PIN;
 #endif  // HAS_SDIO_CLASS
 
 static int path_depth = 0;					// preserve path depth because SdFat doesn't support relative directory
+#ifdef DEBUG_FF_UTIL
 static char _str[256];	// for debug print
+#endif // DEBUG_FF_UTIL
 
 static int target = TGT_DIRS | TGT_FILES; // TGT_DIRS, TGT_FILES
 static int16_t f_stat_cnt;
@@ -177,7 +179,9 @@ static void idx_qsort_entry_list_by_range(uint16_t r_start, uint16_t r_end_1, ui
 		while (!get_sorted(end_1_next) && end_1_next < end_1) {
 			end_1_next++;
 		}
+		#ifdef DEBUG_FF_UTIL
 		sprintf(_str, "partial %d %d %d", start_next, end_1_next, end_1); Serial.println(_str);
+		#endif // DEBUG_FF_UTIL
 		idx_qsort_entry_list_by_range(r_start, r_end_1, start_next, end_1_next);
 		if (end_1_next < end_1) {
 			idx_qsort_entry_list_by_range(r_start, r_end_1, end_1_next, end_1);
@@ -391,7 +395,9 @@ void file_menu_idle(void)
 		break;
 	}
 	
+	#ifdef DEBUG_FF_UTIL
 	sprintf(_str, "implicit sort %d %d", r_start, r_end_1); Serial.println(_str);
+	#endif // DEBUG_FF_UTIL
 	idx_qsort_entry_list_by_range(r_start, r_end_1, 0, max_entry_cnt);
 }
 

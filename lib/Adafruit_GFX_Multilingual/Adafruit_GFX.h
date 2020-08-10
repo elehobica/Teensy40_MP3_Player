@@ -11,6 +11,8 @@
 #endif
 #include "gfxfont.h"
 
+//#define DEBUG_ADAFRUIT_GFX_MULTILINGUAL
+
 #define UNIFONT_USE_SDFAT
 
 // NOTE: I only have the Feather M0 Express, M4 Express and PyPortal boards to test with.

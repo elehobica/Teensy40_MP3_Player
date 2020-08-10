@@ -46,6 +46,8 @@
 //#include "spi_interrupt.h"
 #include "mp3/mp3dec.h"
 
+//#define DEBUG_MY_PLAY_SD_MP3
+
 class MyAudioPlaySdMp3 : public MyAudioCodec
 {
 public:

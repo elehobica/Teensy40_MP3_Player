@@ -5,6 +5,8 @@
 //#include <Fonts/FreeMono9pt7b.h>
 #include "Nimbus_Sans_L_Regular_Condensed_12.h"
 
+//#define DEBUG_LCD_CANVAS
+
 // Common for Unicode Font & Custom Font (gfxFont)
 #define FONT_HEIGHT		16
 
