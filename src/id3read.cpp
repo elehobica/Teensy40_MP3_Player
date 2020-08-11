@@ -1,9 +1,6 @@
 #include "id3read.h"
 #include <Arduino.h>
-#include <TeensyThreads.h>
 #include "utf_conv.h"
-
-extern Threads::Mutex mylock;
 
 ID3Read::ID3Read()
 {
@@ -17,22 +14,20 @@ ID3Read::~ID3Read()
     if (id3v2) ID32Free(id3v2);
 }
 
-int ID3Read::loadFile(FsBaseFile* infile)
+int ID3Read::loadFile(uint16_t file_idx)
 {
-    Threads::Scope scope(mylock);
     int result;
     if (id3v1) ID31Free(id3v1);
     if (id3v2) ID32Free(id3v2);
-    file = FsBaseFile(*infile);
+    file_menu_get_obj(file_idx, &file);
     result = GetID3HeadersFull(&file, 1, &id3v1, &id3v2); // 1: no-debug display, 0: debug display
-    //mylock.lock();
-    infile->rewind();
-    //mylock.unlock();
+    //file.rewind();
     return result;
 }
 
 int ID3Read::GetID3HeadersFull(FsBaseFile* infile, int testfail, id31** id31save, id32** id32save)
 {
+    Threads::Scope scope(mylock);
     int result;
     char* input;
     id31* id3header;

@@ -1,7 +1,7 @@
 #ifndef _ID3READ_H_
 #define _ID3READ_H_
 
-#include <SdFat.h>
+#include <ff_util.h>
 
 typedef struct _id31 {
     char header[3];
@@ -86,7 +86,7 @@ class ID3Read
 public:
     ID3Read();
     ~ID3Read();
-    int loadFile(FsBaseFile* infile);
+    int loadFile(uint16_t file_idx);
     int getUTF8Track(char *str, size_t size);
     int getUTF8Title(char *str, size_t size);
     int getUTF8Album(char *str, size_t size);

@@ -11,6 +11,7 @@ PNGDecoder::PNGDecoder()
 	pngle = NULL;
 	cb_obj = NULL;
 	pngDecoder_draw_rgb565_callback = NULL;
+	file = NULL;
 }
 
 PNGDecoder::~PNGDecoder()
@@ -35,16 +36,16 @@ void PNGDecoder::abort()
 		pngle_destroy(pngle);
 	}
 	if (png_src_type == png_sd_file) {
-		if (file) file.close();
+		if (file) file->close();
 	}
 	cb_obj = NULL;
 	pngDecoder_draw_rgb565_callback = NULL;
 }
 
-int PNGDecoder::loadSdFile(FsBaseFile pngFile, uint64_t file_pos, size_t file_size)
+int PNGDecoder::loadSdFile(FsBaseFile *pngFile, uint64_t file_pos, size_t file_size)
 {
 	png_src_type = png_sd_file;
-	file = FsBaseFile(pngFile);
+	file = pngFile;
 
 	if (!file) {
 		Serial.println("ERROR: PNGDecoder SdFat is not ready!");
@@ -55,9 +56,9 @@ int PNGDecoder::loadSdFile(FsBaseFile pngFile, uint64_t file_pos, size_t file_si
 	{
 		Threads::Scope scope(mylock);
 		if (file_pos == 0) {
-			size = file.size();
+			size = file->size();
 		} else {
-			if (!file.seekSet(file_pos)) {
+			if (!file->seekSet(file_pos)) {
 				Serial.println("ERROR: PNGDecoder seekSet failed");
 				return -1;
 			}
@@ -119,7 +120,7 @@ int PNGDecoder::preDecode()
 		int len;
 		if (png_src_type == png_sd_file) {
 			Threads::Scope scope(mylock);
-			len = file.read(buf + unfed, sizeof(buf) - unfed);
+			len = file->read(buf + unfed, sizeof(buf) - unfed);
 		} else { // png_src_type == png_array
 			len = (remain <= (int) sizeof(buf)) ? sizeof(buf) : remain;
 			memmove(buf, png_ptr + size - remain, len);
@@ -154,7 +155,7 @@ int PNGDecoder::decode(uint8_t reduce)
 		int len;
 		if (png_src_type == png_sd_file) {
 			Threads::Scope scope(mylock);
-			len = file.read(buf + unfed, sizeof(buf) - unfed);
+			len = file->read(buf + unfed, sizeof(buf) - unfed);
 		} else { // png_src_type == png_array
 			len = (remain <= (int) sizeof(buf)) ? sizeof(buf) : remain;
 			memmove(buf, png_ptr + size - remain, len);

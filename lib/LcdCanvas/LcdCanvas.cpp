@@ -2,6 +2,7 @@
 #include "iconfont.h"
 #include <JPEGDecoder.h>
 #include <PNGDecoder.h>
+#include <ff_util.h>
 
 //=================================
 // Implementation of ImageBox class
@@ -72,7 +73,7 @@ int ImageBox::addJpegBin(char *ptr, size_t size)
     image_array[image_count].media_src = char_ptr;
     image_array[image_count].img_fmt = jpeg;
     image_array[image_count].ptr = ptr;
-    image_array[image_count].file = NULL;
+    image_array[image_count].file_idx = 0;
     image_array[image_count].file_pos = 0;
     image_array[image_count].size = size;
     image_count++;
@@ -80,13 +81,13 @@ int ImageBox::addJpegBin(char *ptr, size_t size)
 }
 
 // add JPEG SdFat File
-int ImageBox::addJpegFile(FsBaseFile *file, uint64_t pos, size_t size)
+int ImageBox::addJpegFile(uint16_t file_idx, uint64_t pos, size_t size)
 {
     if (image_count >= MaxImgCnt) { return 0; }
     image_array[image_count].media_src = sdcard;
     image_array[image_count].img_fmt = jpeg;
     image_array[image_count].ptr = NULL;
-    image_array[image_count].file = file;
+    image_array[image_count].file_idx = file_idx;
     image_array[image_count].file_pos = pos;
     image_array[image_count].size = size;
     image_count++;
@@ -100,7 +101,7 @@ int ImageBox::addPngBin(char *ptr, size_t size)
     image_array[image_count].media_src = char_ptr;
     image_array[image_count].img_fmt = png;
     image_array[image_count].ptr = ptr;
-    image_array[image_count].file = NULL;
+    image_array[image_count].file_idx = 0;
     image_array[image_count].file_pos = 0;
     image_array[image_count].size = size;
     image_count++;
@@ -108,13 +109,13 @@ int ImageBox::addPngBin(char *ptr, size_t size)
 }
 
 // add PNG SdFat File
-int ImageBox::addPngFile(FsBaseFile *file, uint64_t pos, size_t size)
+int ImageBox::addPngFile(uint16_t file_idx, uint64_t pos, size_t size)
 {
     if (image_count >= MaxImgCnt) { return 0; }
     image_array[image_count].media_src = sdcard;
     image_array[image_count].img_fmt = png;
     image_array[image_count].ptr = NULL;
-    image_array[image_count].file = file;
+    image_array[image_count].file_idx = file_idx;
     image_array[image_count].file_pos = pos;
     image_array[image_count].size = size;
     image_count++;
@@ -132,13 +133,13 @@ void ImageBox::loadNext()
         if (image_array[image_idx].media_src == char_ptr) {
             loadJpegBin(image_array[image_idx].ptr, image_array[image_idx].size);
         } else if (image_array[image_idx].media_src == sdcard) {
-            loadJpegFile(image_array[image_idx].file, image_array[image_idx].file_pos, image_array[image_idx].size);
+            loadJpegFile(image_array[image_idx].file_idx, image_array[image_idx].file_pos, image_array[image_idx].size);
         }
     } else if (image_array[image_idx].img_fmt == png) {
         if (image_array[image_idx].media_src == char_ptr) {
             loadPngBin(image_array[image_idx].ptr, image_array[image_idx].size);
         } else if (image_array[image_idx].media_src == sdcard) {
-            loadPngFile(image_array[image_idx].file, image_array[image_idx].file_pos, image_array[image_idx].size);
+            loadPngFile(image_array[image_idx].file_idx, image_array[image_idx].file_pos, image_array[image_idx].size);
         }
     }
     image_idx_next = (image_idx + 1) % image_count;
@@ -178,12 +179,13 @@ void ImageBox::loadJpegBin(char *ptr, size_t size)
 }
 
 // load from JPEG File
-void ImageBox::loadJpegFile(FsBaseFile *file, uint64_t pos, size_t size)
+void ImageBox::loadJpegFile(uint16_t file_idx, uint64_t pos, size_t size)
 {
     int decoded;
     bool reduce = false;
     JpegDec.abort();
-    decoded = JpegDec.decodeSdFile(*file, pos, size, 0); // reduce == 0
+    file_menu_get_obj(file_idx, &file);
+    decoded = JpegDec.decodeSdFile(&file, pos, size, 0); // reduce == 0
     if (decoded <= 0) { return; }
     src_w = JpegDec.width;
     src_h = JpegDec.height;
@@ -193,7 +195,7 @@ void ImageBox::loadJpegFile(FsBaseFile *file, uint64_t pos, size_t size)
     )) { // Use reduce decode for x8 larger image
         reduce = true;
         JpegDec.abort();
-        decoded = JpegDec.decodeSdFile(*file, pos, size, 1); // reduce == 1
+        decoded = JpegDec.decodeSdFile(&file, pos, size, 1); // reduce == 1
         if (decoded <= 0) { return; }
     }
     loadJpeg(reduce);
@@ -463,12 +465,13 @@ void ImageBox::loadPngBin(char *ptr, size_t size)
 }
 
 // load from PNG File
-void ImageBox::loadPngFile(FsBaseFile *file, uint64_t pos, size_t size)
+void ImageBox::loadPngFile(uint16_t file_idx, uint64_t pos, size_t size)
 {
     int decoded;
     uint8_t reduce = 0;
     PngDec.abort();
-    decoded = PngDec.loadSdFile(*file, pos, size);
+    file_menu_get_obj(file_idx, &file);
+    decoded = PngDec.loadSdFile(&file, pos, size);
     if (decoded <= 0) { return; }
     src_w = PngDec.width;
     src_h = PngDec.height;
@@ -1188,14 +1191,14 @@ void LcdCanvas::setYear(const char *str, encoding_t encoding)
     year.setText(str, encoding);
 }
 
-void LcdCanvas::addAlbumArtJpeg(FsBaseFile *file, uint64_t pos, size_t size)
+void LcdCanvas::addAlbumArtJpeg(uint16_t file_idx, uint64_t pos, size_t size)
 {
-    albumArt.addJpegFile(file, pos, size);
+    albumArt.addJpegFile(file_idx, pos, size);
 }
 
-void LcdCanvas::addAlbumArtPng(FsBaseFile *file, uint64_t pos, size_t size)
+void LcdCanvas::addAlbumArtPng(uint16_t file_idx, uint64_t pos, size_t size)
 {
-    albumArt.addPngFile(file, pos, size);
+    albumArt.addPngFile(file_idx, pos, size);
 }
 
 void LcdCanvas::deleteAlbumArt()

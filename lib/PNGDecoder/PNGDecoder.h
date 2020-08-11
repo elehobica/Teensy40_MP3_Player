@@ -24,7 +24,7 @@ public:
 	~PNGDecoder();
 	void set_draw_callback(void *cb_obj, pngDecoder_draw_rgb565_callback_t pngDecoder_draw_rgb565_callback);
 	void abort();
-	int loadSdFile(FsBaseFile pngFile, uint64_t file_pos = 0, size_t file_size = 0);
+	int loadSdFile(FsBaseFile *pngFile, uint64_t file_pos = 0, size_t file_size = 0);
 	int loadArray(const uint8_t array[], uint32_t  array_size);
 	int decode(uint8_t reduce = 0);
 private:
@@ -33,7 +33,7 @@ private:
 	//ImageBox *imageBox;
 	void *cb_obj;
 	pngDecoder_draw_rgb565_callback_t pngDecoder_draw_rgb565_callback;
-	FsBaseFile file;
+	FsBaseFile *file;
 	uint64_t png_ofs;
 	size_t size;
 	uint8_t *png_ptr;

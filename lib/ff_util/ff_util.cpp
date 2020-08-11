@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+Threads::Mutex mylock;
+
 #if SD_FAT_TYPE == 2
 SdExFat sd;
 static ExFile parent_dir[MAX_DEPTH_DIR]; 	// preserve parent directory
@@ -92,10 +94,10 @@ static int32_t my_strncmp(char *str1 , char *str2, int size)
 	return result;
 }
 
-static FRESULT idx_f_stat(uint16_t idx,  FsBaseFile *file)
+static FRESULT idx_f_stat(uint16_t idx,  FsBaseFile *fp)
 {
 	if (idx == 0) {
-		*file = parent_dir[path_depth-1];
+		*fp = parent_dir[path_depth-1];
         return FR_OK;
 	}
 	if (f_stat_cnt == 1 || f_stat_cnt > idx) {
@@ -103,16 +105,16 @@ static FRESULT idx_f_stat(uint16_t idx,  FsBaseFile *file)
 		f_stat_cnt = 1;
 	}
 	for (;;) {
-        file->openNext(&dir);
-		if (file->isHidden()) continue;
+        fp->openNext(&dir);
+		if (fp->isHidden()) continue;
 		if (!(target & TGT_DIRS)) { // File Only
-			if (file->isDir()) continue;
+			if (fp->isDir()) continue;
 		} else if (!(target & TGT_FILES)) { // Dir Only
-			if (!(file->isDir())) continue;
+			if (!(fp->isDir())) continue;
 		}
 		if (f_stat_cnt++ >= idx) break;
 	}
-	if (file) {
+	if (fp) {
         return FR_OK;
 	} else {
         return FR_INVALID_PARAMETER;
@@ -360,6 +362,7 @@ static void idx_sort_delete(void)
 // For implicit sort all entries
 void file_menu_idle(void)
 {
+	Threads::Scope scope(mylock);
 	const int range = 20;
 	static int up_down = 0;
 	uint16_t r_start = 0;
@@ -403,6 +406,7 @@ void file_menu_idle(void)
 
 void file_menu_sort_entry(uint16_t scope_start, uint16_t scope_end_1)
 {
+	Threads::Scope scope(mylock);
 	uint16_t wing;
 	uint16_t wing_start, wing_end_1;
 	if (scope_start >= scope_end_1) return;
@@ -426,6 +430,7 @@ void file_menu_full_sort(void)
 FRESULT file_menu_get_fname(uint16_t order, char *str, size_t size)
 {
 	file_menu_sort_entry(order, order+5);
+	Threads::Scope scope(mylock);
 	if (order >= max_entry_cnt) { return FR_INVALID_PARAMETER; }
 	if (order == 0) {
 		strncpy(str, "..", size);
@@ -437,9 +442,20 @@ FRESULT file_menu_get_fname(uint16_t order, char *str, size_t size)
 	return FR_OK;
 }
 
+FRESULT file_menu_get_fname_UTF16(uint16_t order, char16_t *str, size_t size)
+{
+	FsBaseFile file;
+	FRESULT result = file_menu_get_obj(order, &file);
+	if (result == FR_OK) {
+		file.getUTF16Name(str, size);
+	}
+	return result;
+}
+
 FRESULT file_menu_get_obj(uint16_t order, FsBaseFile *file)
 {
 	file_menu_sort_entry(order, order+5);
+	Threads::Scope scope(mylock);
 	if (order >= max_entry_cnt) { return FR_INVALID_PARAMETER; }
 	if (order == 0) {
 		return FR_INVALID_PARAMETER;
@@ -466,6 +482,7 @@ uint16_t file_menu_get_size(void)
 
 FRESULT file_menu_open_root_dir()
 {
+	Threads::Scope scope(mylock);
 	f_stat_cnt = 1;
 	last_order = 0;
 	path_depth = 0;
@@ -491,11 +508,13 @@ FRESULT file_menu_open_root_dir()
 
 uint8_t file_menu_get_fatType()
 {
+	Threads::Scope scope(mylock);
 	return sd.fatType();
 }
 
 FRESULT file_menu_ch_dir(uint16_t order)
 {
+	Threads::Scope scope(mylock);
 	f_stat_cnt = 1;
 	last_order = 0;
 	if (order == 0) {
@@ -521,6 +540,7 @@ FRESULT file_menu_ch_dir(uint16_t order)
 
 void file_menu_close_dir(void)
 {
+	Threads::Scope scope(mylock);
 	/*
 	for (int i = 0; i < max_entry_cnt; i++) {
 		char temp_str[5] = "    ";

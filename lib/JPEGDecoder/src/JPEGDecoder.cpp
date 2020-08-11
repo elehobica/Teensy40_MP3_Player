@@ -48,12 +48,14 @@ JPEGDecoder::JPEGDecoder(){
 	mcu_y = 0 ;
 	is_available = 0;
 	thisPtr = this;
+	#ifdef LOAD_SDFAT_LIBRARY
+	g_pInFileSd = NULL;
+	#endif
 }
 
 
 JPEGDecoder::~JPEGDecoder(){
 	if (pImage) delete[] pImage;
-	pImage = NULL;
 }
 
 
@@ -85,7 +87,7 @@ uint8_t JPEGDecoder::pjpeg_need_bytes_callback(uint8_t* pBuf, uint8_t buf_size, 
 #if defined (LOAD_SD_LIBRARY) || defined (LOAD_SDFAT_LIBRARY)
 	{
 		Threads::Scope scope(mylock);
-		if (jpg_source == JPEG_SD_FILE) g_pInFileSd.read(pBuf,n); // else we are handling a file
+		if (jpg_source == JPEG_SD_FILE) g_pInFileSd->read(pBuf,n); // else we are handling a file
 	}
 #endif
 
@@ -341,9 +343,9 @@ int JPEGDecoder::decodeSdFile(File jpgFile) { // This is for the SD library
 #endif
 
 #ifdef LOAD_SDFAT_LIBRARY
-int JPEGDecoder::decodeSdFile (FsBaseFile jpgFile, uint64_t pos, size_t size, uint8_t reduce) { // This is for the SdFat library
+int JPEGDecoder::decodeSdFile (FsBaseFile *jpgFile, uint64_t pos, size_t size, uint8_t reduce) { // This is for the SdFat library
 
-	g_pInFileSd = FsBaseFile(jpgFile);
+	g_pInFileSd = jpgFile;
 
 	jpg_source = JPEG_SD_FILE; // Flag to indicate a SD file
 
@@ -360,10 +362,10 @@ int JPEGDecoder::decodeSdFile (FsBaseFile jpgFile, uint64_t pos, size_t size, ui
 	{
 		Threads::Scope scope(mylock);
 		if (pos == 0) {
-			g_nInFileSize = g_pInFileSd.size();
+			g_nInFileSize = g_pInFileSd->size();
 		} else {
-			//g_pInFileSd.rewind();
-			if (!g_pInFileSd.seekSet(pos)) {
+			//g_pInFileSd->rewind();
+			if (!g_pInFileSd->seekSet(pos)) {
 				#ifdef DEBUG
 				Serial.println("ERROR: seekSet failed");
 				#endif
@@ -462,6 +464,6 @@ void JPEGDecoder::abort(void) {
 	if (jpg_source == JPEG_SD_FILE) if (g_pInFileSd) g_pInFileSd.close();
 #endif
 #ifdef LOAD_SDFAT_LIBRARY
-	if (jpg_source == JPEG_SD_FILE) if (g_pInFileSd) g_pInFileSd.close();
+	if (jpg_source == JPEG_SD_FILE) if (g_pInFileSd) g_pInFileSd->close();
 #endif
 }

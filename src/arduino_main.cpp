@@ -7,19 +7,15 @@
 
 #include <string.h>
 #include <Wire.h>
-#include <SdFat.h>
 #include <EEPROM.h>
-#include <TeensyThreads.h>
 #include <LcdCanvas.h>
+#include <ff_util.h>
 
 #include "my_play_sd_mp3.h"
 #include "my_output_i2s.h"
-#include "ff_util.h"
 #include "stack.h"
 #include "id3read.h"
 #include "utf_conv.h"
-
-Threads::Mutex mylock;
 
 FsBaseFile file;
 
@@ -36,11 +32,43 @@ uint32_t button_repeat_count = 0;
 #define EEPROM_BASE 0
 // Config Space (Byte Unit Access)
 #define CFG_BASE    EEPROM_BASE
-#define CFG_SIZE    0x10
-#define CFG_VERSION         (EEPROM_BASE + 0)
-#define CFG_EPRW_COUNT_L    (EEPROM_BASE + 1)
-#define CFG_EPRW_COUNT_H    (EEPROM_BASE + 2)
-#define CFG_VOLUME          (EEPROM_BASE + 3)
+#define CFG_SIZE    40 // 0x28
+#define CFG_VERSION_L       (EEPROM_BASE + 0)
+#define CFG_VERSION_H       (EEPROM_BASE + 1)
+#define CFG_EPRW_COUNT_L    (EEPROM_BASE + 2)
+#define CFG_EPRW_COUNT_H    (EEPROM_BASE + 3)
+#define CFG_SEED            (EEPROM_BASE + 4)
+#define CFG_VOLUME          (EEPROM_BASE + 5)
+#define CFG_STACK_COUNT     (EEPROM_BASE + 6)
+#define CFG_STACK_HEAD0_L   (EEPROM_BASE + 7)
+#define CFG_STACK_HEAD0_H   (EEPROM_BASE + 8)
+#define CFG_STACK_COLUMN0_L (EEPROM_BASE + 9)
+#define CFG_STACK_COLUMN0_H (EEPROM_BASE + 10)
+#define CFG_STACK_HEAD1_L   (EEPROM_BASE + 11)
+#define CFG_STACK_HEAD1_H   (EEPROM_BASE + 12)
+#define CFG_STACK_COLUMN1_L (EEPROM_BASE + 13)
+#define CFG_STACK_COLUMN1_H (EEPROM_BASE + 14)
+#define CFG_STACK_HEAD2_L   (EEPROM_BASE + 15)
+#define CFG_STACK_HEAD2_H   (EEPROM_BASE + 16)
+#define CFG_STACK_COLUMN2_L (EEPROM_BASE + 17)
+#define CFG_STACK_COLUMN2_H (EEPROM_BASE + 18)
+#define CFG_STACK_HEAD3_L   (EEPROM_BASE + 19)
+#define CFG_STACK_HEAD3_H   (EEPROM_BASE + 20)
+#define CFG_STACK_COLUMN3_L (EEPROM_BASE + 21)
+#define CFG_STACK_COLUMN3_H (EEPROM_BASE + 22)
+#define CFG_STACK_HEAD4_L   (EEPROM_BASE + 23)
+#define CFG_STACK_HEAD4_H   (EEPROM_BASE + 24)
+#define CFG_STACK_COLUMN4_L (EEPROM_BASE + 25)
+#define CFG_STACK_COLUMN4_H (EEPROM_BASE + 26)
+#define CFG_IDX_HEAD_L      (EEPROM_BASE + 27)
+#define CFG_IDX_HEAD_H      (EEPROM_BASE + 28)
+#define CFG_IDX_COLUMN_L    (EEPROM_BASE + 29)
+#define CFG_IDX_COLUMN_H    (EEPROM_BASE + 30)
+#define CFG_MODE            (EEPROM_BASE + 31)
+#define CFG_DATA_OFFSET0    (EEPROM_BASE + 32)
+#define CFG_DATA_OFFSET1    (EEPROM_BASE + 33)
+#define CFG_DATA_OFFSET2    (EEPROM_BASE + 34)
+#define CFG_DATA_OFFSET3    (EEPROM_BASE + 35)
 
 uint16_t eprw_count; // EEPROM Write Count (to check for write endurance of 100,000 cycles)
 
@@ -65,6 +93,7 @@ int stack_count;
 
 // FileView Menu
 LcdCanvas::mode_enm mode = LcdCanvas::FileView;
+LcdCanvas::mode_enm mode_prv = LcdCanvas::FileView;
 
 #define NUM_IDX_ITEMS         10
 int idx_req = 1;
@@ -74,23 +103,56 @@ int aud_req = 0;
 uint16_t idx_head = 0;
 uint16_t idx_column = 0;
 uint16_t idx_idle_count = 0;
-uint16_t idx_play;
+uint16_t idx_play = 0;
 
 ID3Read id3;
 
 void loadFromEEPROM(void)
 {
     char _str[64];
-    uint8_t version = EEPROM.read(CFG_VERSION);
+    uint8_t version_l = EEPROM.read(CFG_VERSION_L);
+    uint8_t version_h = EEPROM.read(CFG_VERSION_H);
     Serial.println("###################################");
-    sprintf(_str, "Teensy 4.0 MP3 Player ver. %d.%02d", (int) version/100, (int) version%100);
+    sprintf(_str, "Teensy 4.0 MP3 Player ver. %d.%02d", (int) version_h, (int) version_l);
     Serial.println(_str);
     Serial.println("###################################");
-    if (version == 0xff) {
-        EEPROM.write(CFG_VERSION, 100);
+    if (version_l == 0xff && version_h == 0xff) { // Default Value Clear
+        EEPROM.write(CFG_VERSION_L, 0);
+        EEPROM.write(CFG_VERSION_H, 1);
         EEPROM.write(CFG_EPRW_COUNT_L, 0);
         EEPROM.write(CFG_EPRW_COUNT_H, 0);
+        EEPROM.write(CFG_SEED, 0);
         EEPROM.write(CFG_VOLUME, 65);
+        EEPROM.write(CFG_STACK_COUNT, 0);
+        EEPROM.write(CFG_STACK_HEAD0_L, 0);
+        EEPROM.write(CFG_STACK_HEAD0_H, 0);
+        EEPROM.write(CFG_STACK_COLUMN0_L, 0);
+        EEPROM.write(CFG_STACK_COLUMN0_H, 0);
+        EEPROM.write(CFG_STACK_HEAD1_L, 0);
+        EEPROM.write(CFG_STACK_HEAD1_H, 0);
+        EEPROM.write(CFG_STACK_COLUMN1_L, 0);
+        EEPROM.write(CFG_STACK_COLUMN1_H, 0);
+        EEPROM.write(CFG_STACK_HEAD2_L, 0);
+        EEPROM.write(CFG_STACK_HEAD2_H, 0);
+        EEPROM.write(CFG_STACK_COLUMN2_L, 0);
+        EEPROM.write(CFG_STACK_COLUMN2_H, 0);
+        EEPROM.write(CFG_STACK_HEAD3_L, 0);
+        EEPROM.write(CFG_STACK_HEAD3_H, 0);
+        EEPROM.write(CFG_STACK_COLUMN3_L, 0);
+        EEPROM.write(CFG_STACK_COLUMN3_H, 0);
+        EEPROM.write(CFG_STACK_HEAD4_L, 0);
+        EEPROM.write(CFG_STACK_HEAD4_H, 0);
+        EEPROM.write(CFG_STACK_COLUMN4_L, 0);
+        EEPROM.write(CFG_STACK_COLUMN4_H, 0);
+        EEPROM.write(CFG_IDX_HEAD_L, 0);
+        EEPROM.write(CFG_IDX_HEAD_H, 0);
+        EEPROM.write(CFG_IDX_COLUMN_L, 0);
+        EEPROM.write(CFG_IDX_COLUMN_H, 0);
+        EEPROM.write(CFG_MODE, 0);
+        EEPROM.write(CFG_DATA_OFFSET0, 0);
+        EEPROM.write(CFG_DATA_OFFSET1, 0);
+        EEPROM.write(CFG_DATA_OFFSET2, 0);
+        EEPROM.write(CFG_DATA_OFFSET3, 0);
     } else {
         for (int i = 0; i < CFG_SIZE; i++) {
             int value = EEPROM.read(CFG_BASE + i);
@@ -122,6 +184,19 @@ void power_off(void)
     EEPROM.write(CFG_EPRW_COUNT_L, (uint8_t) (eprw_count & 0xff));
     EEPROM.write(CFG_EPRW_COUNT_H, (uint8_t) ((eprw_count >> 8) & 0xff));
     EEPROM.write(CFG_VOLUME, volume);
+    EEPROM.write(CFG_STACK_COUNT, stack_get_count(stack));
+    for (int i = 0; i < EEPROM.read(CFG_STACK_COUNT); i++) {
+        stack_pop(stack, &item);
+        EEPROM.write(CFG_STACK_HEAD0_L + i*4, (uint8_t) (item.head & 0xff));
+        EEPROM.write(CFG_STACK_HEAD0_H + i*4, (uint8_t) ((item.head >> 8) & 0xff));
+        EEPROM.write(CFG_STACK_COLUMN0_L + i*4, (uint8_t) (item.column & 0xff));
+        EEPROM.write(CFG_STACK_COLUMN0_H + i*4, (uint8_t) ((item.column >> 8) & 0xff));
+    }
+    EEPROM.write(CFG_IDX_HEAD_L, (uint8_t) (idx_head & 0xff));
+    EEPROM.write(CFG_IDX_HEAD_H, (uint8_t) ((idx_head >> 8) & 0xff));
+    EEPROM.write(CFG_IDX_COLUMN_L, (uint8_t) (idx_column & 0xff));
+    EEPROM.write(CFG_IDX_COLUMN_H, (uint8_t) ((idx_column >> 8) & 0xff));
+    EEPROM.write(CFG_MODE, static_cast<uint8_t>(mode_prv));
     // Self Power Off
     /* do pin control here */
     // Endless Loop
@@ -342,6 +417,7 @@ void tick_100ms(void)
         }
     } else if (button_repeat_count == 30) { // long long push
         if (button == HP_BUTTON_CENTER) {
+            mode_prv = mode;
             mode = LcdCanvas::PowerOff;
         }
         button_repeat_count++; // only once and step to longer push event
@@ -349,7 +425,7 @@ void tick_100ms(void)
         button_repeat_count++;
     }
     // Button status shift
-    for (i = NUM_BTN_HISTORY-1; i >= 0; i--) {
+    for (i = NUM_BTN_HISTORY-2; i >= 0; i--) {
         button_prv[i+1] = button_prv[i];
     }
     button_prv[0] = button;
@@ -363,10 +439,11 @@ int get_mp3_file(uint16_t idx, int seq_flg, FsBaseFile *f)
     char str[256];
     //Serial.print("get_mp3_file: ");
     //Serial.println(millis());
-    Threads::Scope scope(mylock);
+    //Threads::Scope scope(mylock);
     while (idx + ofs < file_menu_get_size()) {
         file_menu_get_obj(idx + ofs, f);
         f->getName(str, sizeof(str));
+        //file_menu_get_fname(idx + ofs, str, sizeof(str));
         char* ext_pos = strrchr(str, '.');
         if (ext_pos) {
             if (strncmp(ext_pos, ".mp3", 4) == 0) {
@@ -387,7 +464,7 @@ int get_mp3_file(uint16_t idx, int seq_flg, FsBaseFile *f)
     }
 }
 
-void loadID3(FsBaseFile *file)
+void loadID3(uint16_t idx_play)
 {
     char str[256];
     mime_t mime;
@@ -395,42 +472,26 @@ void loadID3(FsBaseFile *file)
     uint64_t pos;
     size_t size;
 
-    id3.loadFile(file);
+    id3.loadFile(idx_play);
 
     // copy ID3 text
-    if (id3.getUTF8Track(str, sizeof(str))) {
-        lcd.setTrack(str, utf8);
-    } else {
-        lcd.setTrack("");
-    }
+    if (id3.getUTF8Track(str, sizeof(str))) lcd.setTrack(str, utf8); else lcd.setTrack("");
     if (id3.getUTF8Title(str, sizeof(str))) {
         lcd.setTitle(str, utf8);
     } else { // display filename if no ID3
-        file->getUTF16Name((char16_t *) str, sizeof(str)/2);
+        file_menu_get_fname_UTF16(idx_play, (char16_t *) str, sizeof(str)/2);
         lcd.setTitle(utf16_to_utf8((const char16_t *) str).c_str(), utf8);
     }
-    if (id3.getUTF8Album(str, sizeof(str))) {
-        lcd.setAlbum(str, utf8);
-    } else {
-        lcd.setAlbum("");
-    }
-    if (id3.getUTF8Artist(str, sizeof(str))) {
-        lcd.setArtist(str, utf8);
-    } else {
-        lcd.setArtist("");
-    }
-    if (id3.getUTF8Year(str, sizeof(str))) {
-        lcd.setYear(str, utf8);
-    } else {
-        lcd.setYear("");
-    }
+    if (id3.getUTF8Album(str, sizeof(str))) lcd.setAlbum(str, utf8); else lcd.setAlbum("");
+    if (id3.getUTF8Artist(str, sizeof(str))) lcd.setArtist(str, utf8); else lcd.setArtist("");
+    if (id3.getUTF8Year(str, sizeof(str))) lcd.setYear(str, utf8); else lcd.setYear("");
 
     // copy ID3 image
     lcd.deleteAlbumArt();
     for (int i = 0; i < id3.getPictureCount(); i++) {
         if (id3.getPicturePos(i, &mime, &ptype, &pos, &size)) {
-            if (mime == jpeg) { lcd.addAlbumArtJpeg(file, pos, size); }
-            else if (mime == png) { lcd.addAlbumArtPng(file, pos, size); }
+            if (mime == jpeg) { lcd.addAlbumArtJpeg(idx_play, pos, size); }
+            else if (mime == png) { lcd.addAlbumArtPng(idx_play, pos, size); }
         }
     }
 }
@@ -447,6 +508,30 @@ void setup() {
     // Audio connections require memory to work.  For more
     // detailed information, see the MemoryAndCpuUsage example
     AudioMemory(5); // 5 for Single MP3
+
+    // Restore power off situation (directory, mode, data_offset)
+    for (int i = EEPROM.read(CFG_STACK_COUNT) - 1; i >= 0; i--) {
+        item.head = ((uint16_t) EEPROM.read(CFG_STACK_HEAD0_H + i*4) << 8) | ((uint16_t) EEPROM.read(CFG_STACK_HEAD0_L + i*4));
+        item.column = ((uint16_t) EEPROM.read(CFG_STACK_COLUMN0_H + i*4) << 8) | ((uint16_t) EEPROM.read(CFG_STACK_COLUMN0_L + i*4));
+        file_menu_sort_entry(item.head+item.column, item.head+item.column + 1);
+        if (file_menu_is_dir(item.head+item.column) <= 0 || item.head+item.column == 0) { // Not Directory or Parent Directory
+            break;
+        }
+        stack_push(stack, &item);
+        file_menu_ch_dir(item.head+item.column);
+    }
+    idx_head = ((uint16_t) EEPROM.read(CFG_IDX_HEAD_H) << 8) | ((uint16_t) EEPROM.read(CFG_IDX_HEAD_L));
+    idx_column = ((uint16_t) EEPROM.read(CFG_IDX_COLUMN_H) << 8) | ((uint16_t) EEPROM.read(CFG_IDX_COLUMN_L));
+    mode = static_cast<LcdCanvas::mode_enm>(EEPROM.read(CFG_MODE));
+    if (mode == LcdCanvas::Play) {
+        mode = LcdCanvas::FileView;
+        idx_req_open = 1;
+        uint32_t data_offset = 0;
+        data_offset |=  ((uint32_t) EEPROM.read(CFG_DATA_OFFSET0) << 0);
+        data_offset |=  ((uint32_t) EEPROM.read(CFG_DATA_OFFSET1) << 8);
+        data_offset |=  ((uint32_t) EEPROM.read(CFG_DATA_OFFSET2) << 16);
+        data_offset |=  ((uint32_t) EEPROM.read(CFG_DATA_OFFSET3) << 24);
+    }
 }
 
 #if 0	
@@ -479,7 +564,7 @@ void loop() {
         lcd.switchToFileView();
         aud_req = 0;
         idx_req = 1;
-    } else if (idx_req_open == 1) {
+    } else if (idx_req_open == 1 && idx_idle_count > 1) { // idx_idle_count for resume play
         if (file_menu_is_dir(idx_head+idx_column) > 0) { // Directory
             if (idx_head+idx_column > 0) { // normal directory
                 item.head = idx_head;
@@ -511,7 +596,7 @@ void loop() {
             idx_play = get_mp3_file(idx_play, 0, &file);
             if (idx_play) {
                 mode = LcdCanvas::Play;
-                loadID3(&file);
+                loadID3(idx_play);
                 playMp3.play(&file);
                 idx_idle_count = 0;
                 lcd.switchToPlay();
@@ -606,8 +691,7 @@ void loop() {
             if (idx_head+i == 0) {
                 lcd.setFileItem(i, "..", file_menu_is_dir(idx_head+i), (i == idx_column));
             } else {
-                file_menu_get_obj(idx_head+i, &file);
-                file.getUTF16Name((char16_t *) str, sizeof(str)/2);
+                file_menu_get_fname_UTF16(idx_head+i, (char16_t *) str, sizeof(str)/2);
                 lcd.setFileItem(i, utf16_to_utf8((const char16_t *) str).c_str(), file_menu_is_dir(idx_head+i), (i == idx_column), utf8);
             }
         }
@@ -618,7 +702,7 @@ void loop() {
             if (!playMp3.isPlaying() || (playMp3.positionMillis() + 500 > playMp3.lengthMillis())) {
                 idx_play = get_mp3_file(idx_play+1, 1, &file);
                 if (idx_play) {
-                    loadID3(&file);
+                    loadID3(idx_play);
                     playMp3.standby_play(&file);
                 } else {
                     while (playMp3.isPlaying()) { delay(1); } // minimize gap between tracks

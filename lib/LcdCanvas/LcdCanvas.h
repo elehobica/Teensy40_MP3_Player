@@ -4,6 +4,7 @@
 #include <Adafruit_ST7735.h> // Hardware-specific library for ST7735
 //#include <Fonts/FreeMono9pt7b.h>
 #include "Nimbus_Sans_L_Regular_Condensed_12.h"
+#include <SdFat.h>
 
 //#define DEBUG_LCD_CANVAS
 
@@ -72,7 +73,7 @@ public:
 		media_src_t media_src;
 		img_fmt_t img_fmt;
 		char *ptr;
-		FsBaseFile *file;
+		uint16_t file_idx;
 		uint64_t file_pos;
 		size_t size;
 	} image_t;
@@ -85,9 +86,9 @@ public:
 	void setKeepAspectRatio(bool flg);
 	void setImageBuf(int16_t x, int16_t y, uint16_t rgb565);
 	int addJpegBin(char *ptr, size_t size);
-	int addJpegFile(FsBaseFile *file, uint64_t pos, size_t size);
+	int addJpegFile(uint16_t file_idx, uint64_t pos, size_t size);
 	int addPngBin(char *ptr, size_t size);
-	int addPngFile(FsBaseFile *file, uint64_t pos, size_t size);
+	int addPngFile(uint16_t file_idx, uint64_t pos, size_t size);
 	int getCount();
 	void deleteAll();
 	void loadNext();
@@ -109,12 +110,13 @@ protected:
 	int image_count;
 	int image_idx;
 	image_t image_array[MaxImgCnt];
+	FsBaseFile file;
 	void jpegMcu2sAccum(int count, uint16_t mcu_w, uint16_t mcu_h, uint16_t *pImage);
 	void loadJpegBin(char *ptr, size_t size);
-	void loadJpegFile(FsBaseFile *file, uint64_t pos, size_t size);
+	void loadJpegFile(uint16_t file_idx, uint64_t pos, size_t size);
 	void loadJpeg(bool reduce);
 	void loadPngBin(char *ptr, size_t size);
-	void loadPngFile(FsBaseFile *file, uint64_t pos, size_t size);
+	void loadPngFile(uint16_t file_idx, uint64_t pos, size_t size);
 	void loadPng(uint8_t reduce);
 	void unload();
 };
@@ -290,8 +292,8 @@ public:
 	void setAlbum(const char *str, encoding_t encoding = none);
 	void setArtist(const char *str, encoding_t encoding = none);
 	void setYear(const char *str, encoding_t encoding = none);
-	void addAlbumArtJpeg(FsBaseFile *file, uint64_t pos, size_t size);
-	void addAlbumArtPng(FsBaseFile *file, uint64_t pos, size_t size);
+	void addAlbumArtJpeg(uint16_t file_idx, uint64_t pos, size_t size);
+	void addAlbumArtPng(uint16_t file_idx, uint64_t pos, size_t size);
 	void deleteAlbumArt();
 	void switchToFileView();
 	void switchToPlay();

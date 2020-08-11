@@ -2,6 +2,7 @@
 #define _FF_UTIL_H_
 
 #include <SdFat.h>
+#include <TeensyThreads.h>
 
 //#define DEBUG_FF_UTIL
 
@@ -51,8 +52,11 @@ uint16_t file_menu_get_size(void);
 void file_menu_full_sort(void);
 void file_menu_sort_entry(uint16_t scope_start, uint16_t scope_end_1);
 FRESULT file_menu_get_fname(uint16_t order, char *str, size_t size);
-FRESULT file_menu_get_obj(uint16_t order, FsBaseFile *file);
+FRESULT file_menu_get_fname_UTF16(uint16_t order, char16_t *str, size_t size);
+FRESULT file_menu_get_obj(uint16_t order, FsBaseFile *fp);
 int file_menu_is_dir(uint16_t order);
 void file_menu_idle(void);
+
+extern Threads::Mutex mylock;
 
 #endif
