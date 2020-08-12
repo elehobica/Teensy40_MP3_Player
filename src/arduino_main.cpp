@@ -10,6 +10,7 @@
 #include <EEPROM.h>
 #include <LcdCanvas.h>
 #include <ff_util.h>
+#include <TeensyThreads.h>
 
 #include "my_play_sd_mp3.h"
 #include "my_output_i2s.h"
@@ -19,7 +20,9 @@
 
 const int Version = 100;
 
-FsBaseFile file;
+Threads::Event codec_event;
+
+MutexFsBaseFile file;
 size_t fpos = 0;
 uint32_t samples_played = 0;
 
@@ -30,7 +33,7 @@ uint32_t samples_played = 0;
 #define HP_BUTTON_PLUS    3
 #define HP_BUTTON_MINUS   4
 uint8_t button_prv[NUM_BTN_HISTORY] = {}; // initialized as HP_BUTTON_OPEN
-uint32_t button_repeat_count = 0;
+volatile uint32_t button_repeat_count = 0;
 
 #define EEPROM_SIZE 1080
 #define EEPROM_BASE 0
@@ -104,16 +107,16 @@ stack_data_t item;
 int stack_count;
 
 // FileView Menu
-LcdCanvas::mode_enm mode = LcdCanvas::FileView;
-LcdCanvas::mode_enm mode_prv = LcdCanvas::FileView;
+volatile LcdCanvas::mode_enm mode = LcdCanvas::FileView;
+volatile LcdCanvas::mode_enm mode_prv = LcdCanvas::FileView;
 
 #define NUM_IDX_ITEMS         10
 int idx_req = 1;
-int idx_req_open = 0;
+volatile int idx_req_open = 0;
 int aud_req = 0;
 
-uint16_t idx_head = 0;
-uint16_t idx_column = 0;
+volatile uint16_t idx_head = 0;
+volatile uint16_t idx_column = 0;
 uint16_t idx_idle_count = 0;
 uint16_t idx_play = 0;
 
@@ -390,6 +393,7 @@ void volume_down(void)
 
 void tick_100ms(void)
 {
+    __disable_irq();
     int i;
     int center_clicks;
     uint8_t button = adc0_get_hp_button();
@@ -462,17 +466,17 @@ void tick_100ms(void)
         button_prv[i+1] = button_prv[i];
     }
     button_prv[0] = button;
+    __enable_irq();
 }
 
 // Get .mp3 file which idx == idx_play (if seq_flg == 1, successive mp3 is searched)
-int get_mp3_file(uint16_t idx, int seq_flg, FsBaseFile *f)
+int get_mp3_file(uint16_t idx, int seq_flg, MutexFsBaseFile *f)
 {
     int flg = 0;
     int ofs = 0;
     char str[256];
     //Serial.print("get_mp3_file: ");
     //Serial.println(millis());
-    //Threads::Scope scope(mylock);
     while (idx + ofs < file_menu_get_size()) {
         file_menu_get_obj(idx + ofs, f);
         f->getName(str, sizeof(str));
@@ -529,6 +533,15 @@ void loadID3(uint16_t idx_play)
     }
 }
 
+void codec_thread()
+{
+    while (1) {
+        codec_event.wait();
+        codec_event.clear();
+        my_decodeMp3_core();
+    }
+}
+
 void setup() {
     Serial.begin(115200);
     {
@@ -541,6 +554,7 @@ void setup() {
 
     initEEPROM();
     myTimer.begin(tick_100ms, 100000);
+    threads.addThread(codec_thread, 0, 2048);
 
     stack = stack_init();
     file_menu_open_root_dir();

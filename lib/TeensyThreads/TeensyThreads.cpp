@@ -657,6 +657,7 @@ int Threads::Mutex::try_lock() {
     threads.start(p);
     return 1;
   }
+  //Serial.println("lock rejected");
   threads.start(p);
   return 0;
 }
@@ -680,16 +681,15 @@ int __attribute__ ((noinline)) Threads::Mutex::unlock() {
 
 void Threads::Event::trigger()
 {
-  Threads::Scope scope(lock);
   flag = true;
 }
 
 void Threads::Event::clear()
 {
-  Threads::Scope scope(lock);
   flag = false;
 }
 
+//int __attribute__ ((noinline)) Threads::Event::wait(unsigned int timeout_ms)
 int Threads::Event::wait(unsigned int timeout_ms)
 {
   uint32_t start = systick_millis_count;

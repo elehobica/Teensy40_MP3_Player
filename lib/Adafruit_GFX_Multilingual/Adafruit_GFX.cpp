@@ -62,11 +62,6 @@ POSSIBILITY OF SUCH DAMAGE.
  Adafruit_M0_Express_CircuitPython pythonfs(unifont_flash);
 #endif // UNIFONT_USE_FLASH
 
-#ifdef UNIFONT_USE_SDFAT
-#include <TeensyThreads.h>
-extern Threads::Mutex mylock;
-#endif // UNIFONT_USE_SDFAT
-
 // Many (but maybe not all) non-AVR board installs define macros
 // for compatibility with existing PROGMEM-reading AVR code.
 // Do our own checks and defines here for good measure...
@@ -130,7 +125,7 @@ UnifontBlock *Adafruit_GFX::unifont = NULL;
 File Adafruit_GFX:: unifile;
 #endif
 #ifdef UNIFONT_USE_SDFAT
-FsFile Adafruit_GFX:: unifile;
+MutexFsBaseFile Adafruit_GFX:: unifile;
 #endif
 #endif // if defined(UNIFONT_USE_FLASH) || defined(UNIFONT_USE_SDFAT)
 
@@ -191,7 +186,6 @@ void Adafruit_GFX::loadUnifontFile(const char *dir, const char *file)
         unifile = pythonfs.open(file, FILE_READ);
     #endif // UNIFONT_USE_FLASH
     #ifdef UNIFONT_USE_SDFAT
-    mylock.lock();
     unifile.open(dir);
     if (unifile.exists(file)) {
         unifile.open(file, O_RDONLY);
@@ -206,25 +200,16 @@ void Adafruit_GFX::loadUnifontFile(const char *dir, const char *file)
             uint8_t numBitmasks = unifile.read();
             uint16_t numBlocks;
             unifile.read(&numBlocks, 2);
-    #ifdef UNIFONT_USE_SDFAT
-            mylock.unlock();
-    #endif //UNIFONT_USE_SDFAT
 
             int offset = 8 + (numBlocks * 4);
             for(uint16_t i = 0; i < numBlocks; i++)
             {
                 //Serial.print("block: 0x");
                 //Serial.println(i, HEX);
-    #ifdef UNIFONT_USE_SDFAT
-                mylock.lock();
-    #endif //UNIFONT_USE_SDFAT
                 uint8_t blockNum = unifile.read();
                 unifile.read(); // plane number, ignored
                 uint8_t flags = unifile.read();
                 unifile.read(); // free byte, ignored.
-    #ifdef UNIFONT_USE_SDFAT
-                mylock.unlock();
-    #endif //UNIFONT_USE_SDFAT
 
                 if (unifont[i].glyphs.offset == 0)
                 {
@@ -258,7 +243,6 @@ void Adafruit_GFX::loadUnifontFile(const char *dir, const char *file)
     Serial.print(file);
     Serial.print("\": ");
     Serial.println("Failure");
-    mylock.unlock();
     #endif //UNIFONT_USE_SDFAT
 }
 #endif // if defined(UNIFONT_USE_FLASH) || defined(UNIFONT_USE_SDFAT)
@@ -1364,14 +1348,8 @@ int Adafruit_GFX::drawCodepoint(int16_t x, int16_t y, uint16_t c, uint16_t color
         } else
         {
             #if defined(UNIFONT_USE_FLASH) || defined(UNIFONT_USE_SDFAT)
-            #ifdef UNIFONT_USE_SDFAT
-            mylock.lock();
-            #endif // UNIFONT_USE_SDFAT
             unifile.seek((uint32_t)unifont[block].glyphs.offset + widthOffset + UNIFONT_BITMASK_LENGTH + charindex / 8);
             mask = unifile.read();
-            #ifdef UNIFONT_USE_SDFAT
-            mylock.unlock();
-            #endif // UNIFONT_USE_SDFAT
             #endif // if defined(UNIFONT_USE_FLASH) || defined(UNIFONT_USE_SDFAT)
         }
 
@@ -1392,14 +1370,8 @@ int Adafruit_GFX::drawCodepoint(int16_t x, int16_t y, uint16_t c, uint16_t color
         } else
         {
             #if defined(UNIFONT_USE_FLASH) || defined(UNIFONT_USE_SDFAT)
-            #ifdef UNIFONT_USE_SDFAT
-            mylock.lock();
-            #endif // UNIFONT_USE_SDFAT
             unifile.seek((uint32_t)unifont[block].glyphs.offset + widthOffset + charindex / 8);
             mask = unifile.read();
-            #ifdef UNIFONT_USE_SDFAT
-            mylock.unlock();
-            #endif // UNIFONT_USE_SDFAT
             #endif // if defined(UNIFONT_USE_FLASH) || defined(UNIFONT_USE_SDFAT)
         }
 
@@ -1430,15 +1402,9 @@ int Adafruit_GFX::drawCodepoint(int16_t x, int16_t y, uint16_t c, uint16_t color
         else
         {
             #if defined(UNIFONT_USE_FLASH) || defined(UNIFONT_USE_SDFAT)
-            #ifdef UNIFONT_USE_SDFAT
-            mylock.lock();
-            #endif // UNIFONT_USE_SDFAT
             uint32_t charOffset = 16 * tableWidth * charindex;
             unifile.seek((uint32_t)unifont[block].glyphs.offset + charOffset);
             unifile.read(&glyph, characterWidth*16);
-            #ifdef UNIFONT_USE_SDFAT
-            mylock.unlock();
-            #endif // UNIFONT_USE_SDFAT
             #endif // if defined(UNIFONT_USE_FLASH) || defined(UNIFONT_USE_SDFAT)
         }
 
@@ -1603,14 +1569,8 @@ void Adafruit_GFX::fix_diacritics(uint16_t *s, size_t length)
         } else if (unifileavailable)
         {
             #if defined(UNIFONT_USE_FLASH) || defined(UNIFONT_USE_SDFAT)
-            #ifdef UNIFONT_USE_SDFAT
-            mylock.lock();
-            #endif // UNIFONT_USE_SDFAT
-              unifile.seek((uint32_t)unifont[block].glyphs.offset + 8192 + charindex / 8);
-              mask = unifile.read();
-            #ifdef UNIFONT_USE_SDFAT
-            mylock.unlock();
-            #endif // UNIFONT_USE_SDFAT
+            unifile.seek((uint32_t)unifont[block].glyphs.offset + 8192 + charindex / 8);
+            mask = unifile.read();
             #endif // if defined(UNIFONT_USE_FLASH) || defined(UNIFONT_USE_SDFAT)
         }
         // If the character at i+1 is non-spacing, swap it with the current character.

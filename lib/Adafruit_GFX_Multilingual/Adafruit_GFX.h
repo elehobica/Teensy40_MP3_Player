@@ -94,7 +94,7 @@ class Adafruit_GFX : public Print {
   static File unifile;    // file handle to unifont.bin, if available
 #endif
 #ifdef UNIFONT_USE_SDFAT
-  static FsFile unifile;    // file handle to unifont.bin, if available
+  static MutexFsBaseFile unifile;    // file handle to unifont.bin, if available
 #endif
 #endif // if defined(UNIFONT_USE_FLASH) || defined(UNIFONT_USE_SDFAT)
 

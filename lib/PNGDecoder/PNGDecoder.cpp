@@ -1,8 +1,6 @@
 #include "PNGDecoder.h"
-#include <TeensyThreads.h>
 
 PNGDecoder PngDec;
-extern Threads::Mutex mylock;
 
 PNGDecoder::PNGDecoder()
 {
@@ -42,7 +40,7 @@ void PNGDecoder::abort()
 	pngDecoder_draw_rgb565_callback = NULL;
 }
 
-int PNGDecoder::loadSdFile(FsBaseFile *pngFile, uint64_t file_pos, size_t file_size)
+int PNGDecoder::loadSdFile(MutexFsBaseFile *pngFile, uint64_t file_pos, size_t file_size)
 {
 	png_src_type = png_sd_file;
 	file = pngFile;
@@ -53,17 +51,14 @@ int PNGDecoder::loadSdFile(FsBaseFile *pngFile, uint64_t file_pos, size_t file_s
 	}
 
 	png_ofs = 0; // PNG binary offset (not file position)
-	{
-		Threads::Scope scope(mylock);
-		if (file_pos == 0) {
-			size = file->size();
-		} else {
-			if (!file->seekSet(file_pos)) {
-				Serial.println("ERROR: PNGDecoder seekSet failed");
-				return -1;
-			}
-			size = file_size;
+	if (file_pos == 0) {
+		size = file->size();
+	} else {
+		if (!file->seekSet(file_pos)) {
+			Serial.println("ERROR: PNGDecoder seekSet failed");
+			return -1;
 		}
+		size = file_size;
 	}
 	return preDecode();
 }
@@ -119,7 +114,6 @@ int PNGDecoder::preDecode()
 	while (1) {
 		int len;
 		if (png_src_type == png_sd_file) {
-			Threads::Scope scope(mylock);
 			len = file->read(buf + unfed, sizeof(buf) - unfed);
 		} else { // png_src_type == png_array
 			len = (remain <= (int) sizeof(buf)) ? sizeof(buf) : remain;
@@ -154,7 +148,6 @@ int PNGDecoder::decode(uint8_t reduce)
 	while (1) {
 		int len;
 		if (png_src_type == png_sd_file) {
-			Threads::Scope scope(mylock);
 			len = file->read(buf + unfed, sizeof(buf) - unfed);
 		} else { // png_src_type == png_array
 			len = (remain <= (int) sizeof(buf)) ? sizeof(buf) : remain;

@@ -1,74 +1,46 @@
 /**
- * Copyright (c) 2011-2019 Bill Greiman
- * This file is part of the SdFat library for SD memory cards.
- *
- * MIT License
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included
- * in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
+ * Wrapper with Mutex for FsBaseFile class 
  */
-#ifndef FsFile_h
-#define FsFile_h
-/**
- * \file
- * \brief FsBaseFile include file.
- */
-#include "FsNew.h"
-#include "FsVolume.h"
-#include "FatLib/FatLib.h"
-#include "ExFatLib/ExFatLib.h"
-/**
- * \class FsBaseFile
- * \brief FsBaseFile class.
- */
-class FsBaseFile {
- public:
-  FsBaseFile() : m_fFile(nullptr), m_xFile(nullptr) {}
 
-  ~FsBaseFile() {close();}
+#ifndef MutexFsBaseFile_h
+#define MutexFsBaseFile_h
+
+#include "FsFile.h"
+#include <TeensyThreads.h>
+
+extern Threads::Mutex mylock;
+
+/**
+ * \class MutexFsBaseFile
+ * \brief MutexFsBaseFile class.
+ */
+class MutexFsBaseFile : public FsBaseFile {
+ public:
+  MutexFsBaseFile();
+
+  ~MutexFsBaseFile();
   /** Copy constructor.
    *
    * \param[in] from Object used to initialize this instance.
    */
-  FsBaseFile(const FsBaseFile& from);
+  MutexFsBaseFile(const MutexFsBaseFile& from);
   /** Copy assignment operator
    * \param[in] from Object used to initialize this instance.
    * \return assigned object.
    */
-  FsBaseFile& operator=(const FsBaseFile& from);
+  MutexFsBaseFile& operator=(const MutexFsBaseFile& from);
   /** The parenthesis operator.
     *
     * \return true if a file is open.
     */
-  operator bool() {return isOpen();}
+  operator bool();
   /** \return number of bytes available from the current position to EOF
    *   or INT_MAX if more than INT_MAX bytes are available.
    */
-  int available() {
-    return m_fFile ? m_fFile->available() :
-           m_xFile ? m_xFile->available() : 0;
-  }
+  int available();
 
   /** Set writeError to zero */
-  void clearWriteError() {
-    if (m_fFile) m_fFile->clearWriteError();
-    if (m_xFile) m_xFile->clearWriteError();
-  }
+  void clearWriteError();
   /** Close a file and force cached data and directory information
    *  to be written to the storage device.
    *
@@ -76,15 +48,9 @@ class FsBaseFile {
    */
   bool close();
   /** \return The current position for a file or directory. */
-  uint64_t curPosition() {
-    return m_fFile ? m_fFile->curPosition() :
-           m_xFile ? m_xFile->curPosition() : 0;
-  }
+  uint64_t curPosition();
   /** \return Directory entry index. */
-  uint32_t dirIndex() {
-    return m_fFile ? m_fFile->dirIndex() :
-           m_xFile ? m_xFile->dirIndex() : 0;
-  }
+  uint32_t dirIndex();
   /** Test for the existence of a file in a directory
    *
    * \param[in] path Path of the file to be tested for.
@@ -96,17 +62,11 @@ class FsBaseFile {
    *
    * \return true if the file exists else false.
    */
-  bool exists(const char* path) {
-    return m_fFile ? m_fFile->exists(path) :
-           m_xFile ? m_xFile->exists(path) : false;
-  }
+  bool exists(const char* path);
   /** get position for streams
    * \param[out] pos struct to receive position
    */
-  void fgetpos(fspos_t* pos) {
-    if (m_fFile) m_fFile->fgetpos(pos);
-    if (m_xFile) m_xFile->fgetpos(pos);
-  }
+  void fgetpos(fspos_t* pos);
  /**
    * Get a string from a file.
    *
@@ -127,29 +87,17 @@ class FsBaseFile {
    * \return For success fgets() returns the length of the string in \a str.
    * If no data is read, fgets() returns zero for EOF or -1 if an error occurred.
    */
-  int fgets(char* str, int num, char* delim = nullptr) {
-    return m_fFile ? m_fFile->fgets(str, num, delim) :
-           m_xFile ? m_xFile->fgets(str, num, delim) : -1;
-  }
+  int fgets(char* str, int num, char* delim = nullptr);
   /** \return The total number of bytes in a file. */
-  uint64_t fileSize() {
-    return m_fFile ? m_fFile->fileSize() :
-           m_xFile ? m_xFile->fileSize() : 0;
-  }
+  uint64_t fileSize();
   /** Ensure that any bytes written to the file are saved to the SD card. */
-  void flush() {sync();}
+  void flush();
   /** set position for streams
    * \param[in] pos struct with value for new position
    */
-  void fsetpos(const fspos_t* pos) {
-    if (m_fFile) m_fFile->fsetpos(pos);
-    if (m_xFile) m_xFile->fsetpos(pos);
-  }
+  void fsetpos(const fspos_t* pos);
   /** \return All error bits. */
-  uint8_t getError() {
-    return m_fFile ? m_fFile->getError() :
-           m_xFile ? m_xFile->getError() : 0XFF;
-  }
+  uint8_t getError();
   /**
    * Get a file's name followed by a zero byte.
    *
@@ -159,43 +107,23 @@ class FsBaseFile {
    *             truncated if the file's name is too long.
    * \return The length of the returned string.
    */
-  size_t getName(char* name, size_t len) {
-    *name = 0;
-    return m_fFile ? m_fFile->getName(name, len) :
-           m_xFile ? m_xFile->getName(name, len) : 0;
-  }
-  size_t getUTF16Name(char16_t* name, size_t len) {
-    *name = 0;
-    return m_fFile ? m_fFile->getUTF16Name(name, len) :
-           m_xFile ? m_xFile->getUTF16Name(name, len) : 0;
-  }
+  size_t getName(char* name, size_t len);
+  size_t getUTF16Name(char16_t* name, size_t len);
 
   /** \return value of writeError */
-  bool getWriteError() {
-    return m_fFile ? m_fFile->getWriteError() :
-           m_xFile ? m_xFile->getWriteError() : true;
-  }
+  bool getWriteError();
   /** \return True if this is a directory else false. */
-  bool isDir() {
-    return m_fFile ? m_fFile->isDir() :
-           m_xFile ? m_xFile->isDir() : false;
-  }
+  bool isDir();
   /** This function reports if the current file is a directory or not.
    * \return true if the file is a directory.
    */
-  bool isDirectory() {return isDir();}
+  bool isDirectory();
   /** \return True if this is a hidden file else false. */
-  bool isHidden() {
-    return m_fFile ? m_fFile->isHidden() :
-           m_xFile ? m_xFile->isHidden() : false;
-  }
+  bool isHidden();
   /** \return True if this is an open file/directory else false. */
-  bool isOpen() {return m_fFile || m_xFile;}
+  bool isOpen();
   /** \return True if this is a subdirectory file else false. */
-  bool isSubDir() {
-    return m_fFile ? m_fFile->isSubDir() :
-           m_xFile ? m_xFile->isSubDir() : false;
-  }
+  bool isSubDir();
 #if ENABLE_ARDUINO_SERIAL
   /** List directory contents.
    *
@@ -207,13 +135,9 @@ class FsBaseFile {
    *
    * LS_R - Recursive list of subdirectories.
    */
-  bool ls(uint8_t flags) {
-    return ls(&Serial, flags);
-  }
+  bool ls(uint8_t flags);
   /** List directory contents. */
-  bool ls() {
-    return ls(&Serial);
-  }
+  bool ls();
 #endif  // ENABLE_ARDUINO_SERIAL
   /** List directory contents.
    *
@@ -221,10 +145,7 @@ class FsBaseFile {
    *
    * \return true for success or false for failure.
    */
-  bool ls(print_t* pr) {
-    return m_fFile ? m_fFile->ls(pr) :
-           m_xFile ? m_xFile->ls(pr) : false;
-  }
+  bool ls(print_t* pr);
   /** List directory contents.
    *
    * \param[in] pr Print object.
@@ -238,10 +159,7 @@ class FsBaseFile {
    *
    * \return true for success or false for failure.
    */
-  bool ls(print_t* pr, uint8_t flags) {
-    return m_fFile ? m_fFile->ls(pr, flags) :
-           m_xFile ? m_xFile->ls(pr, flags) : false;
-  }
+  bool ls(print_t* pr, uint8_t flags);
   /** Make a new directory.
    *
    * \param[in] dir An open FatFile instance for the directory that will
@@ -253,15 +171,13 @@ class FsBaseFile {
    *
    * \return true for success or false for failure.
    */
-  bool mkdir(FsBaseFile* dir, const char* path, bool pFlag = true);
+  bool mkdir(MutexFsBaseFile* dir, const char* path, bool pFlag = true);
   /** No longer implemented due to Long File Names.
    *
    * Use getName(char* name, size_t size).
    * \return a pointer to replacement suggestion.
    */
-  const char* name() const {
-    return "use getName()";
-  }
+  const char* name() const;
   /** Open a file or directory by name.
    *
    * \param[in] dir An open file instance for the directory containing
@@ -303,7 +219,7 @@ class FsBaseFile {
    *
    * \return true for success or false for failure.
    */
-  bool open(FsBaseFile* dir, const char* path, oflag_t oflag = O_RDONLY);
+  bool open(MutexFsBaseFile* dir, const char* path, oflag_t oflag = O_RDONLY);
   /** Open a file by index.
    *
    * \param[in] dir An open FsFile instance for the directory.
@@ -317,7 +233,7 @@ class FsBaseFile {
    * See open() by path for definition of flags.
    * \return true for success or false for failure.
    */
-  bool open(FsBaseFile* dir, uint32_t index, oflag_t oflag);
+  bool open(MutexFsBaseFile* dir, uint32_t index, oflag_t oflag);
   /** Open a file or directory by name.
    *
    * \param[in] vol Volume where the file is located.
@@ -339,63 +255,46 @@ class FsBaseFile {
    *
    * \return true for success or false for failure.
    */
-  bool open(const char* path, oflag_t oflag = O_RDONLY) {
-    return FsVolume::m_cwv && open(FsVolume::m_cwv, path, oflag);
-  }
+  bool open(const char* path, oflag_t oflag = O_RDONLY);
   /** Opens the next file or folder in a directory.
    * \param[in] dir directory containing files.
    * \param[in] oflag open flags.
    * \return a file object.
    */
-  bool openNext(FsBaseFile* dir, oflag_t oflag = O_RDONLY);
+  bool openNext(MutexFsBaseFile* dir, oflag_t oflag = O_RDONLY);
   /** Return the next available byte without consuming it.
    *
    * \return The byte if no error and not at eof else -1;
    */
-  int peek() {
-    return m_fFile ? m_fFile->peek() :
-           m_xFile ? m_xFile->peek() : -1;
-  }
+  int peek();
   /** Print a file's access date and time
    *
    * \param[in] pr Print stream for output.
    *
    * \return true for success or false for failure.
    */
-  size_t printAccessDateTime(print_t* pr) {
-    return m_fFile ? m_fFile->printAccessDateTime(pr) :
-           m_xFile ? m_xFile->printAccessDateTime(pr) : 0;
-  }
+  size_t printAccessDateTime(print_t* pr);
   /** Print a file's creation date and time
    *
    * \param[in] pr Print stream for output.
    *
    * \return true for success or false for failure.
    */
-  size_t printCreateDateTime(print_t* pr) {
-    return m_fFile ? m_fFile->printCreateDateTime(pr) :
-           m_xFile ? m_xFile->printCreateDateTime(pr) : 0;
-  }
+  size_t printCreateDateTime(print_t* pr);
   /** Print a file's modify date and time
    *
    * \param[in] pr Print stream for output.
    *
    * \return true for success or false for failure.
    */
-  size_t printModifyDateTime(print_t* pr) {
-    return m_fFile ? m_fFile->printModifyDateTime(pr) :
-           m_xFile ? m_xFile->printModifyDateTime(pr) : 0;
-  }
+  size_t printModifyDateTime(print_t* pr);
   /** Print a file's name
    *
    * \param[in] pr Print stream for output.
    *
    * \return true for success or false for failure.
    */
-  size_t printName(print_t* pr) {
-    return m_fFile ? m_fFile->printName(pr) :
-           m_xFile ? m_xFile->printName(pr) : 0;
-  }
+  size_t printName(print_t* pr);
   /** Print a file's size.
    *
    * \param[in] pr Print stream for output.
@@ -403,10 +302,7 @@ class FsBaseFile {
    * \return The number of characters printed is returned
    *         for success and zero is returned for failure.
    */
-  size_t printFileSize(print_t* pr) {
-    return m_fFile ? m_fFile->printFileSize(pr) :
-           m_xFile ? m_xFile->printFileSize(pr) : 0;
-  }
+  size_t printFileSize(print_t* pr);
   /** Allocate contiguous clusters to an empty file.
    *
    * The file must be empty with no clusters allocated.
@@ -418,50 +314,36 @@ class FsBaseFile {
    * \param[in] length size of the file in bytes.
    * \return true for success or false for failure.
    */
-  bool preAllocate(uint64_t length) {
-    return m_fFile ? length < (1ULL << 32) && m_fFile->preAllocate(length) :
-           m_xFile ? m_xFile->preAllocate(length) : false;
-  }
+  bool preAllocate(uint64_t length);
   /** \return the current file position. */
-  uint64_t position() {return curPosition();}
+  uint64_t position();
    /** Print a number followed by a field terminator.
    * \param[in] value The number to be printed.
    * \param[in] term The field terminator.  Use '\\n' for CR LF.
    * \param[in] prec Number of digits after decimal point.
    * \return The number of bytes written or -1 if an error occurs.
    */
-  size_t printField(double value, char term, uint8_t prec = 2) {
-    return m_fFile ? m_fFile->printField(value, term, prec) :
-           m_xFile ? m_xFile->printField(value, term, prec) : 0;
-  }
+  size_t printField(double value, char term, uint8_t prec = 2);
   /** Print a number followed by a field terminator.
    * \param[in] value The number to be printed.
    * \param[in] term The field terminator.  Use '\\n' for CR LF.
    * \param[in] prec Number of digits after decimal point.
    * \return The number of bytes written or -1 if an error occurs.
    */
-  size_t printField(float value, char term, uint8_t prec = 2) {
-     return printField(static_cast<double>(value), term, prec);
-  }
+  size_t printField(float value, char term, uint8_t prec = 2);
   /** Print a number followed by a field terminator.
    * \param[in] value The number to be printed.
    * \param[in] term The field terminator.  Use '\\n' for CR LF.
    * \return The number of bytes written or -1 if an error occurs.
    */
   template<typename Type>
-  size_t printField(Type value, char term) {
-    return m_fFile ? m_fFile->printField(value, term) :
-           m_xFile ? m_xFile->printField(value, term) : 0;
-  }
+  size_t printField(Type value, char term);
   /** Read the next byte from a file.
    *
    * \return For success return the next byte in the file as an int.
    * If an error occurs or end of file is reached return -1.
    */
-  int read() {
-    uint8_t b;
-    return read(&b, 1) == 1 ? b : -1;
-  }
+  int read();
   /** Read data from a file starting at the current position.
    *
    * \param[out] buf Pointer to the location that will receive the data.
@@ -475,10 +357,7 @@ class FsBaseFile {
    * read() called before a file has been opened, corrupt file system
    * or an I/O error occurred.
    */
-  int read(void* buf, size_t count) {
-    return m_fFile ? m_fFile->read(buf, count) :
-           m_xFile ? m_xFile->read(buf, count) : -1;
-  }
+  int read(void* buf, size_t count);
   /** Remove a file.
    *
    * The directory entry and all data for the file are deleted.
@@ -504,20 +383,14 @@ class FsBaseFile {
    *
    * \return true for success or false for failure.
    */
-  bool remove(const char* path) {
-    return m_fFile ? m_fFile->remove(path) :
-           m_xFile ? m_xFile->remove(path) : false;
-  }
+  bool remove(const char* path);
   /** Rename a file or subdirectory.
    *
    * \param[in] newPath New path name for the file/directory.
    *
    * \return true for success or false for failure.
    */
-  bool rename(const char* newPath) {
-    return m_fFile ? m_fFile->rename(newPath) :
-           m_xFile ? m_xFile->rename(newPath) : false;
-  }
+  bool rename(const char* newPath);
   /** Rename a file or subdirectory.
    *
    * \param[in] dirFile Directory for the new path.
@@ -525,19 +398,11 @@ class FsBaseFile {
    *
    * \return true for success or false for failure.
    */
-  bool rename(FsBaseFile* dirFile, const char* newPath) {
-    return m_fFile ? m_fFile->rename(dirFile->m_fFile, newPath) :
-           m_xFile ? m_xFile->rename(dirFile->m_xFile, newPath) : false;
-  }
+  bool rename(MutexFsBaseFile* dirFile, const char* newPath);
   /** Set the file's current position to zero. */
-  void rewind() {
-    if (m_fFile) m_fFile->rewind();
-    if (m_xFile) m_xFile->rewind();
-  }
+  void rewind();
   /** Rewind a file if it is a directory */
-  void rewindDirectory() {
-    if (isDir()) rewind();
-  }
+  void rewindDirectory();
   /** Remove a directory file.
    *
    * The directory file will be removed only if it is empty and is not the
@@ -557,43 +422,33 @@ class FsBaseFile {
    * \param[in] pos the new file position.
    * \return true for success or false for failure.
    */
-  bool seek(uint64_t pos) {return seekSet(pos);}
+  bool seek(uint64_t pos);
   /** Set the files position to current position + \a pos. See seekSet().
    * \param[in] offset The new position in bytes from the current position.
    * \return true for success or false for failure.
    */
-  bool seekCur(int64_t offset) {
-    return seekSet(curPosition() + offset);
-  }
+  bool seekCur(int64_t offset);
   /** Set the files position to end-of-file + \a offset. See seekSet().
    * Can't be used for directory files since file size is not defined.
    * \param[in] offset The new position in bytes from end-of-file.
    * \return true for success or false for failure.
    */
-  bool seekEnd(int64_t offset = 0) {
-    return seekSet(fileSize() + offset);
-  }
+  bool seekEnd(int64_t offset = 0);
   /** Sets a file's position.
    *
    * \param[in] pos The new position in bytes from the beginning of the file.
    *
    * \return true for success or false for failure.
    */
-  bool seekSet(uint64_t pos) {
-    return m_fFile ? pos < (1ULL << 32) && m_fFile->seekSet(pos) :
-           m_xFile ? m_xFile->seekSet(pos) : false;
-  }
+  bool seekSet(uint64_t pos);
   /** \return the file's size. */
-  uint64_t size() {return fileSize();}
+  uint64_t size();
   /** The sync() call causes all modified data and directory fields
    * to be written to the storage device.
    *
    * \return true for success or false for failure.
    */
-  bool sync() {
-    return m_fFile ? m_fFile->sync() :
-           m_xFile ? m_xFile->sync() : false;
-  }
+  bool sync();
   /** Set a file's timestamps in its directory entry.
    *
    * \param[in] flags Values for \a flags are constructed by a bitwise-inclusive
@@ -627,22 +482,13 @@ class FsBaseFile {
    * \return true for success or false for failure.
    */
   bool timestamp(uint8_t flags, uint16_t year, uint8_t month, uint8_t day,
-                 uint8_t hour, uint8_t minute, uint8_t second) {
-    return m_fFile ?
-           m_fFile->timestamp(flags, year, month, day, hour, minute, second) :
-           m_xFile ?
-           m_xFile->timestamp(flags, year, month, day, hour, minute, second) :
-           false;
-  }
+                 uint8_t hour, uint8_t minute, uint8_t second);
 
   /** Truncate a file to the current position.
    *
    * \return true for success or false for failure.
    */
-  bool truncate() {
-    return m_fFile ? m_fFile->truncate() :
-           m_xFile ? m_xFile->truncate() : false;
-  }
+  bool truncate();
   /** Truncate a file to a specified length.
    * The current file position will be set to end of file.
    *
@@ -650,16 +496,13 @@ class FsBaseFile {
    *
    * \return true for success or false for failure.
    */
-  bool truncate(uint64_t length) {
-    return m_fFile ? length < (1ULL << 32) && m_fFile->truncate(length) :
-           m_xFile ? m_xFile->truncate(length) : false;
-  }
+  bool truncate(uint64_t length);
   /** Write a byte to a file. Required by the Arduino Print class.
    * \param[in] b the byte to be written.
    * Use getWriteError to check for errors.
    * \return 1 for success and 0 for failure.
    */
-  size_t write(uint8_t b) {return write(&b, 1);}
+  size_t write(uint8_t b);
   /** Write data to an open file.
    *
    * \note Data is moved to the cache but may not be written to the
@@ -675,16 +518,12 @@ class FsBaseFile {
    * for a read-only file, device is full, a corrupt file system or an
    * I/O error.
    */
-  size_t write(const void* buf, size_t count) {
-    return m_fFile ? m_fFile->write(buf, count) :
-           m_xFile ? m_xFile->write(buf, count) : 0;
-  }
+  size_t write(const void* buf, size_t count);
 
- protected:
-  newalign_t m_fileMem[FS_ALIGN_DIM(ExFatFile, FatFile)];
-  FatFile*   m_fFile;
-  ExFatFile* m_xFile;
+ private:
 };
+
+#if 0
 /**
  * \class FsFile
  * \brief FsBaseFile file with Arduino Stream.
@@ -702,4 +541,5 @@ class FsFile : public StreamFile<FsBaseFile, uint64_t> {
     return tmpFile;
   }
 };
-#endif  // FsFile_h
+#endif
+#endif  // MutexFsBaseFile_h

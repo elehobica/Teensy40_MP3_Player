@@ -53,8 +53,8 @@ class MyAudioPlaySdMp3 : public MyAudioCodec
 public:
 	void stop(void);
 	void stop2(void);
-	int standby_play(FsBaseFile *file);
-	int play(FsBaseFile *file, size_t position = 0, unsigned samples_played = 0) {stop();if (!fopen(file)) return ERR_CODEC_FILE_NOT_FOUND; return play(position, samples_played);}
+	int standby_play(MutexFsBaseFile *file);
+	int play(MutexFsBaseFile *file, size_t position = 0, unsigned samples_played = 0) {stop();if (!fopen(file)) return ERR_CODEC_FILE_NOT_FOUND; return play(position, samples_played);}
 	//int play(const char *filename) {stop();if (!fopen(filename)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
 	//int play(const size_t p, const size_t size) {stop();if (!fopen(p,size)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
 	//int play(const uint8_t*p, const size_t size) {stop();if (!fopen(p,size))  return ERR_CODEC_FILE_NOT_FOUND; return play();}
@@ -79,8 +79,9 @@ protected:
 
 	int play(size_t position = 0, unsigned samples_played = 0);
 	void update(void);
-	friend void my_decodeMp3(void);
+	friend void my_decodeMp3_core(void);
 };
 
+void my_decodeMp3_core(void);
 
 #endif

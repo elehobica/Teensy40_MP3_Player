@@ -331,13 +331,12 @@ public:
 
   class Event {
   private:
-    Threads::Mutex lock;
     volatile bool flag = 0;
   public:
-    void trigger();
-    void clear();
-    int wait(unsigned int timeout_ms = 0);
-    bool getState();
+    void trigger(); // get the lock state; 1=locked; 0=unlocked
+    void clear(); // get the lock state; 1=locked; 0=unlocked
+    int wait(unsigned int timeout_ms = 0); // lock, optionally waiting up to timeout_ms milliseconds
+    bool getState(); // if lock available, get it and return 1; otherwise return 0
   };
 
   template <class C> class GrabTemp {

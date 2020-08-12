@@ -30,4 +30,5 @@
  */
 #include "FsVolume.h"
 #include "FsFile.h"
+#include "MutexFsBaseFile.h"
 #endif  // FsLib_h

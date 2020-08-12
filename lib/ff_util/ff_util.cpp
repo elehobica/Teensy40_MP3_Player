@@ -3,8 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-Threads::Mutex mylock;
-
 #if SD_FAT_TYPE == 2
 SdExFat sd;
 static ExFile parent_dir[MAX_DEPTH_DIR]; 	// preserve parent directory
@@ -13,10 +11,10 @@ static ExFile file;
 static ExFile file_temp;
 #elif SD_FAT_TYPE == 3
 SdFs sd;
-static FsFile parent_dir[MAX_DEPTH_DIR]; 	// preserve parent directory
-static FsFile dir;
-static FsFile file;
-static FsFile file_temp;
+static MutexFsBaseFile parent_dir[MAX_DEPTH_DIR]; 	// preserve parent directory
+static MutexFsBaseFile dir;
+static MutexFsBaseFile file;
+static MutexFsBaseFile file_temp;
 #else  // SD_FAT_TYPE
 #error Invalid SD_FAT_TYPE
 #endif  // SD_FAT_TYPE
@@ -94,7 +92,7 @@ static int32_t my_strncmp(char *str1 , char *str2, int size)
 	return result;
 }
 
-static FRESULT idx_f_stat(uint16_t idx,  FsBaseFile *fp)
+static FRESULT idx_f_stat(uint16_t idx,  MutexFsBaseFile *fp)
 {
 	if (idx == 0) {
 		*fp = parent_dir[path_depth-1];
@@ -362,7 +360,6 @@ static void idx_sort_delete(void)
 // For implicit sort all entries
 void file_menu_idle(void)
 {
-	Threads::Scope scope(mylock);
 	const int range = 20;
 	static int up_down = 0;
 	uint16_t r_start = 0;
@@ -406,7 +403,6 @@ void file_menu_idle(void)
 
 void file_menu_sort_entry(uint16_t scope_start, uint16_t scope_end_1)
 {
-	Threads::Scope scope(mylock);
 	uint16_t wing;
 	uint16_t wing_start, wing_end_1;
 	if (scope_start >= scope_end_1) return;
@@ -430,7 +426,6 @@ void file_menu_full_sort(void)
 FRESULT file_menu_get_fname(uint16_t order, char *str, size_t size)
 {
 	file_menu_sort_entry(order, order+5);
-	Threads::Scope scope(mylock);
 	if (order >= max_entry_cnt) { return FR_INVALID_PARAMETER; }
 	if (order == 0) {
 		strncpy(str, "..", size);
@@ -444,7 +439,7 @@ FRESULT file_menu_get_fname(uint16_t order, char *str, size_t size)
 
 FRESULT file_menu_get_fname_UTF16(uint16_t order, char16_t *str, size_t size)
 {
-	FsBaseFile file;
+	MutexFsBaseFile file;
 	FRESULT result = file_menu_get_obj(order, &file);
 	if (result == FR_OK) {
 		file.getUTF16Name(str, size);
@@ -452,10 +447,9 @@ FRESULT file_menu_get_fname_UTF16(uint16_t order, char16_t *str, size_t size)
 	return result;
 }
 
-FRESULT file_menu_get_obj(uint16_t order, FsBaseFile *file)
+FRESULT file_menu_get_obj(uint16_t order, MutexFsBaseFile *file)
 {
 	file_menu_sort_entry(order, order+5);
-	Threads::Scope scope(mylock);
 	if (order >= max_entry_cnt) { return FR_INVALID_PARAMETER; }
 	if (order == 0) {
 		return FR_INVALID_PARAMETER;
@@ -482,21 +476,23 @@ uint16_t file_menu_get_size(void)
 
 FRESULT file_menu_open_root_dir()
 {
-	Threads::Scope scope(mylock);
 	f_stat_cnt = 1;
 	last_order = 0;
 	path_depth = 0;
-	// Initialize the SD.
-	if (!sd.begin(SD_CONFIG)) {
-		// stop here, but print a message repetitively
-		while (1) {
-			Serial.println("Unable to access the SD card");
-			delay(500);
+	{
+		Threads::Scope scope(mylock); // sd needs to protect by Mutex (because it's not FsBaseFile)
+		// Initialize the SD.
+		if (!sd.begin(SD_CONFIG)) {
+			// stop here, but print a message repetitively
+			while (1) {
+				Serial.println("Unable to access the SD card");
+				delay(500);
+			}
+			return FR_INVALID_PARAMETER;
 		}
-        return FR_INVALID_PARAMETER;
+		Serial.print("SD card OK (16: FAT, 32: FAT32, 64: ExFAT): ");
+		Serial.println(sd.fatType());
 	}
-	Serial.print("SD card OK (16: FAT, 32: FAT32, 64: ExFAT): ");
-	Serial.println(sd.fatType());
     if (dir.open("/")) {
 		parent_dir[path_depth++] = dir;
 		idx_sort_new();
@@ -514,7 +510,6 @@ uint8_t file_menu_get_fatType()
 
 FRESULT file_menu_ch_dir(uint16_t order)
 {
-	Threads::Scope scope(mylock);
 	f_stat_cnt = 1;
 	last_order = 0;
 	if (order == 0) {
@@ -524,7 +519,7 @@ FRESULT file_menu_ch_dir(uint16_t order)
 			idx_sort_new();
 		}
 	} else if (order < max_entry_cnt && path_depth < MAX_DEPTH_DIR - 1) {
-		FsFile new_dir;
+		MutexFsBaseFile new_dir;
 		idx_f_stat(entry_list[order], &file);
 		new_dir.open(&dir, file.dirIndex(), O_RDONLY);
 		dir.rewindDirectory();
@@ -540,7 +535,6 @@ FRESULT file_menu_ch_dir(uint16_t order)
 
 void file_menu_close_dir(void)
 {
-	Threads::Scope scope(mylock);
 	/*
 	for (int i = 0; i < max_entry_cnt; i++) {
 		char temp_str[5] = "    ";

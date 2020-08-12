@@ -110,7 +110,7 @@ protected:
 	int image_count;
 	int image_idx;
 	image_t image_array[MaxImgCnt];
-	FsBaseFile file;
+	MutexFsBaseFile file;
 	void jpegMcu2sAccum(int count, uint16_t mcu_w, uint16_t mcu_h, uint16_t *pImage);
 	void loadJpegBin(char *ptr, size_t size);
 	void loadJpegFile(uint16_t file_idx, uint64_t pos, size_t size);

@@ -44,13 +44,13 @@
 #include "my_play_sd_mp3.h"
 #include <TeensyThreads.h>
 
+extern Threads::Event codec_event;
+
 #define MP3_SD_BUF_SIZE	2048 								//Enough space for a complete stereo frame
 #define MP3_BUF_SIZE	(MAX_NCHAN * MAX_NGRAN * MAX_NSAMP) //MP3 output buffer
 #define DECODE_NUM_STATES 2									//How many steps in decode() ?
 
 #define MIN_FREE_RAM (35+1)*1024 // 1KB Reserve
-
-extern Threads::Mutex mylock;
 
 //#define CODEC_DEBUG
 
@@ -73,9 +73,8 @@ void MyAudioPlaySdMp3::stop(void)
 	if (buf[0]) {free(buf[0]);buf[0] = NULL;}
 	freeBuffer();
 	if (hMP3Decoder) {MP3FreeDecoder(hMP3Decoder);hMP3Decoder=NULL;};
-	mylock.lock();
 	fclose();
-	mylock.unlock();
+	mp3objptr = NULL;
 }
 /*
 float MyAudioPlaySdMp3::processorUsageMaxDecoder(void){
@@ -93,15 +92,13 @@ float MyAudioPlaySdMp3::processorUsageMaxSD(void){
 };
 */
 
-int MyAudioPlaySdMp3::standby_play(FsBaseFile *file)
+int MyAudioPlaySdMp3::standby_play(MutexFsBaseFile *file)
 {
 	//ftype=my_codec_file; fptr=NULL; _file = *file; _fsize=_file.fileSize(); _fposition=0;
 	//if (!fopen(_file)) return ERR_CODEC_FILE_NOT_FOUND;
 	//uint8_t *sd_buf_temp = allocBuffer(MP3_SD_BUF_SIZE);
 	uint8_t sd_buf_temp[10];
-	mylock.lock();
 	int sd_left_temp = file->read(sd_buf_temp, 10);
-	mylock.unlock();
 	//Skip ID3, if existent
 	int skip = skipID3(sd_buf_temp);
 	size_t size_id3_temp;
@@ -126,13 +123,12 @@ int MyAudioPlaySdMp3::standby_play(FsBaseFile *file)
 
 	// instance copy start
 	initVars();
-	mylock.lock();
+	mp3objptr = this;
 	ftype=my_codec_file;
 	fptr=NULL;
-	_file = FsBaseFile(*file);
+	_file = MutexFsBaseFile(*file);
 	_fsize=_file.fileSize();
 	_fposition=10;
-	mylock.unlock();
 
 	memcpy(sd_buf, sd_buf_temp, sizeof(sd_buf_temp));
 
@@ -142,7 +138,6 @@ int MyAudioPlaySdMp3::standby_play(FsBaseFile *file)
 
 	lastError = ERR_CODEC_NONE;
 
-	mylock.lock();
 	if (b) {
 		fseek(b);
 	} else {
@@ -150,7 +145,6 @@ int MyAudioPlaySdMp3::standby_play(FsBaseFile *file)
 	}
 	//Fill buffer from the beginning with fresh data
 	sd_left = fillReadBuffer(sd_buf, sd_buf, sd_left, MP3_SD_BUF_SIZE);
-	mylock.unlock();
 
 	if (!sd_left) {
 		lastError = ERR_CODEC_FILE_NOT_FOUND;
@@ -171,7 +165,7 @@ int MyAudioPlaySdMp3::standby_play(FsBaseFile *file)
 	sd_p = sd_buf;
 
 	for (size_t i=0; i< DECODE_NUM_STATES; i++) {
-		my_decodeMp3();
+		my_decodeMp3_core();
 	}
 
 	if((mp3FrameInfo.samprate != AUDIOCODECS_SAMPLE_RATE ) || (mp3FrameInfo.bitsPerSample != 16) || (mp3FrameInfo.nChans > 2)) {
@@ -226,7 +220,6 @@ int MyAudioPlaySdMp3::play(size_t position, unsigned samples_played)
 	Serial.println(millis());
 	*/
 
-	mylock.lock();
 	//Read-ahead 10 Bytes to detect ID3
 	sd_left =  fread(sd_buf, 10);
 
@@ -246,7 +239,6 @@ int MyAudioPlaySdMp3::play(size_t position, unsigned samples_played)
 
 	//Fill buffer from the beginning with fresh data
 	sd_left = fillReadBuffer(sd_buf, sd_buf, sd_left, MP3_SD_BUF_SIZE);
-	mylock.unlock();
 
 	if (!sd_left) {
 		lastError = ERR_CODEC_FILE_NOT_FOUND;
@@ -267,7 +259,7 @@ int MyAudioPlaySdMp3::play(size_t position, unsigned samples_played)
 	sd_p = sd_buf;
 
 	for (size_t i=0; i< DECODE_NUM_STATES; i++) {
-		my_decodeMp3(); // need to decode 1st frame to get Xing Header of VBR
+		my_decodeMp3_core(); // need to decode 1st frame to get Xing Header of VBR
 	}
 
 	// For Resume play with 'position'
@@ -378,16 +370,16 @@ void MyAudioPlaySdMp3::update(void)
 
 }
 
-//decoding-interrupt
-//__attribute__ ((optimize("O2"))) <- does not work here, bug in g++
 void my_decodeMp3(void)
 {
-	if (!mylock.try_lock()) {
-		#ifdef DEBUG_MY_PLAY_SD_MP3
-		Serial.println("my_decodeMp3: blocked");
-		#endif // DEBUG_MY_PLAY_SD_MP3
-		return;
-	}
+	codec_event.trigger();
+}
+
+//decoding-interrupt
+//__attribute__ ((optimize("O2"))) <- does not work here, bug in g++
+void my_decodeMp3_core(void)
+{
+	if (mp3objptr == NULL) return;
 	MyAudioPlaySdMp3 *o = mp3objptr;
 	int db = o->decoding_block;
 
@@ -399,7 +391,6 @@ void my_decodeMp3(void)
 	uint32_t cycles = ARM_DWT_CYCCNT;
 
 	if ( o->decoded_length[db] > 0 ) {
-		mylock.unlock();
 		return; //this block is playing, do NOT fill it
 	}
 
@@ -481,7 +472,6 @@ mp3end:
 	Serial.print("my_decodeMp3 mp3end: ");
 	Serial.println(millis());
 	*/
-	mylock.unlock();
 }
 
 // stop called from ISR (mylock non-blocking)
@@ -496,6 +486,7 @@ void MyAudioPlaySdMp3::stop2(void)
 	*/
 	//if (hMP3Decoder) {MP3FreeDecoder(hMP3Decoder);hMP3Decoder=NULL;};
 	fclose();
+	mp3objptr = NULL;
 }
 
 // lengthMillis (Override)

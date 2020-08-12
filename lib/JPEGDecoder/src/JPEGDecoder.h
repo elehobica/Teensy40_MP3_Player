@@ -91,7 +91,7 @@ private:
   File g_pInFileSd;
 #endif
 #ifdef LOAD_SDFAT_LIBRARY
-  FsBaseFile *g_pInFileSd;
+  MutexFsBaseFile *g_pInFileSd;
 #endif
 
 #ifdef LOAD_SPIFFS
@@ -154,7 +154,7 @@ public:
 //  0: normal MCU size
 //  1: 1/8 MCU size for x, y
 #ifdef LOAD_SDFAT_LIBRARY
-  int decodeSdFile (FsBaseFile *jpgFile, uint64_t pos = 0, size_t size = 0, uint8_t reduce = 0);
+  int decodeSdFile (MutexFsBaseFile *jpgFile, uint64_t pos = 0, size_t size = 0, uint8_t reduce = 0);
 #endif
 
 #ifdef LOAD_SPIFFS

@@ -96,11 +96,11 @@ public:
     int getPicturePos(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size);
 
 private:
-    FsBaseFile file;
+    MutexFsBaseFile file;
     id31 *id3v1;
     id32 *id3v2;
-    int GetID3HeadersFull(FsBaseFile* infile, int testfail, id31** id31save, id32** id32save);
-    id32* ID32Detect(FsBaseFile* infile);
+    int GetID3HeadersFull(MutexFsBaseFile* infile, int testfail, id31** id31save, id32** id32save);
+    id32* ID32Detect(MutexFsBaseFile* infile);
     int GetID32UTF8(const char *id3v22, const char *id3v23, char *str, size_t size);
     int GetIDCount(const char *id3v22, const char *id3v23);
     void ID32Print(id32* id32header);
