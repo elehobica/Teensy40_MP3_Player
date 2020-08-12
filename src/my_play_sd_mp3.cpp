@@ -195,7 +195,7 @@ int MyAudioPlaySdMp3::standby_play(FsBaseFile *file)
     return lastError;
 }
 
-int MyAudioPlaySdMp3::play(void)
+int MyAudioPlaySdMp3::play(size_t position)
 {
 	/*
 	Serial.print("play: ");
@@ -267,7 +267,20 @@ int MyAudioPlaySdMp3::play(void)
 	sd_p = sd_buf;
 
 	for (size_t i=0; i< DECODE_NUM_STATES; i++) {
-		my_decodeMp3();
+		my_decodeMp3(); // need to decode 1st frame to get Xing Header of VBR
+	}
+
+	// For Resume play with 'position'
+	if (position != 0) {
+		fseek(position);
+		// Replace sd_buf data after sd_p with Frame Data in 'position'
+
+		// [Method 1]: just replace data after sd_p with Frame Data in 'position'
+		//fread(sd_p, sd_left);
+
+		// [Method 2]: set sd_p = sd_buf and fill sd_buf fully with Frame Data in 'position'
+		sd_left = fillReadBuffer(sd_buf, sd_p, 0, MP3_SD_BUF_SIZE);
+		sd_p = sd_buf;
 	}
 
 	if((mp3FrameInfo.samprate != AUDIOCODECS_SAMPLE_RATE ) || (mp3FrameInfo.bitsPerSample != 16) || (mp3FrameInfo.nChans > 2)) {

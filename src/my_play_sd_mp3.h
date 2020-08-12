@@ -54,11 +54,12 @@ public:
 	void stop(void);
 	void stop2(void);
 	int standby_play(FsBaseFile *file);
-	int play(FsBaseFile *file) {stop();if (!fopen(file)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
+	int play(FsBaseFile *file, size_t position = 0) {stop();if (!fopen(file)) return ERR_CODEC_FILE_NOT_FOUND; return play(position);}
 	int play(const char *filename) {stop();if (!fopen(filename)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
 	int play(const size_t p, const size_t size) {stop();if (!fopen(p,size)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
 	int play(const uint8_t*p, const size_t size) {stop();if (!fopen(p,size))  return ERR_CODEC_FILE_NOT_FOUND; return play();}
 	unsigned lengthMillis(void);
+	size_t fposition(void) { return MyAudioCodec::fposition() - sd_left; } // fposition indicates MP3 Frame Sync position exactly
 
 protected:
 	uint8_t			*sd_buf;
@@ -76,7 +77,7 @@ protected:
 	HMP3Decoder		hMP3Decoder;
 	MP3FrameInfo	mp3FrameInfo;
 
-	int play(void);
+	int play(size_t position = 0);
 	void update(void);
 	friend void my_decodeMp3(void);
 };

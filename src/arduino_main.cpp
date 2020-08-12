@@ -17,7 +17,11 @@
 #include "id3read.h"
 #include "utf_conv.h"
 
+const int Version = 100;
+
 FsBaseFile file;
+size_t fpos = 0;
+uint32_t samples_played = 0;
 
 #define NUM_BTN_HISTORY   30
 #define HP_BUTTON_OPEN    0
@@ -32,43 +36,51 @@ uint32_t button_repeat_count = 0;
 #define EEPROM_BASE 0
 // Config Space (Byte Unit Access)
 #define CFG_BASE    EEPROM_BASE
-#define CFG_SIZE    40 // 0x28
-#define CFG_VERSION_L       (EEPROM_BASE + 0)
-#define CFG_VERSION_H       (EEPROM_BASE + 1)
-#define CFG_EPRW_COUNT_L    (EEPROM_BASE + 2)
-#define CFG_EPRW_COUNT_H    (EEPROM_BASE + 3)
-#define CFG_SEED            (EEPROM_BASE + 4)
-#define CFG_VOLUME          (EEPROM_BASE + 5)
-#define CFG_STACK_COUNT     (EEPROM_BASE + 6)
-#define CFG_STACK_HEAD0_L   (EEPROM_BASE + 7)
-#define CFG_STACK_HEAD0_H   (EEPROM_BASE + 8)
-#define CFG_STACK_COLUMN0_L (EEPROM_BASE + 9)
-#define CFG_STACK_COLUMN0_H (EEPROM_BASE + 10)
-#define CFG_STACK_HEAD1_L   (EEPROM_BASE + 11)
-#define CFG_STACK_HEAD1_H   (EEPROM_BASE + 12)
-#define CFG_STACK_COLUMN1_L (EEPROM_BASE + 13)
-#define CFG_STACK_COLUMN1_H (EEPROM_BASE + 14)
-#define CFG_STACK_HEAD2_L   (EEPROM_BASE + 15)
-#define CFG_STACK_HEAD2_H   (EEPROM_BASE + 16)
-#define CFG_STACK_COLUMN2_L (EEPROM_BASE + 17)
-#define CFG_STACK_COLUMN2_H (EEPROM_BASE + 18)
-#define CFG_STACK_HEAD3_L   (EEPROM_BASE + 19)
-#define CFG_STACK_HEAD3_H   (EEPROM_BASE + 20)
-#define CFG_STACK_COLUMN3_L (EEPROM_BASE + 21)
-#define CFG_STACK_COLUMN3_H (EEPROM_BASE + 22)
-#define CFG_STACK_HEAD4_L   (EEPROM_BASE + 23)
-#define CFG_STACK_HEAD4_H   (EEPROM_BASE + 24)
-#define CFG_STACK_COLUMN4_L (EEPROM_BASE + 25)
-#define CFG_STACK_COLUMN4_H (EEPROM_BASE + 26)
-#define CFG_IDX_HEAD_L      (EEPROM_BASE + 27)
-#define CFG_IDX_HEAD_H      (EEPROM_BASE + 28)
-#define CFG_IDX_COLUMN_L    (EEPROM_BASE + 29)
-#define CFG_IDX_COLUMN_H    (EEPROM_BASE + 30)
-#define CFG_MODE            (EEPROM_BASE + 31)
-#define CFG_DATA_OFFSET0    (EEPROM_BASE + 32)
-#define CFG_DATA_OFFSET1    (EEPROM_BASE + 33)
-#define CFG_DATA_OFFSET2    (EEPROM_BASE + 34)
-#define CFG_DATA_OFFSET3    (EEPROM_BASE + 35)
+#define CFG_SIZE    48 // 0x30
+#define CFG_EPRW_COUNT_L    (EEPROM_BASE + 0)
+#define CFG_EPRW_COUNT_H    (EEPROM_BASE + 1)
+#define CFG_SEED            (EEPROM_BASE + 2)
+#define CFG_VOLUME          (EEPROM_BASE + 3)
+#define CFG_STACK_COUNT     (EEPROM_BASE + 4)
+#define CFG_STACK_HEAD0_L   (EEPROM_BASE + 5)
+#define CFG_STACK_HEAD0_H   (EEPROM_BASE + 6)
+#define CFG_STACK_COLUMN0_L (EEPROM_BASE + 7)
+#define CFG_STACK_COLUMN0_H (EEPROM_BASE + 8)
+#define CFG_STACK_HEAD1_L   (EEPROM_BASE + 9)
+#define CFG_STACK_HEAD1_H   (EEPROM_BASE + 10)
+#define CFG_STACK_COLUMN1_L (EEPROM_BASE + 11)
+#define CFG_STACK_COLUMN1_H (EEPROM_BASE + 12)
+#define CFG_STACK_HEAD2_L   (EEPROM_BASE + 13)
+#define CFG_STACK_HEAD2_H   (EEPROM_BASE + 14)
+#define CFG_STACK_COLUMN2_L (EEPROM_BASE + 15)
+#define CFG_STACK_COLUMN2_H (EEPROM_BASE + 16)
+#define CFG_STACK_HEAD3_L   (EEPROM_BASE + 17)
+#define CFG_STACK_HEAD3_H   (EEPROM_BASE + 18)
+#define CFG_STACK_COLUMN3_L (EEPROM_BASE + 19)
+#define CFG_STACK_COLUMN3_H (EEPROM_BASE + 20)
+#define CFG_STACK_HEAD4_L   (EEPROM_BASE + 21)
+#define CFG_STACK_HEAD4_H   (EEPROM_BASE + 22)
+#define CFG_STACK_COLUMN4_L (EEPROM_BASE + 23)
+#define CFG_STACK_COLUMN4_H (EEPROM_BASE + 24)
+#define CFG_IDX_HEAD_L      (EEPROM_BASE + 25)
+#define CFG_IDX_HEAD_H      (EEPROM_BASE + 26)
+#define CFG_IDX_COLUMN_L    (EEPROM_BASE + 27)
+#define CFG_IDX_COLUMN_H    (EEPROM_BASE + 28)
+#define CFG_MODE            (EEPROM_BASE + 29)
+#define CFG_IDX_PLAY_L      (EEPROM_BASE + 30)
+#define CFG_IDX_PLAY_H      (EEPROM_BASE + 31)
+#define CFG_PLAY_POS0       (EEPROM_BASE + 32)
+#define CFG_PLAY_POS1       (EEPROM_BASE + 33)
+#define CFG_PLAY_POS2       (EEPROM_BASE + 34)
+#define CFG_PLAY_POS3       (EEPROM_BASE + 35)
+#define CFG_PLAY_POS4       (EEPROM_BASE + 36)
+#define CFG_PLAY_POS5       (EEPROM_BASE + 37)
+#define CFG_PLAY_POS6       (EEPROM_BASE + 38)
+#define CFG_PLAY_POS7       (EEPROM_BASE + 39)
+#define CFG_SAMPLES_PLAYED0 (EEPROM_BASE + 40)
+#define CFG_SAMPLES_PLAYED1 (EEPROM_BASE + 41)
+#define CFG_SAMPLES_PLAYED2 (EEPROM_BASE + 42)
+#define CFG_SAMPLES_PLAYED3 (EEPROM_BASE + 43)
 
 uint16_t eprw_count; // EEPROM Write Count (to check for write endurance of 100,000 cycles)
 
@@ -107,63 +119,71 @@ uint16_t idx_play = 0;
 
 ID3Read id3;
 
-void loadFromEEPROM(void)
+void initEEPROM(void)
 {
-    char _str[64];
-    uint8_t version_l = EEPROM.read(CFG_VERSION_L);
-    uint8_t version_h = EEPROM.read(CFG_VERSION_H);
-    Serial.println("###################################");
-    sprintf(_str, "Teensy 4.0 MP3 Player ver. %d.%02d", (int) version_h, (int) version_l);
-    Serial.println(_str);
-    Serial.println("###################################");
-    if (version_l == 0xff && version_h == 0xff) { // Default Value Clear
-        EEPROM.write(CFG_VERSION_L, 0);
-        EEPROM.write(CFG_VERSION_H, 1);
-        EEPROM.write(CFG_EPRW_COUNT_L, 0);
-        EEPROM.write(CFG_EPRW_COUNT_H, 0);
-        EEPROM.write(CFG_SEED, 0);
+    char str[64];
+    eprw_count = ((uint16_t) EEPROM.read(CFG_EPRW_COUNT_H) << 8) | ((uint16_t) EEPROM.read(CFG_EPRW_COUNT_L));
+    if (eprw_count == 0xffff) { // Default Value Clear if area is not initialized
+        eprw_count = 0;
+        // Clear the value other than zero
         EEPROM.write(CFG_VOLUME, 65);
-        EEPROM.write(CFG_STACK_COUNT, 0);
-        EEPROM.write(CFG_STACK_HEAD0_L, 0);
-        EEPROM.write(CFG_STACK_HEAD0_H, 0);
-        EEPROM.write(CFG_STACK_COLUMN0_L, 0);
-        EEPROM.write(CFG_STACK_COLUMN0_H, 0);
-        EEPROM.write(CFG_STACK_HEAD1_L, 0);
-        EEPROM.write(CFG_STACK_HEAD1_H, 0);
-        EEPROM.write(CFG_STACK_COLUMN1_L, 0);
-        EEPROM.write(CFG_STACK_COLUMN1_H, 0);
-        EEPROM.write(CFG_STACK_HEAD2_L, 0);
-        EEPROM.write(CFG_STACK_HEAD2_H, 0);
-        EEPROM.write(CFG_STACK_COLUMN2_L, 0);
-        EEPROM.write(CFG_STACK_COLUMN2_H, 0);
-        EEPROM.write(CFG_STACK_HEAD3_L, 0);
-        EEPROM.write(CFG_STACK_HEAD3_H, 0);
-        EEPROM.write(CFG_STACK_COLUMN3_L, 0);
-        EEPROM.write(CFG_STACK_COLUMN3_H, 0);
-        EEPROM.write(CFG_STACK_HEAD4_L, 0);
-        EEPROM.write(CFG_STACK_HEAD4_H, 0);
-        EEPROM.write(CFG_STACK_COLUMN4_L, 0);
-        EEPROM.write(CFG_STACK_COLUMN4_H, 0);
-        EEPROM.write(CFG_IDX_HEAD_L, 0);
-        EEPROM.write(CFG_IDX_HEAD_H, 0);
-        EEPROM.write(CFG_IDX_COLUMN_L, 0);
-        EEPROM.write(CFG_IDX_COLUMN_H, 0);
-        EEPROM.write(CFG_MODE, 0);
-        EEPROM.write(CFG_DATA_OFFSET0, 0);
-        EEPROM.write(CFG_DATA_OFFSET1, 0);
-        EEPROM.write(CFG_DATA_OFFSET2, 0);
-        EEPROM.write(CFG_DATA_OFFSET3, 0);
+        // Zero Clear
+        for (int i = CFG_EPRW_COUNT_L; i < CFG_EPRW_COUNT_L + CFG_SIZE; i++) {
+            if (i == CFG_VOLUME) { continue; }
+            EEPROM.write(i, 0);
+        }
     } else {
         for (int i = 0; i < CFG_SIZE; i++) {
             int value = EEPROM.read(CFG_BASE + i);
-            sprintf(_str, "CFG[%d] = 0x%02x (%d)", i, value, value);
-            Serial.println(_str);
+            if (i % 0x10 == 0) {
+                sprintf(str, "CFG[0x%02x]: ", i);
+                Serial.print(str);
+            }
+            sprintf(str, "%02x ", value);
+            Serial.print(str);
+            if (i % 0x10 == 0xf) {
+                Serial.println();
+            }
         }
     }
+    sprintf(str, "EEPROM Write Count: %d", (int) eprw_count);
+    Serial.println(str);
+}
+
+void loadFromEEPROM(void)
+{
     i2s1.set_volume(EEPROM.read(CFG_VOLUME));
-    eprw_count = ((uint16_t) EEPROM.read(CFG_EPRW_COUNT_H) << 8) | ((uint16_t) EEPROM.read(CFG_EPRW_COUNT_L));
-    sprintf(_str, "EEPROM Write Count: %d", (int) eprw_count);
-    Serial.println(_str);
+    for (int i = EEPROM.read(CFG_STACK_COUNT) - 1; i >= 0; i--) {
+        item.head = ((uint16_t) EEPROM.read(CFG_STACK_HEAD0_H + i*4) << 8) | ((uint16_t) EEPROM.read(CFG_STACK_HEAD0_L + i*4));
+        item.column = ((uint16_t) EEPROM.read(CFG_STACK_COLUMN0_H + i*4) << 8) | ((uint16_t) EEPROM.read(CFG_STACK_COLUMN0_L + i*4));
+        file_menu_sort_entry(item.head+item.column, item.head+item.column + 1);
+        if (file_menu_is_dir(item.head+item.column) <= 0 || item.head+item.column == 0) { // Not Directory or Parent Directory
+            break;
+        }
+        stack_push(stack, &item);
+        file_menu_ch_dir(item.head+item.column);
+    }
+    idx_head = ((uint16_t) EEPROM.read(CFG_IDX_HEAD_H) << 8) | ((uint16_t) EEPROM.read(CFG_IDX_HEAD_L));
+    idx_column = ((uint16_t) EEPROM.read(CFG_IDX_COLUMN_H) << 8) | ((uint16_t) EEPROM.read(CFG_IDX_COLUMN_L));
+    mode = static_cast<LcdCanvas::mode_enm>(EEPROM.read(CFG_MODE));
+    idx_play = ((uint16_t) EEPROM.read(CFG_IDX_PLAY_H) << 8) | ((uint16_t) EEPROM.read(CFG_IDX_PLAY_L));
+    if (mode == LcdCanvas::Play) {
+        mode = LcdCanvas::FileView;
+        idx_req_open = 1;
+        uint64_t play_pos = 0;
+        for (int i = 0; i < 8; i++) {
+            play_pos |=  ((uint64_t) EEPROM.read(CFG_PLAY_POS0+i) << i*8);
+        }
+        fpos = (size_t) play_pos;
+        for (int i = 0; i < 4; i++) {
+            samples_played |=  ((uint32_t) EEPROM.read(CFG_SAMPLES_PLAYED0+i) << i*8);
+        }
+        /*{ // DEBUG
+            char str[64];
+            sprintf(str, "play_pos: %d, samples_played: %d", (int) play_pos, (int) samples_played);
+            Serial.println(str);
+        }*/
+    }
 }
 
 void power_off(void)
@@ -171,7 +191,11 @@ void power_off(void)
     lcd.switchToPowerOff();
     lcd.draw();
     uint8_t volume = i2s1.get_volume();
+    fpos = 0;
+    samples_played = 0;
     if (playMp3.isPlaying()) {
+        fpos = playMp3.fposition();
+        samples_played = playMp3.getSamplesPlayed();
         while (i2s1.get_volume() > 0) {
             i2s1.volume_down();
             delay(5);
@@ -197,6 +221,15 @@ void power_off(void)
     EEPROM.write(CFG_IDX_COLUMN_L, (uint8_t) (idx_column & 0xff));
     EEPROM.write(CFG_IDX_COLUMN_H, (uint8_t) ((idx_column >> 8) & 0xff));
     EEPROM.write(CFG_MODE, static_cast<uint8_t>(mode_prv));
+    EEPROM.write(CFG_IDX_PLAY_L, (uint8_t) (idx_play & 0xff));
+    EEPROM.write(CFG_IDX_PLAY_H, (uint8_t) ((idx_play >> 8) & 0xff));
+    uint64_t play_pos = (uint64_t) fpos;
+    for (int i = 0; i < 8; i++) {
+        EEPROM.write(CFG_PLAY_POS0 + i, (uint8_t) ((play_pos >> i*8) & 0xff));
+    }
+    for (int i = 0; i < 4; i++) {
+        EEPROM.write(CFG_SAMPLES_PLAYED0 + i, (uint8_t) ((samples_played >> i*8) & 0xff));
+    }
     // Self Power Off
     /* do pin control here */
     // Endless Loop
@@ -365,9 +398,9 @@ void tick_100ms(void)
         center_clicks = count_center_clicks(); // must be called once per tick because button_prv[] status has changed
         if (center_clicks > 0) {
             {
-                char _str[64];
-                sprintf(_str, "center_clicks = %d", center_clicks);
-                Serial.println(_str);
+                char str[64];
+                sprintf(str, "center_clicks = %d", center_clicks);
+                Serial.println(str);
             }
             if (mode == LcdCanvas::FileView) {
                 if (center_clicks == 1) {
@@ -469,7 +502,7 @@ void loadID3(uint16_t idx_play)
     char str[256];
     mime_t mime;
     ptype_t ptype;
-    uint64_t pos;
+    uint64_t img_pos;
     size_t size;
 
     id3.loadFile(idx_play);
@@ -489,16 +522,24 @@ void loadID3(uint16_t idx_play)
     // copy ID3 image
     lcd.deleteAlbumArt();
     for (int i = 0; i < id3.getPictureCount(); i++) {
-        if (id3.getPicturePos(i, &mime, &ptype, &pos, &size)) {
-            if (mime == jpeg) { lcd.addAlbumArtJpeg(idx_play, pos, size); }
-            else if (mime == png) { lcd.addAlbumArtPng(idx_play, pos, size); }
+        if (id3.getPicturePos(i, &mime, &ptype, &img_pos, &size)) {
+            if (mime == jpeg) { lcd.addAlbumArtJpeg(idx_play, img_pos, size); }
+            else if (mime == png) { lcd.addAlbumArtPng(idx_play, img_pos, size); }
         }
     }
 }
 
 void setup() {
     Serial.begin(115200);
-    loadFromEEPROM();
+    {
+        char str[64];
+        Serial.println("###################################");
+        sprintf(str, "Teensy 4.0 MP3 Player ver. %d.%02d", Version/100, Version%100);
+        Serial.println(str);
+        Serial.println("###################################");
+    }
+
+    initEEPROM();
     myTimer.begin(tick_100ms, 100000);
 
     stack = stack_init();
@@ -509,29 +550,8 @@ void setup() {
     // detailed information, see the MemoryAndCpuUsage example
     AudioMemory(5); // 5 for Single MP3
 
-    // Restore power off situation (directory, mode, data_offset)
-    for (int i = EEPROM.read(CFG_STACK_COUNT) - 1; i >= 0; i--) {
-        item.head = ((uint16_t) EEPROM.read(CFG_STACK_HEAD0_H + i*4) << 8) | ((uint16_t) EEPROM.read(CFG_STACK_HEAD0_L + i*4));
-        item.column = ((uint16_t) EEPROM.read(CFG_STACK_COLUMN0_H + i*4) << 8) | ((uint16_t) EEPROM.read(CFG_STACK_COLUMN0_L + i*4));
-        file_menu_sort_entry(item.head+item.column, item.head+item.column + 1);
-        if (file_menu_is_dir(item.head+item.column) <= 0 || item.head+item.column == 0) { // Not Directory or Parent Directory
-            break;
-        }
-        stack_push(stack, &item);
-        file_menu_ch_dir(item.head+item.column);
-    }
-    idx_head = ((uint16_t) EEPROM.read(CFG_IDX_HEAD_H) << 8) | ((uint16_t) EEPROM.read(CFG_IDX_HEAD_L));
-    idx_column = ((uint16_t) EEPROM.read(CFG_IDX_COLUMN_H) << 8) | ((uint16_t) EEPROM.read(CFG_IDX_COLUMN_L));
-    mode = static_cast<LcdCanvas::mode_enm>(EEPROM.read(CFG_MODE));
-    if (mode == LcdCanvas::Play) {
-        mode = LcdCanvas::FileView;
-        idx_req_open = 1;
-        uint32_t data_offset = 0;
-        data_offset |=  ((uint32_t) EEPROM.read(CFG_DATA_OFFSET0) << 0);
-        data_offset |=  ((uint32_t) EEPROM.read(CFG_DATA_OFFSET1) << 8);
-        data_offset |=  ((uint32_t) EEPROM.read(CFG_DATA_OFFSET2) << 16);
-        data_offset |=  ((uint32_t) EEPROM.read(CFG_DATA_OFFSET3) << 24);
-    }
+    // Restore power off situation
+    loadFromEEPROM();
 }
 
 #if 0	
@@ -555,17 +575,17 @@ playMp3.processorUsageMaxResetDecoder();
 void loop() {
     int i;
     char str[256];
-    if (aud_req == 1) {
+    if (aud_req == 1) { // Play / Pause
         playMp3.pause(!playMp3.isPaused());
         aud_req = 0;
-    } else if (aud_req == 2) {
+    } else if (aud_req == 2) { // Stop
         playMp3.stop();
         mode = LcdCanvas::FileView;
         lcd.switchToFileView();
         aud_req = 0;
         idx_req = 1;
     } else if (idx_req_open == 1 && idx_idle_count > 1) { // idx_idle_count for resume play
-        if (file_menu_is_dir(idx_head+idx_column) > 0) { // Directory
+        if (file_menu_is_dir(idx_head+idx_column) > 0) { // Target is Directory
             if (idx_head+idx_column > 0) { // normal directory
                 item.head = idx_head;
                 item.column = idx_column;
@@ -590,59 +610,20 @@ void loop() {
                 idx_column = 0;
             }
             idx_req = 1;
-        } else { // File
+        } else { // Target is File
             file_menu_full_sort();
-            idx_play = idx_head + idx_column;
+            if (fpos == 0) { idx_play = idx_head + idx_column; } // fpos == 0: play indicated track,  fpos != 0: use idx_play in EEPROM
             idx_play = get_mp3_file(idx_play, 0, &file);
-            if (idx_play) {
+            if (idx_play) { // Play Audio File
                 mode = LcdCanvas::Play;
                 loadID3(idx_play);
-                playMp3.play(&file);
+                playMp3.play(&file, fpos);
+                if (fpos != 0) { playMp3.addSamplesPlayed(samples_played); } // for resuming play time
+                fpos = 0;
+                samples_played = 0;
                 idx_idle_count = 0;
                 lcd.switchToPlay();
             }
-      /*
-          file_menu_full_sort();
-
-          // DAC MUTE_B Pin (0: Mute, 1: Normal) (PB6)
-          rcu_periph_clock_enable(RCU_GPIOB);
-          gpio_init(GPIOB, GPIO_MODE_OUT_PP, GPIO_OSPEED_50MHZ, GPIO_PIN_6);
-          PB_OUT(6, 1);
-
-          // After audio_init(), Never call file_menu_xxx() functions!
-          // Otherwise, it causes conflict between main and int routine
-          audio_init();
-          mode = LcdCanvas::Play;
-          // Load cover art
-          fr = f_open(&fil, "cover.bin", FA_READ);
-          if (fr == FR_OK) {
-              image0 = (unsigned char *) malloc(80*70*2);
-              image1 = (unsigned char *) malloc(80*10*2);
-              if (image0 != NULL && image1 != NULL) {
-                  fr = f_read(&fil, image0, 80*70*2, &br);
-                  fr = f_read(&fil, image1, 80*10*2, &br);
-                  cover_exists = 1;
-              } else {
-                  LEDR(0);
-                  cover_exists = 0;
-              }
-              f_close(&fil);
-          } else {
-              image0 = NULL;
-              image1 = NULL;
-              cover_exists = 0;
-              sprintf("_str, open error: cover.bin %d!, (int)fr);
-              Serial.println(_str);
-          }
-          LCD_Clear(BLACK);
-          BACK_COLOR=BLACK;
-          if (idx_play > 1) {
-              audio_play(idx_play - 1);
-          } else {
-              audio_play(idx_head + idx_column);
-          }
-          idx_idle_count = 0;
-          */
         }
         idx_req_open = 0;
     } else if (idx_req_open == 2) { // Random Play
@@ -669,8 +650,8 @@ void loop() {
                   idx_head = (idx_head < file_menu_get_size() - 1) ? idx_head + 1 : 1;
                   file_menu_sort_entry(idx_head + idx_column, idx_head + idx_column + 1);
               }
-              sprintf(_str, "[random_play] dir level: %d, idx: %d, name: %s\n\r", i, idx_head + idx_column, file_menu_get_fname_ptr(idx_head + idx_column));
-              Serial.println(_str);
+              sprintf(str, "[random_play] dir level: %d, idx: %d, name: %s\n\r", i, idx_head + idx_column, file_menu_get_fname_ptr(idx_head + idx_column));
+              Serial.println(str);
               file_menu_ch_dir(idx_head + idx_column);
               item.head = idx_head;
               item.column = idx_column;
