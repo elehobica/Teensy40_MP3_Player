@@ -617,8 +617,7 @@ void loop() {
             if (idx_play) { // Play Audio File
                 mode = LcdCanvas::Play;
                 loadID3(idx_play);
-                playMp3.play(&file, fpos);
-                if (fpos != 0) { playMp3.addSamplesPlayed(samples_played); } // for resuming play time
+                playMp3.play(&file, fpos, samples_played); // with resuming file position and play time
                 fpos = 0;
                 samples_played = 0;
                 idx_idle_count = 0;

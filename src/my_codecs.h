@@ -146,7 +146,6 @@ public:
 	//unsigned lengthMillis(void) {return max(fsize() / (bitrate / 8 ) * 1000,  positionMillis());} //Ignores VBR
 	unsigned lengthMillis(void) {return max(fsize() * 8 / bitrate,  positionMillis());} //Ignores VBR
 	unsigned getSamplesPlayed(void) {return samples_played;}
-	void addSamplesPlayed(unsigned samples_played) {this->samples_played += samples_played;}
 	int channels(void) {return _channels;}
 	int bitRate(void) {return bitrate;}
 	void processorUsageMaxResetDecoder(void){__disable_irq();decode_cycles_max = decode_cycles_max_read = 0;__enable_irq();}

@@ -195,7 +195,7 @@ int MyAudioPlaySdMp3::standby_play(FsBaseFile *file)
     return lastError;
 }
 
-int MyAudioPlaySdMp3::play(size_t position)
+int MyAudioPlaySdMp3::play(size_t position, unsigned samples_played)
 {
 	/*
 	Serial.print("play: ");
@@ -271,8 +271,9 @@ int MyAudioPlaySdMp3::play(size_t position)
 	}
 
 	// For Resume play with 'position'
-	if (position != 0) {
+	if (position != 0 && position < fsize()) {
 		fseek(position);
+		this->samples_played += samples_played;
 		// Replace sd_buf data after sd_p with Frame Data in 'position'
 
 		// [Method 1]: just replace data after sd_p with Frame Data in 'position'
