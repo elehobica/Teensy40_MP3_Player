@@ -469,9 +469,32 @@ int file_menu_is_dir(uint16_t order)
 	}
 }
 
-uint16_t file_menu_get_size(void)
+uint16_t file_menu_get_num(void)
 {
 	return max_entry_cnt;
+}
+
+uint16_t file_menu_get_dir_num(void)
+{
+	uint16_t count = 0;
+	for (int i = 1; i < max_entry_cnt; i++) {
+		if (file_menu_is_dir(i) > 0) { count++; }
+	}
+	return count;
+}
+
+uint16_t file_menu_get_ext_num(const char *ext, size_t ext_size)
+{
+	char name[FF_LFN_BUF];
+	uint16_t count = 0;
+	for (int i = 1; i < max_entry_cnt; i++) {
+		file_menu_get_fname(i, name, sizeof(name));
+		char* ext_pos = strrchr(name, '.');
+        if (ext_pos) {
+            if (strncmp(ext_pos+1, ext, ext_size) == 0) { count++; }
+        }
+	}
+	return count;
 }
 
 FRESULT file_menu_open_root_dir()

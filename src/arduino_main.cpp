@@ -20,6 +20,7 @@
 
 const int Version = 100;
 
+IntervalTimer myTimer;
 Threads::Event codec_event;
 
 MutexFsBaseFile file;
@@ -42,52 +43,51 @@ volatile uint32_t button_repeat_count = 0;
 #define CFG_SIZE    48 // 0x30
 #define CFG_EPRW_COUNT_L    (EEPROM_BASE + 0)
 #define CFG_EPRW_COUNT_H    (EEPROM_BASE + 1)
-#define CFG_SEED            (EEPROM_BASE + 2)
-#define CFG_VOLUME          (EEPROM_BASE + 3)
-#define CFG_STACK_COUNT     (EEPROM_BASE + 4)
-#define CFG_STACK_HEAD0_L   (EEPROM_BASE + 5)
-#define CFG_STACK_HEAD0_H   (EEPROM_BASE + 6)
-#define CFG_STACK_COLUMN0_L (EEPROM_BASE + 7)
-#define CFG_STACK_COLUMN0_H (EEPROM_BASE + 8)
-#define CFG_STACK_HEAD1_L   (EEPROM_BASE + 9)
-#define CFG_STACK_HEAD1_H   (EEPROM_BASE + 10)
-#define CFG_STACK_COLUMN1_L (EEPROM_BASE + 11)
-#define CFG_STACK_COLUMN1_H (EEPROM_BASE + 12)
-#define CFG_STACK_HEAD2_L   (EEPROM_BASE + 13)
-#define CFG_STACK_HEAD2_H   (EEPROM_BASE + 14)
-#define CFG_STACK_COLUMN2_L (EEPROM_BASE + 15)
-#define CFG_STACK_COLUMN2_H (EEPROM_BASE + 16)
-#define CFG_STACK_HEAD3_L   (EEPROM_BASE + 17)
-#define CFG_STACK_HEAD3_H   (EEPROM_BASE + 18)
-#define CFG_STACK_COLUMN3_L (EEPROM_BASE + 19)
-#define CFG_STACK_COLUMN3_H (EEPROM_BASE + 20)
-#define CFG_STACK_HEAD4_L   (EEPROM_BASE + 21)
-#define CFG_STACK_HEAD4_H   (EEPROM_BASE + 22)
-#define CFG_STACK_COLUMN4_L (EEPROM_BASE + 23)
-#define CFG_STACK_COLUMN4_H (EEPROM_BASE + 24)
-#define CFG_IDX_HEAD_L      (EEPROM_BASE + 25)
-#define CFG_IDX_HEAD_H      (EEPROM_BASE + 26)
-#define CFG_IDX_COLUMN_L    (EEPROM_BASE + 27)
-#define CFG_IDX_COLUMN_H    (EEPROM_BASE + 28)
-#define CFG_MODE            (EEPROM_BASE + 29)
-#define CFG_IDX_PLAY_L      (EEPROM_BASE + 30)
-#define CFG_IDX_PLAY_H      (EEPROM_BASE + 31)
-#define CFG_PLAY_POS0       (EEPROM_BASE + 32)
-#define CFG_PLAY_POS1       (EEPROM_BASE + 33)
-#define CFG_PLAY_POS2       (EEPROM_BASE + 34)
-#define CFG_PLAY_POS3       (EEPROM_BASE + 35)
-#define CFG_PLAY_POS4       (EEPROM_BASE + 36)
-#define CFG_PLAY_POS5       (EEPROM_BASE + 37)
-#define CFG_PLAY_POS6       (EEPROM_BASE + 38)
-#define CFG_PLAY_POS7       (EEPROM_BASE + 39)
-#define CFG_SAMPLES_PLAYED0 (EEPROM_BASE + 40)
-#define CFG_SAMPLES_PLAYED1 (EEPROM_BASE + 41)
-#define CFG_SAMPLES_PLAYED2 (EEPROM_BASE + 42)
-#define CFG_SAMPLES_PLAYED3 (EEPROM_BASE + 43)
+#define CFG_SEED0           (EEPROM_BASE + 2)
+#define CFG_SEED1           (EEPROM_BASE + 3)
+#define CFG_VOLUME          (EEPROM_BASE + 4)
+#define CFG_STACK_COUNT     (EEPROM_BASE + 5)
+#define CFG_STACK_HEAD0_L   (EEPROM_BASE + 6)
+#define CFG_STACK_HEAD0_H   (EEPROM_BASE + 7)
+#define CFG_STACK_COLUMN0_L (EEPROM_BASE + 8)
+#define CFG_STACK_COLUMN0_H (EEPROM_BASE + 9)
+#define CFG_STACK_HEAD1_L   (EEPROM_BASE + 10)
+#define CFG_STACK_HEAD1_H   (EEPROM_BASE + 11)
+#define CFG_STACK_COLUMN1_L (EEPROM_BASE + 12)
+#define CFG_STACK_COLUMN1_H (EEPROM_BASE + 13)
+#define CFG_STACK_HEAD2_L   (EEPROM_BASE + 14)
+#define CFG_STACK_HEAD2_H   (EEPROM_BASE + 15)
+#define CFG_STACK_COLUMN2_L (EEPROM_BASE + 16)
+#define CFG_STACK_COLUMN2_H (EEPROM_BASE + 17)
+#define CFG_STACK_HEAD3_L   (EEPROM_BASE + 18)
+#define CFG_STACK_HEAD3_H   (EEPROM_BASE + 19)
+#define CFG_STACK_COLUMN3_L (EEPROM_BASE + 20)
+#define CFG_STACK_COLUMN3_H (EEPROM_BASE + 21)
+#define CFG_STACK_HEAD4_L   (EEPROM_BASE + 22)
+#define CFG_STACK_HEAD4_H   (EEPROM_BASE + 23)
+#define CFG_STACK_COLUMN4_L (EEPROM_BASE + 24)
+#define CFG_STACK_COLUMN4_H (EEPROM_BASE + 25)
+#define CFG_IDX_HEAD_L      (EEPROM_BASE + 26)
+#define CFG_IDX_HEAD_H      (EEPROM_BASE + 27)
+#define CFG_IDX_COLUMN_L    (EEPROM_BASE + 28)
+#define CFG_IDX_COLUMN_H    (EEPROM_BASE + 29)
+#define CFG_MODE            (EEPROM_BASE + 30)
+#define CFG_IDX_PLAY_L      (EEPROM_BASE + 31)
+#define CFG_IDX_PLAY_H      (EEPROM_BASE + 32)
+#define CFG_PLAY_POS0       (EEPROM_BASE + 33)
+#define CFG_PLAY_POS1       (EEPROM_BASE + 34)
+#define CFG_PLAY_POS2       (EEPROM_BASE + 35)
+#define CFG_PLAY_POS3       (EEPROM_BASE + 36)
+#define CFG_PLAY_POS4       (EEPROM_BASE + 37)
+#define CFG_PLAY_POS5       (EEPROM_BASE + 38)
+#define CFG_PLAY_POS6       (EEPROM_BASE + 39)
+#define CFG_PLAY_POS7       (EEPROM_BASE + 40)
+#define CFG_SAMPLES_PLAYED0 (EEPROM_BASE + 41)
+#define CFG_SAMPLES_PLAYED1 (EEPROM_BASE + 42)
+#define CFG_SAMPLES_PLAYED2 (EEPROM_BASE + 43)
+#define CFG_SAMPLES_PLAYED3 (EEPROM_BASE + 44)
 
 uint16_t eprw_count; // EEPROM Write Count (to check for write endurance of 100,000 cycles)
-
-IntervalTimer myTimer;
 
 // LCD (ST7735, 1.8", 128x160pix)
 #define TFT_CS        10
@@ -111,14 +111,15 @@ volatile LcdCanvas::mode_enm mode = LcdCanvas::FileView;
 volatile LcdCanvas::mode_enm mode_prv = LcdCanvas::FileView;
 
 #define NUM_IDX_ITEMS         10
-int idx_req = 1;
+volatile int idx_req = 1;
 volatile int idx_req_open = 0;
-int aud_req = 0;
+volatile int aud_req = 0;
 
 volatile uint16_t idx_head = 0;
 volatile uint16_t idx_column = 0;
 uint16_t idx_idle_count = 0;
 uint16_t idx_play = 0;
+volatile bool is_waiting_next_random = false;
 
 ID3Read id3;
 
@@ -155,6 +156,7 @@ void initEEPROM(void)
 
 void loadFromEEPROM(void)
 {
+    randomSeed(((uint16_t) EEPROM.read(CFG_SEED1) << 8) | ((uint16_t) EEPROM.read(CFG_SEED0)));
     i2s1.set_volume(EEPROM.read(CFG_VOLUME));
     for (int i = EEPROM.read(CFG_STACK_COUNT) - 1; i >= 0; i--) {
         item.head = ((uint16_t) EEPROM.read(CFG_STACK_HEAD0_H + i*4) << 8) | ((uint16_t) EEPROM.read(CFG_STACK_HEAD0_L + i*4));
@@ -210,6 +212,8 @@ void power_off(void)
     eprw_count++;
     EEPROM.write(CFG_EPRW_COUNT_L, (uint8_t) (eprw_count & 0xff));
     EEPROM.write(CFG_EPRW_COUNT_H, (uint8_t) ((eprw_count >> 8) & 0xff));
+    EEPROM.write(CFG_SEED0, (uint8_t) (millis() & 0xff));
+    EEPROM.write(CFG_SEED1, (uint8_t) ((millis() >> 8) & 0xff));
     EEPROM.write(CFG_VOLUME, volume);
     EEPROM.write(CFG_STACK_COUNT, stack_get_count(stack));
     for (int i = 0; i < EEPROM.read(CFG_STACK_COUNT); i++) {
@@ -290,6 +294,7 @@ void idx_open(void)
 {
     if (idx_req_open == 1) { return; }
     idx_req_open = 1;
+    is_waiting_next_random = false;
 }
 
 void idx_close(void)
@@ -298,23 +303,25 @@ void idx_close(void)
     idx_column = 0;
     idx_head = 0;
     idx_req_open = 1;
+    is_waiting_next_random = false;
 }
 
 void idx_random_open(void)
 {
     if (idx_req_open == 2) { return; }
     idx_req_open = 2;
+    is_waiting_next_random = false;
 }
 
 void idx_inc(void)
 {
     if (idx_req == 1) { return; }
-    if (idx_head >= file_menu_get_size() - NUM_IDX_ITEMS && idx_column == NUM_IDX_ITEMS-1) { return; }
-    if (idx_head + idx_column + 1 >= file_menu_get_size()) { return; }
+    if (idx_head >= file_menu_get_num() - NUM_IDX_ITEMS && idx_column == NUM_IDX_ITEMS-1) { return; }
+    if (idx_head + idx_column + 1 >= file_menu_get_num()) { return; }
     idx_req = 1;
     idx_column++;
     if (idx_column >= NUM_IDX_ITEMS) {
-        if (idx_head + NUM_IDX_ITEMS >= file_menu_get_size() - NUM_IDX_ITEMS) {
+        if (idx_head + NUM_IDX_ITEMS >= file_menu_get_num() - NUM_IDX_ITEMS) {
             idx_column = NUM_IDX_ITEMS-1;
             idx_head++;
         } else {
@@ -322,6 +329,7 @@ void idx_inc(void)
             idx_head += NUM_IDX_ITEMS;
         }
     }
+    is_waiting_next_random = false;
 }
 
 void idx_dec(void)
@@ -340,20 +348,22 @@ void idx_dec(void)
     } else {
         idx_column--;
     }
+    is_waiting_next_random = false;
 }
 
 void idx_fast_inc(void)
 {
     if (idx_req == 1) { return; }
-    if (idx_head >= file_menu_get_size() - NUM_IDX_ITEMS && idx_column == NUM_IDX_ITEMS-1) { return; }
-    if (idx_head + idx_column + 1 >= file_menu_get_size()) return;
-    if (idx_head + NUM_IDX_ITEMS >= file_menu_get_size() - NUM_IDX_ITEMS) {
-        idx_head = file_menu_get_size() - NUM_IDX_ITEMS;
+    if (idx_head >= file_menu_get_num() - NUM_IDX_ITEMS && idx_column == NUM_IDX_ITEMS-1) { return; }
+    if (idx_head + idx_column + 1 >= file_menu_get_num()) return;
+    if (idx_head + NUM_IDX_ITEMS >= file_menu_get_num() - NUM_IDX_ITEMS) {
+        idx_head = file_menu_get_num() - NUM_IDX_ITEMS;
         idx_inc();
     } else {
         idx_head += NUM_IDX_ITEMS;
     }
     idx_req = 1;
+    is_waiting_next_random = false;
 }
 
 void idx_fast_dec(void)
@@ -367,6 +377,7 @@ void idx_fast_dec(void)
         idx_head -= NUM_IDX_ITEMS;
     }
     idx_req = 1;
+    is_waiting_next_random = false;
 }
 
 void aud_pause(void)
@@ -412,13 +423,15 @@ void tick_100ms(void)
                 } else if (center_clicks == 2) {
                     idx_close();
                 } else if (center_clicks == 3) {
-                    //idx_random_open();
+                    idx_random_open();
                 }
             } else if (mode == LcdCanvas::Play) {
                 if (center_clicks == 1) {
                     aud_pause();
                 } else if (center_clicks == 2) {
                     aud_stop();
+                } else if (center_clicks == 3) {
+                    idx_random_open();
                 }
             }
         }
@@ -477,7 +490,7 @@ int get_mp3_file(uint16_t idx, int seq_flg, MutexFsBaseFile *f)
     char str[256];
     //Serial.print("get_mp3_file: ");
     //Serial.println(millis());
-    while (idx + ofs < file_menu_get_size()) {
+    while (idx + ofs < file_menu_get_num()) {
         file_menu_get_obj(idx + ofs, f);
         f->getName(str, sizeof(str));
         //file_menu_get_fname(idx + ofs, str, sizeof(str));
@@ -589,6 +602,7 @@ playMp3.processorUsageMaxResetDecoder();
 void loop() {
     int i;
     char str[256];
+    unsigned long time = millis();
     if (aud_req == 1) { // Play / Pause
         playMp3.pause(!playMp3.isPaused());
         aud_req = 0;
@@ -640,44 +654,53 @@ void loop() {
         }
         idx_req_open = 0;
     } else if (idx_req_open == 2) { // Random Play
-  /*
-      if (!audio_is_playing_or_pausing()) {
-          audio_stop();
-      }
-      stack_count = stack_get_count(stack);
-      if (stack_count > 0) { // Random Play for same level folder
-          for (i = 0; i < stack_count; i++) { // chdir to parent directory
-              if (fs.fs_type == FS_EXFAT) { // This is for FatFs known bug for ".." in EXFAT
-                  file_menu_close_dir();
-                  file_menu_open_root_dir(); // Root directory
-              } else {
-                  file_menu_ch_dir(0); // ".."
-              }
-              stack_pop(stack, &item);
-          }
-          for (i = 0; i < stack_count; i++) { // chdir to child directory at random
-              idx_head = (rand() % (file_menu_get_size() - 1)) + 1;
-              idx_column = 0;
-              file_menu_sort_entry(idx_head + idx_column, idx_head + idx_column + 1);
-              while (file_menu_is_dir(idx_head+idx_column) <= 0) { // not directory
-                  idx_head = (idx_head < file_menu_get_size() - 1) ? idx_head + 1 : 1;
-                  file_menu_sort_entry(idx_head + idx_column, idx_head + idx_column + 1);
-              }
-              sprintf(str, "[random_play] dir level: %d, idx: %d, name: %s\n\r", i, idx_head + idx_column, file_menu_get_fname_ptr(idx_head + idx_column));
-              Serial.println(str);
-              file_menu_ch_dir(idx_head + idx_column);
-              item.head = idx_head;
-              item.column = idx_column;
-              stack_push(stack, &item);
-          }
-          idx_head = 1;
-          idx_column = 0;
-          idx_req_open = 1;
-      }
-      */
+        if (playMp3.isPlaying()) {
+            playMp3.stop();
+            mode = LcdCanvas::FileView;
+            lcd.switchToFileView();
+        }
+        stack_count = stack_get_count(stack);
+        if (stack_count >= 2) { // Random Play for same level folder (Assuming Artist/Alubm/Track)
+            for (i = 0; i < 2; i++) {
+                file_menu_ch_dir(0); // cd ..
+                stack_pop(stack, &item);
+            }
+            while (1) {
+                for (i = 0; i < 2; i++) {
+                    if (file_menu_get_dir_num() == 0) { break; }
+                    while (1) {
+                        idx_head = random(1, file_menu_get_num());
+                        file_menu_sort_entry(idx_head, idx_head+1);
+                        if (file_menu_is_dir(idx_head) > 0) { break; }
+                    }
+                    file_menu_ch_dir(idx_head);
+                    item.head = idx_head;
+                    item.column = 0;
+                    stack_push(stack, &item);
+                }
+                // Check if Next Target Dir has Audio track files
+                if (stack_count == stack_get_count(stack) &&
+                    (file_menu_get_ext_num("mp3", 3) > 0 || file_menu_get_ext_num("m4a", 3) > 0 || file_menu_get_ext_num("wav", 3) > 0)) {
+                    break;
+                }
+                // Otherwise, chdir to stack_count-2 and retry again
+                Serial.println("Retry Random Search");
+                while (stack_count - 2 != stack_get_count(stack)) {
+                    file_menu_ch_dir(0); // cd ..
+                    stack_pop(stack, &item);
+                }
+            }
+            idx_head = 0;
+            idx_column = 1;
+            idx_req_open = 1;
+        } else {
+            idx_req_open = 0;
+        }
+        idx_req = 0;
+        idx_idle_count = 0;
     } else if (idx_req) {
         for (i = 0; i < NUM_IDX_ITEMS; i++) {
-            if (idx_head+i >= file_menu_get_size()) {
+            if (idx_head+i >= file_menu_get_num()) {
                 lcd.setFileItem(i, ""); // delete
                 continue;
             }
@@ -705,6 +728,7 @@ void loop() {
                     lcd.switchToFileView();
                     idx_req = 1;
                     idx_idle_count = 0;
+                    is_waiting_next_random = true;
                 }
             }
             lcd.setVolume(i2s1.get_volume());
@@ -715,10 +739,18 @@ void loop() {
             if (idx_idle_count > 100) {
                 file_menu_idle();
             }
+            if (is_waiting_next_random && idx_idle_count > 20 * 60 * 1 && stack_get_count(stack) >= 2) {
+                idx_req_open = 2; // Random Play
+            }
         } else if (mode == LcdCanvas::PowerOff) {
             power_off();
         }
     }
     lcd.draw();
-    delay(50);
+    time = millis() - time;
+    if (time < 50) {
+        delay(50 - time);
+    } else {
+        delay(1);
+    }
 }

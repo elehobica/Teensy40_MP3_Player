@@ -47,7 +47,9 @@ FRESULT file_menu_open_root_dir();
 uint8_t file_menu_get_fatType();
 FRESULT file_menu_ch_dir(uint16_t order);
 void file_menu_close_dir(void);
-uint16_t file_menu_get_size(void);
+uint16_t file_menu_get_num(void);
+uint16_t file_menu_get_dir_num(void);
+uint16_t file_menu_get_ext_num(const char *ext, size_t ext_size); // "mp3", "wav": ext does not include "."
 void file_menu_full_sort(void);
 void file_menu_sort_entry(uint16_t scope_start, uint16_t scope_end_1);
 FRESULT file_menu_get_fname(uint16_t order, char *str, size_t size);
