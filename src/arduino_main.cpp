@@ -1,11 +1,10 @@
-// Simple MP3 player example
+// MP3 File Player
 //
-// Requires the audio shield:
+// Based on following sample code
 //   http://www.pjrc.com/store/teensy3_audio.html
 //
 // This example code is in the public domain.
 
-#include <string.h>
 #include <Wire.h>
 #include <EEPROM.h>
 #include <LcdCanvas.h>

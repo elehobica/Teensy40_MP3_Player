@@ -180,16 +180,6 @@ typedef struct _SideInfo {
 	SideInfoSub	sis[MAX_NGRAN][MAX_NCHAN];
 } SideInfo;
 
-/*
-typedef struct _XingHeader {
-	unsigned short flags;
-	unsigned long numFrames;
-	unsigned long numBytes;
-	unsigned char toc_entries[100];
-	unsigned long qi; // Quality Indicator (0 ~ 100)
-} XingHeader;
-*/
-
 typedef struct {
     int cbType;		/* pure long = 0, pure short = 1, mixed = 2 */
     int cbEndS[3];	/* number nonzero short cb's, per subbblock */

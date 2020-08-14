@@ -116,12 +116,10 @@ typedef struct _MP3FrameInfo {
 	int outputSamps;
 	int layer;
 	int version;
-	int numFrames;
 } MP3FrameInfo;
 
 /* public API */
 HMP3Decoder MP3InitDecoder(void);
-HMP3Decoder MP3ResetDecoder(HMP3Decoder hMP3Decoder);
 void MP3FreeDecoder(HMP3Decoder hMP3Decoder);
 int MP3Decode(HMP3Decoder hMP3Decoder, unsigned char **inbuf, int *bytesLeft, short *outbuf, int useSize);
 

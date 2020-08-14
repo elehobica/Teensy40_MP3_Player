@@ -24,8 +24,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef my_Audio_h_
-#define my_Audio_h_
+#ifndef Audio_h_
+#define Audio_h_
 
 #if TEENSYDUINO < 120
 #error "Teensyduino version 1.20 or later is required to compile the Audio library."
@@ -120,8 +120,8 @@
 #include "output_adat.h"
 #include "play_memory.h"
 #include "play_queue.h"
-//#include "play_sd_raw.h"
-//#include "play_sd_wav.h"
+#include "play_sd_raw.h"
+#include "play_sd_wav.h"
 #include "play_serialflash_raw.h"
 #include "record_queue.h"
 #include "synth_tonesweep.h"

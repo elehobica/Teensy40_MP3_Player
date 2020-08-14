@@ -72,12 +72,6 @@ HMP3Decoder MP3InitDecoder(void)
 	return (HMP3Decoder)mp3DecInfo;
 }
 
-HMP3Decoder MP3ResetDecoder(HMP3Decoder hMP3Decoder)
-{
-	ResetBuffers((MP3DecInfo *) hMP3Decoder);
-	return hMP3Decoder;
-}
-
 /**************************************************************************************
  * Function:    MP3FreeDecoder
  *
@@ -205,7 +199,6 @@ void MP3GetLastFrameInfo(HMP3Decoder hMP3Decoder, MP3FrameInfo *mp3FrameInfo)
 		mp3FrameInfo->outputSamps = 0;
 		mp3FrameInfo->layer = 0;
 		mp3FrameInfo->version = 0;
-		mp3FrameInfo->numFrames = 0;
 	} else {
 		mp3FrameInfo->bitrate = mp3DecInfo->bitrate;
 		mp3FrameInfo->nChans = mp3DecInfo->nChans;
@@ -214,7 +207,6 @@ void MP3GetLastFrameInfo(HMP3Decoder hMP3Decoder, MP3FrameInfo *mp3FrameInfo)
 		mp3FrameInfo->outputSamps = mp3DecInfo->nChans * (int)samplesPerFrameTab[mp3DecInfo->version][mp3DecInfo->layer - 1];
 		mp3FrameInfo->layer = mp3DecInfo->layer;
 		mp3FrameInfo->version = mp3DecInfo->version;
-		mp3FrameInfo->numFrames = mp3DecInfo->numFrames;
 	}
 }
 
@@ -293,7 +285,7 @@ static void MP3ClearBadFrame(MP3DecInfo *mp3DecInfo, short *outbuf)
  **************************************************************************************/
 int MP3Decode(HMP3Decoder hMP3Decoder, unsigned char **inbuf, int *bytesLeft, short *outbuf, int useSize)
 {
-	int offset, bitOffset, mainBits, gr, ch, fhBytes, siBytes, xingBytes, freeFrameBytes;
+	int offset, bitOffset, mainBits, gr, ch, fhBytes, siBytes, freeFrameBytes;
 	int prevBitOffset, sfBlockBits, huffBlockBits;
 	unsigned char *mainPtr;
 	MP3DecInfo *mp3DecInfo = (MP3DecInfo *)hMP3Decoder;
@@ -326,9 +318,7 @@ int MP3Decode(HMP3Decoder hMP3Decoder, unsigned char **inbuf, int *bytesLeft, sh
 	time = systime_get() - time;
 	printf("UnpackSideInfo: %i ms\n", time);
 #endif
-
-	// Xing Header for VBR
-	xingBytes = UnpackXingHeader(mp3DecInfo, *inbuf);
+	
 	
 	/* if free mode, need to calculate bitrate and nSlots manually, based on frame size */
 	if (mp3DecInfo->bitrate == 0 || mp3DecInfo->freeBitrateFlag) {
