@@ -36,11 +36,52 @@ uint16_t  AudioOutputI2S::block_left_offset = 0;
 uint16_t  AudioOutputI2S::block_right_offset = 0;
 bool AudioOutputI2S::update_responsibility = false;
 DMAChannel AudioOutputI2S::dma(false);
-DMAMEM __attribute__((aligned(32))) static uint32_t i2s_tx_buffer[AUDIO_BLOCK_SAMPLES];
+//DMAMEM __attribute__((aligned(32))) static uint32_t i2s_tx_buffer[AUDIO_BLOCK_SAMPLES];
+DMAMEM __attribute__((aligned(32))) static uint32_t i2s_tx_buffer[AUDIO_BLOCK_SAMPLES * 2]; // Audio sample 16bit -> 32bit
 
 #if defined(__IMXRT1062__)
 #include "utility/imxrt_hw.h"
 #endif
+
+uint8_t AudioOutputI2S::volume = 65; // 0 ~ 100;
+
+static const uint32_t vol_table[101] = {
+    0, 4, 8, 12, 16, 20, 24, 27, 29, 31,
+    34, 37, 40, 44, 48, 52, 57, 61, 67, 73,
+    79, 86, 94, 102, 111, 120, 131, 142, 155, 168,
+    183, 199, 217, 236, 256, 279, 303, 330, 359, 390, // vol_table[34] = 256
+    424, 462, 502, 546, 594, 646, 703, 764, 831, 904,
+    983, 1069, 1163, 1265, 1376, 1496, 1627, 1770, 1925, 2094,
+    2277, 2476, 2693, 2929, 3186, 3465, 3769, 4099, 4458, 4849,
+    5274, 5736, 6239, 6785, 7380, 8026, 8730, 9495, 10327, 11232,
+    12216, 13286, 14450, 15716, 17093, 18591, 20220, 21992, 23919, 26015,
+    28294, 30773, 33470, 36403, 39592, 43061, 46835, 50938, 55402, 60256,
+    65536
+};
+
+void memcpy_tointerleaveLR(int8_t vol, int32_t *dst, const int16_t *srcL, const int16_t *srcR)
+{
+    for (int i = 0; i < AUDIO_BLOCK_SAMPLES/2; i++) {
+        dst[i*2+0] = (int32_t) srcL[i] * vol_table[vol];
+        dst[i*2+1] = (int32_t) srcR[i] * vol_table[vol];
+    }
+}
+
+void memcpy_tointerleaveL(int8_t vol, int32_t *dst, const int16_t *srcL)
+{
+    for (int i = 0; i < AUDIO_BLOCK_SAMPLES/2; i++) {
+        dst[i*2+0] = (int32_t) srcL[i] * vol_table[vol];
+        dst[i*2+1] = 0;
+    }
+}
+
+void memcpy_tointerleaveR(int8_t vol, int32_t *dst, const int16_t *srcR)
+{
+    for (int i = 0; i < AUDIO_BLOCK_SAMPLES/2; i++) {
+        dst[i*2+0] = 0;
+        dst[i*2+1] = (int32_t) srcR[i] * vol_table[vol];
+    }
+}
 
 void AudioOutputI2S::begin(void)
 {
@@ -74,16 +115,22 @@ void AudioOutputI2S::begin(void)
 #elif defined(__IMXRT1062__)
 	CORE_PIN7_CONFIG  = 3;  //1:TX_DATA0
 	dma.TCD->SADDR = i2s_tx_buffer;
-	dma.TCD->SOFF = 2;
-	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
-	dma.TCD->NBYTES_MLNO = 2;
+	//dma.TCD->SOFF = 2;
+	dma.TCD->SOFF = 4; // Audio sample 16bit -> 32bit
+	//dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
+    dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(DMA_TCD_ATTR_SIZE_32BIT) | DMA_TCD_ATTR_DSIZE(DMA_TCD_ATTR_SIZE_32BIT); // Audio sample 16bit -> 32bit
+	//dma.TCD->NBYTES_MLNO = 2;
+	dma.TCD->NBYTES_MLNO = 4; // Audio sample 16bit -> 32bit
 	dma.TCD->SLAST = -sizeof(i2s_tx_buffer);
 	dma.TCD->DOFF = 0;
-	dma.TCD->CITER_ELINKNO = sizeof(i2s_tx_buffer) / 2;
+	//dma.TCD->CITER_ELINKNO = sizeof(i2s_tx_buffer) / 2;
+	dma.TCD->CITER_ELINKNO = sizeof(i2s_tx_buffer) / 4; // Audio sample 16bit -> 32bit
 	dma.TCD->DLASTSGA = 0;
-	dma.TCD->BITER_ELINKNO = sizeof(i2s_tx_buffer) / 2;
+	//dma.TCD->BITER_ELINKNO = sizeof(i2s_tx_buffer) / 2;
+	dma.TCD->BITER_ELINKNO = sizeof(i2s_tx_buffer) / 4; // Audio sample 16bit -> 32bit
 	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
-	dma.TCD->DADDR = (void *)((uint32_t)&I2S1_TDR0 + 2);
+	//dma.TCD->DADDR = (void *)((uint32_t)&I2S1_TDR0 + 2);
+	dma.TCD->DADDR = (void *)((uint32_t)&I2S1_TDR0 + 0); // Audio sample 16bit -> 32bit
 	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI1_TX);
 	dma.enable();
 
@@ -94,11 +141,11 @@ void AudioOutputI2S::begin(void)
 	dma.attachInterrupt(isr);
 }
 
-
 void AudioOutputI2S::isr(void)
 {
 #if defined(KINETISK) || defined(__IMXRT1062__)
-	int16_t *dest;
+	// int16_t *dest;
+	int32_t *dest; // Audio sample 16bit -> 32bit
 	audio_block_t *blockL, *blockR;
 	uint32_t saddr, offsetL, offsetR;
 
@@ -107,12 +154,14 @@ void AudioOutputI2S::isr(void)
 	if (saddr < (uint32_t)i2s_tx_buffer + sizeof(i2s_tx_buffer) / 2) {
 		// DMA is transmitting the first half of the buffer
 		// so we must fill the second half
-		dest = (int16_t *)&i2s_tx_buffer[AUDIO_BLOCK_SAMPLES/2];
+		//dest = (int16_t *)&i2s_tx_buffer[AUDIO_BLOCK_SAMPLES/2];
+		dest = (int32_t *)&i2s_tx_buffer[AUDIO_BLOCK_SAMPLES]; // Audio sample 16bit -> 32bit
 		if (AudioOutputI2S::update_responsibility) AudioStream::update_all();
 	} else {
 		// DMA is transmitting the second half of the buffer
 		// so we must fill the first half
-		dest = (int16_t *)i2s_tx_buffer;
+		//dest = (int16_t *)i2s_tx_buffer;
+		dest = (int32_t *)i2s_tx_buffer; // Audio sample 16bit -> 32bit
 	}
 
 	blockL = AudioOutputI2S::block_left_1st;
@@ -121,20 +170,24 @@ void AudioOutputI2S::isr(void)
 	offsetR = AudioOutputI2S::block_right_offset;
 
 	if (blockL && blockR) {
-		memcpy_tointerleaveLR(dest, blockL->data + offsetL, blockR->data + offsetR);
+		//memcpy_tointerleaveLR(dest, blockL->data + offsetL, blockR->data + offsetR);
+		memcpy_tointerleaveLR(volume, dest, blockL->data + offsetL, blockR->data + offsetR); // Audio sample 16bit -> 32bit
 		offsetL += AUDIO_BLOCK_SAMPLES / 2;
 		offsetR += AUDIO_BLOCK_SAMPLES / 2;
 	} else if (blockL) {
-		memcpy_tointerleaveL(dest, blockL->data + offsetL);
+		//memcpy_tointerleaveL(dest, blockL->data + offsetL);
+		memcpy_tointerleaveL(volume, dest, blockL->data + offsetL); // Audio sample 16bit -> 32bit
 		offsetL += AUDIO_BLOCK_SAMPLES / 2;
 	} else if (blockR) {
-		memcpy_tointerleaveR(dest, blockR->data + offsetR);
+		//memcpy_tointerleaveR(dest, blockR->data + offsetR);
+		memcpy_tointerleaveR(volume, dest, blockR->data + offsetR); // Audio sample 16bit -> 32bit
 		offsetR += AUDIO_BLOCK_SAMPLES / 2;
 	} else {
-		memset(dest,0,AUDIO_BLOCK_SAMPLES * 2);
+		//memset(dest,0,AUDIO_BLOCK_SAMPLES * 2);
+		memset(dest,0,AUDIO_BLOCK_SAMPLES * 4); // Audio sample 16bit -> 32bit
 	}
 
-	arm_dcache_flush_delete(dest, sizeof(i2s_tx_buffer) / 2 );
+	arm_dcache_flush_delete(dest, sizeof(i2s_tx_buffer) / 2);
 
 	if (offsetL < AUDIO_BLOCK_SAMPLES) {
 		AudioOutputI2S::block_left_offset = offsetL;
@@ -223,9 +276,6 @@ void AudioOutputI2S::isr(void)
 #endif
 }
 
-
-
-
 void AudioOutputI2S::update(void)
 {
 	// null audio device: discard all incoming data
@@ -272,6 +322,26 @@ void AudioOutputI2S::update(void)
 			release(tmp);
 		}
 	}
+}
+
+void AudioOutputI2S::volume_up(void)
+{
+    if (volume < 100) volume++;
+}
+
+void AudioOutputI2S::volume_down(void)
+{
+    if (volume > 0) volume--;
+}
+
+void AudioOutputI2S::set_volume(uint8_t value)
+{
+	volume = (value <= 100) ? value : 100;
+}
+
+uint8_t AudioOutputI2S::get_volume(void)
+{
+    return volume;
 }
 
 #if defined(KINETISK) || defined(KINETISL)
@@ -466,15 +536,21 @@ void AudioOutputI2Sslave::begin(void)
 #elif defined(__IMXRT1062__)
 	CORE_PIN7_CONFIG  = 3;  //1:TX_DATA0
 	dma.TCD->SADDR = i2s_tx_buffer;
-	dma.TCD->SOFF = 2;
-	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
-	dma.TCD->NBYTES_MLNO = 2;
+	//dma.TCD->SOFF = 2;
+	dma.TCD->SOFF = 4; // Audio sample 16bit -> 32bit
+	//dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
+    dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(DMA_TCD_ATTR_SIZE_32BIT) | DMA_TCD_ATTR_DSIZE(DMA_TCD_ATTR_SIZE_32BIT); // Audio sample 16bit -> 32bit
+	//dma.TCD->NBYTES_MLNO = 2;
+	dma.TCD->NBYTES_MLNO = 4; // Audio sample 16bit -> 32bit
 	dma.TCD->SLAST = -sizeof(i2s_tx_buffer);
 	dma.TCD->DOFF = 0;
-	dma.TCD->CITER_ELINKNO = sizeof(i2s_tx_buffer) / 2;
+	//dma.TCD->CITER_ELINKNO = sizeof(i2s_tx_buffer) / 2;
+	dma.TCD->CITER_ELINKNO = sizeof(i2s_tx_buffer) / 4; // Audio sample 16bit -> 32bit
 	dma.TCD->DLASTSGA = 0;
-	dma.TCD->BITER_ELINKNO = sizeof(i2s_tx_buffer) / 2;
-	dma.TCD->DADDR = (void *)((uint32_t)&I2S1_TDR0 + 2);
+	//dma.TCD->BITER_ELINKNO = sizeof(i2s_tx_buffer) / 2;
+	dma.TCD->BITER_ELINKNO = sizeof(i2s_tx_buffer) / 4; // Audio sample 16bit -> 32bit
+	//dma.TCD->DADDR = (void *)((uint32_t)&I2S1_TDR0 + 2);
+	dma.TCD->DADDR = (void *)((uint32_t)&I2S1_TDR0 + 0); // Audio sample 16bit -> 32bit
 	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
 	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI1_TX);
 	dma.enable();
@@ -550,8 +626,8 @@ void AudioOutputI2Sslave::config_i2s(void)
 	I2S1_TCR1 = I2S_TCR1_RFW(1);  // watermark at half fifo size
 	I2S1_TCR2 = I2S_TCR2_SYNC(1) | I2S_TCR2_BCP;
 	I2S1_TCR3 = I2S_TCR3_TCE;
-	I2S1_TCR4 = I2S_TCR4_FRSZ(1) | I2S_TCR4_SYWD(31) | I2S_TCR4_MF
-		| I2S_TCR4_FSE | I2S_TCR4_FSP | I2S_RCR4_FSD;
+	I2S1_TCR4 = I2S_TCR4_FRSZ(1) | I2S_TCR4_SYWD(31) 
+        | I2S_TCR4_MF | I2S_TCR4_FSE | I2S_TCR4_FSP | I2S_RCR4_FSD;
 	I2S1_TCR5 = I2S_TCR5_WNW(31) | I2S_TCR5_W0W(31) | I2S_TCR5_FBT(31);
 
 	// configure receiver

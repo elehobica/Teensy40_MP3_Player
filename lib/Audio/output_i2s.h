@@ -38,6 +38,10 @@ public:
 	virtual void update(void);
 	void begin(void);
 	friend class AudioInputI2S;
+	static void volume_up(void);
+	static void volume_down(void);
+	static void set_volume(uint8_t value);
+	static uint8_t get_volume(void);
 #if defined(__IMXRT1062__)
 	friend class AudioOutputI2SQuad;
 	friend class AudioInputI2SQuad;
@@ -59,6 +63,7 @@ private:
 	static audio_block_t *block_right_2nd;
 	static uint16_t block_left_offset;
 	static uint16_t block_right_offset;
+	static uint8_t volume;
 	audio_block_t *inputQueueArray[2];
 };
 

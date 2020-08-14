@@ -1,7 +1,7 @@
 /*
 	Helix library Arduino Audio Library MP3/AAC objects
 
-	Copyright (c) 2014 Frank Bösing
+	Copyright (c) 2014 Frank Bosing
 
 	This library is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -18,20 +18,20 @@
 
 	The helix decoder itself as a different license, look at the subdirectories for more info.
 
-	Diese Bibliothek ist freie Software: Sie können es unter den Bedingungen
+	Diese Bibliothek ist freie Software: Sie konnen es unter den Bedingungen
 	der GNU General Public License, wie von der Free Software Foundation,
 	Version 3 der Lizenz oder (nach Ihrer Wahl) jeder neueren
-	veröffentlichten Version, weiterverbreiten und/oder modifizieren.
+	veroffentlichten Version, weiterverbreiten und/oder modifizieren.
 
-	Diese Bibliothek wird in der Hoffnung, dass es nützlich sein wird, aber
-	OHNE JEDE GEWÄHRLEISTUNG, bereitgestellt; sogar ohne die implizite
-	Gewährleistung der MARKTFÄHIGKEIT oder EIGNUNG FÜR EINEN BESTIMMTEN ZWECK.
-	Siehe die GNU General Public License für weitere Details.
+	Diese Bibliothek wird in der Hoffnung, dass es nutzlich sein wird, aber
+	OHNE JEDE GEWAHRLEISTUNG, bereitgestellt; sogar ohne die implizite
+	Gewahrleistung der MARKTFAHIGKEIT oder EIGNUNG FUR EINEN BESTIMMTEN ZWECK.
+	Siehe die GNU General Public License fur weitere Details.
 
 	Sie sollten eine Kopie der GNU General Public License zusammen mit diesem
 	Programm erhalten haben. Wenn nicht, siehe <http://www.gnu.org/licenses/>.
 
-	Der Helixdecoder selbst hat eine eigene Lizenz, bitte für mehr Informationen
+	Der Helixdecoder selbst hat eine eigene Lizenz, bitte fur mehr Informationen
 	in den Unterverzeichnissen nachsehen.
 
  */
@@ -45,8 +45,12 @@
 
 #include <Arduino.h>
 #include <AudioStream.h>
-#include <spi_interrupt.h>
-#include <SD.h>
+//#include <spi_interrupt.h>
+#include <SdFat.h>
+
+// SD_FAT_TYPE = 0 for SdFat/File as defined in SdFatConfig.h,
+// 1 for FAT16/FAT32, 2 for exFAT, 3 for FAT16/FAT32 and exFAT.
+#define SD_FAT_TYPE 3
 
 #define ERR_CODEC_NONE				0
 #define ERR_CODEC_FILE_NOT_FOUND    1
@@ -84,26 +88,27 @@ class CodecFile
 {
 public:
 
-	bool fopen(const char *filename) {ftype=codec_file; AudioStartUsingSPI(); fptr=NULL; file=SD.open(filename); _fsize=file.size(); _fposition=0; return file != 0;} //FILE
+	bool fopen(MutexFsBaseFile *f) {ftype=codec_file; fptr=NULL; _file = MutexFsBaseFile(*f); _fsize=_file.fileSize(); _fposition=0; return 1;} //FILE
+	bool fopen(const char *filename) {ftype=codec_file; fptr=NULL; _file.open(filename, O_RDONLY); _fsize=_file.fileSize(); _fposition=0; return 1;} //FILE
 	bool fopen(const uint8_t*p, const size_t size) {ftype=codec_flash; fptr=(uint8_t*)p; _fsize=size; _fposition=0; return true;} //FLASH
-	bool fopen(const size_t p, const size_t size) {ftype=codec_serflash; offset=p; _fsize=size; _fposition=0; AudioStartUsingSPI(); serflashinit(); return true;} //SERIAL FLASH
+	bool fopen(const size_t p, const size_t size) {ftype=codec_serflash; offset=p; _fsize=size; _fposition=0; serflashinit(); return true;} //SERIAL FLASH
 	void fclose(void)
 	{
 		_fsize=_fposition=0; fptr=NULL;
-		if (ftype==codec_file) {file.close(); AudioStopUsingSPI();}
+		if (ftype==codec_file) {_file.close();}
 		else
-		if (ftype==codec_serflash) {AudioStopUsingSPI();}
+		if (ftype==codec_serflash) {}
 		ftype=codec_none;
 	}
 	bool f_eof(void) {return _fposition >= _fsize;}
-	bool fseek(const size_t position) {_fposition=position;if (ftype==codec_file) return file.seek(_fposition)!=0; else return _fposition <= _fsize;}
+	bool fseek(const size_t position) {_fposition=position;if (ftype==codec_file) return _file.seekSet(_fposition)!=0; else return _fposition <= _fsize;}
 	size_t fposition(void) {return _fposition;}
 	size_t fsize(void) {return _fsize;}
 	size_t fread(uint8_t buffer[],size_t bytes);
 
 	uint8_t *allocBuffer(size_t size) { rdbufsize = size;  bufptr = (uint8_t *) calloc(size,1); return bufptr;}
 	void freeBuffer(void){ if (bufptr !=NULL) {free(bufptr);bufptr = NULL; } rdbufsize = 0;}
-	size_t fillReadBuffer(File file, uint8_t *sd_buf, uint8_t *data, size_t dataLeft, size_t sd_bufsize);
+	size_t fillReadBuffer(uint8_t *sd_buf, uint8_t *data, size_t dataLeft, size_t sd_bufsize);
 	//size_t fillReadBuffer(uint8_t *data, size_t dataLeft);
 
 protected:
@@ -112,11 +117,10 @@ protected:
 	void serflashinit(void);
 	void readserflash(uint8_t* buffer, const size_t position, const size_t bytes);
 
-	SPISettings spisettings;
-
 	codec_filetype ftype;
 
-	File file;
+	MutexFsBaseFile _file;
+
 	union {
 		uint8_t* fptr;
 		size_t offset;
@@ -136,8 +140,12 @@ public:
 	AudioCodec(void) : AudioStream(0, NULL) {initVars();}
 	bool pause(const bool paused);
 	bool isPlaying(void) {return playing > 0;}
-	unsigned positionMillis(void) { return (AUDIO_SAMPLE_RATE_EXACT / 1000) * samples_played;}
-	unsigned lengthMillis(void) {return max(fsize() / (bitrate / 8 ) * 1000,  positionMillis());} //Ignores VBR
+	bool isPaused(void) {return playing == codec_paused;}
+	//unsigned positionMillis(void) { return (AUDIO_SAMPLE_RATE_EXACT / 1000) * samples_played;}
+	unsigned positionMillis(void) { return (unsigned) ((uint64_t) samples_played * 1000 / AUDIO_SAMPLE_RATE_EXACT);}
+	//unsigned lengthMillis(void) {return max(fsize() / (bitrate / 8 ) * 1000,  positionMillis());} //Ignores VBR
+	unsigned lengthMillis(void) {return max(fsize() * 8 / bitrate,  positionMillis());} //Ignores VBR
+	unsigned getSamplesPlayed(void) {return samples_played;}
 	int channels(void) {return _channels;}
 	int bitRate(void) {return bitrate;}
 	void processorUsageMaxResetDecoder(void){__disable_irq();decode_cycles_max = decode_cycles_max_read = 0;__enable_irq();}
@@ -155,11 +163,12 @@ protected:
 	unsigned		samples_played;
 
 	unsigned short	_channels;
-	unsigned short	bitrate;
+	unsigned short	bitrate; // Kbps
+	unsigned int err_cnt;
 
 	volatile codec_playstate playing;
 
-	void initVars(void) {samples_played=_channels=bitrate=decode_cycles=decode_cycles_read=decode_cycles_max=decode_cycles_max_read = 0;playing=codec_stopped;}
+	void initVars(void) {samples_played=_channels=bitrate=decode_cycles=decode_cycles_read=decode_cycles_max=decode_cycles_max_read=err_cnt = 0;playing=codec_stopped;}
 	void initSwi(void) {PATCH_PRIO;NVIC_SET_PRIORITY(IRQ_AUDIOCODEC, IRQ_AUDIOCODEC_PRIO);NVIC_ENABLE_IRQ(IRQ_AUDIOCODEC);}
 
 };

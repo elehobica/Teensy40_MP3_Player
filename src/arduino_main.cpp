@@ -11,8 +11,8 @@
 #include <ff_util.h>
 #include <TeensyThreads.h>
 
-#include "my_play_sd_mp3.h"
-#include "my_output_i2s.h"
+#include <play_sd_mp3.h>
+#include <output_i2s.h>
 #include "stack.h"
 #include "id3read.h"
 #include "utf_conv.h"
@@ -96,8 +96,8 @@ uint16_t eprw_count; // EEPROM Write Count (to check for write endurance of 100,
 //Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
 LcdCanvas lcd = LcdCanvas(TFT_CS, TFT_DC, TFT_RST);
 
-MyAudioPlaySdMp3    playMp3;
-MyAudioOutputI2S    i2s1;
+AudioPlaySdMp3    playMp3;
+AudioOutputI2S    i2s1;
 AudioConnection     patchCord0(playMp3, 0, i2s1, 0);
 AudioConnection     patchCord1(playMp3, 1, i2s1, 1);
 
@@ -550,7 +550,7 @@ void codec_thread()
     while (1) {
         codec_event.wait();
         codec_event.clear();
-        my_decodeMp3_core();
+        decodeMp3_core();
     }
 }
 

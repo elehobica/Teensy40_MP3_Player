@@ -1,7 +1,7 @@
 /*
 	Helix library Arduino Audio Library MP3/AAC objects
 
-	Copyright (c) 2014 Frank Bösing
+	Copyright (c) 2014 Frank Bosing
 
 	This library is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -18,20 +18,20 @@
 
 	The helix decoder itself as a different license, look at the subdirectories for more info.
 
-	Diese Bibliothek ist freie Software: Sie können es unter den Bedingungen
+	Diese Bibliothek ist freie Software: Sie konnen es unter den Bedingungen
 	der GNU General Public License, wie von der Free Software Foundation,
 	Version 3 der Lizenz oder (nach Ihrer Wahl) jeder neueren
-	veröffentlichten Version, weiterverbreiten und/oder modifizieren.
+	veroffentlichten Version, weiterverbreiten und/oder modifizieren.
 
-	Diese Bibliothek wird in der Hoffnung, dass es nützlich sein wird, aber
-	OHNE JEDE GEWÄHRLEISTUNG, bereitgestellt; sogar ohne die implizite
-	Gewährleistung der MARKTFÄHIGKEIT oder EIGNUNG FÜR EINEN BESTIMMTEN ZWECK.
-	Siehe die GNU General Public License für weitere Details.
+	Diese Bibliothek wird in der Hoffnung, dass es nutzlich sein wird, aber
+	OHNE JEDE GEWAHRLEISTUNG, bereitgestellt; sogar ohne die implizite
+	Gewahrleistung der MARKTFAHIGKEIT oder EIGNUNG FUR EINEN BESTIMMTEN ZWECK.
+	Siehe die GNU General Public License fur weitere Details.
 
 	Sie sollten eine Kopie der GNU General Public License zusammen mit diesem
 	Programm erhalten haben. Wenn nicht, siehe <http://www.gnu.org/licenses/>.
 
-	Der Helixdecoder selbst hat eine eigene Lizenz, bitte für mehr Informationen
+	Der Helixdecoder selbst hat eine eigene Lizenz, bitte fur mehr Informationen
 	in den Unterverzeichnissen nachsehen.
 
  */
@@ -40,7 +40,7 @@
 #include "codecs.h"
 
 #include "common/assembly.h"
-#include "SD.h"
+//#include "SD.h"
 
 void CodecFile::serflashinit(void)
 {
@@ -54,13 +54,14 @@ void CodecFile::serflashinit(void)
 	SPI.setMISO(12);
 	SPI.setSCK(14);
 #endif		
-	SPI.begin();
-	spisettings = SPISettings(SPICLOCK , MSBFIRST, SPI_MODE0);
+	//SPI.begin();
+	//spisettings = SPISettings(SPICLOCK , MSBFIRST, SPI_MODE0);
 }
 
 //__attribute__ ((optimize("O2")))
 inline void CodecFile::readserflash(uint8_t* buffer, const size_t position, const size_t bytes)
 {//flash_spi.h has no such function.
+    /*
 	SPI.beginTransaction(spisettings);
 	digitalWriteFast(SERFLASH_CS, LOW);
 	SPI.transfer(0x0b);//CMD_READ_HIGH_SPEED
@@ -73,14 +74,15 @@ inline void CodecFile::readserflash(uint8_t* buffer, const size_t position, cons
 	}
 	digitalWriteFast(SERFLASH_CS, HIGH);
 	SPI.endTransaction();
+    */
 }
 
 size_t CodecFile::fread(uint8_t buffer[],size_t bytes)
 {
 	if (_fposition + bytes > _fsize) bytes = _fsize - _fposition;
 	switch (ftype) {
-		case codec_none : bytes = 0; break;
-		case codec_file : bytes = file.read(buffer, bytes); break;
+		case codec_none: bytes = 0; break;
+		case codec_file: bytes = _file.read(buffer, bytes); break;
 		case codec_flash: memcpy(buffer, _fposition + fptr, bytes); break;
 		case codec_serflash: readserflash(buffer, _fposition + offset, bytes); break;
 	}
@@ -88,7 +90,7 @@ size_t CodecFile::fread(uint8_t buffer[],size_t bytes)
 	return bytes;
 }
 
-size_t CodecFile::fillReadBuffer(File file, uint8_t *sd_buf, uint8_t *data, size_t dataLeft, size_t sd_bufsize)
+size_t CodecFile::fillReadBuffer(uint8_t *sd_buf, uint8_t *data, size_t dataLeft, size_t sd_bufsize)
 {//TODO: Sync to 512-Byte blocks, if possible
 
 	memmove(sd_buf, data, dataLeft);
@@ -105,7 +107,7 @@ size_t CodecFile::fillReadBuffer(File file, uint8_t *sd_buf, uint8_t *data, size
 		read +=n;
 
 		if(n < spaceLeft)
-		{ //Rest mit 0 füllen (EOF)
+		{ //Rest mit 0 fullen (EOF)
 			memset(sd_buf + dataLeft, 0, sd_bufsize - dataLeft);
 		}
 
@@ -131,7 +133,7 @@ size_t CodecFile::fillReadBuffer(uint8_t *data, size_t dataLeft)
 		read +=n;
 
 		if(n < spaceLeft)
-		{ //Rest mit 0 füllen (EOF)
+		{ //Rest mit 0 fullen (EOF)
 			memset(bufptr + dataLeft, 0, rdbufsize - dataLeft);
 		}
 
@@ -187,5 +189,3 @@ int AudioCodec::freeRam(void) {
   }
   return free_memory;
 }
-
-
