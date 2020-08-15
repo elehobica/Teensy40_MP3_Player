@@ -390,23 +390,32 @@ int ID3Read::getPicture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, si
             if (!strncmp("APIC", thisframe->ID, 4) && thisframe->data != NULL) {
                 if (idx == count) {
                     // encoding(1) + mime(\0) + ptype(1) + desc(1) + binary
-                    if (thisframe->data[0] == 0) { // ISO-8859-1
+                    //if (thisframe->data[0] == 0) {
+                    if (thisframe->data[0] == 0 || thisframe->data[0] == 1) { // normally 'encoding' must be ISO-8859-1 (00h), but found some (01h) examples
                         if (!strncmp("image/jpeg", &thisframe->data[1], 10)) {
                             *mime = jpeg;
                             *ptype = static_cast<ptype_t>(thisframe->data[1+11]);
-                            if (thisframe->data[1+11+1] == 0) {
-                                //*ptr = &thisframe->data[1+11+1+1];
+                            if (thisframe->data[1+11+1] == 0) { // normally 'desc' is needed, but ... (see below case)
+                                // *ptr = &thisframe->data[1+11+1+1];
                                 *size = thisframe->size - (1+11+1+1);
                                 *pos = thisframe->pos + (1+11+1+1);
+                            } else if (thisframe->data[1+11+1+0] == 0xFF && thisframe->data[1+11+1+1] == 0xFE) { // found some illegal files have no 'desc'
+                                // *ptr = &thisframe->data[1+11+1];
+                                *size = thisframe->size - (1+11+1);
+                                *pos = thisframe->pos + (1+11+1);
                             }
                             hasFullData = thisframe->hasFullData;
                         } else if (!strncmp("image/png", &thisframe->data[1], 9)) {
                             *mime = png;
                             *ptype = static_cast<ptype_t>(thisframe->data[1+10]);
-                            if (thisframe->data[1+10+1] == 0) {
-                                //*ptr = &thisframe->data[1+10+1+1];
+                            if (thisframe->data[1+10+1] == 0) { // normally 'desc' is needed, but ... (see below case)
+                                // *ptr = &thisframe->data[1+10+1+1];
                                 *size = thisframe->size - (1+10+1+1);
                                 *pos = thisframe->pos + (1+10+1+1);
+                            } else if (thisframe->data[1+10+1+0] == 0x89 && thisframe->data[1+10+1+1] == 0x50) { // found some illegal files have no 'desc'
+                                //*ptr = &thisframe->data[1+10+1];
+                                *size = thisframe->size - (1+10+1);
+                                *pos = thisframe->pos + (1+10+1);
                             }
                             hasFullData = thisframe->hasFullData;
                         }
