@@ -143,6 +143,24 @@ size_t CodecFile::fillReadBuffer(uint8_t *data, size_t dataLeft)
 }
 */
 
+size_t skipToDataChunk(uint8_t *sd_buf, size_t sd_buf_size)
+{
+	size_t ofs = 0;
+	if (sd_buf[ 0]=='R' && sd_buf[ 1]=='I' && sd_buf[ 2]=='F' && sd_buf[ 3]=='F' &&
+	    sd_buf[ 8]=='W' && sd_buf[ 9]=='A' && sd_buf[10]=='V' && sd_buf[11]=='E')
+	{
+		ofs = 12;
+		while (1) {
+			char *chunk_id = (char *) (sd_buf + ofs);
+			uint32_t *size = (uint32_t *) (sd_buf + ofs + 4);
+			if (memcmp(chunk_id, "data", 4) == 0) { break; }
+			ofs += 8 + *size;
+			if (ofs > sd_buf_size - 8) { return 0; };
+		}
+	}
+	return ofs;
+}
+
 //Skip ID3-Tags at the beginning of the file.
 //http://id3.org/id3v2.4.0-structure
 size_t skipID3(uint8_t *sd_buf)
