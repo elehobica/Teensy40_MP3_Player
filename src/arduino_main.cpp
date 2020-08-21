@@ -542,6 +542,7 @@ void loadID3(uint16_t idx_play)
     ptype_t ptype;
     uint64_t img_pos;
     size_t size;
+    int img_cnt = 0;
 
     id3.loadFile(idx_play);
 
@@ -561,8 +562,29 @@ void loadID3(uint16_t idx_play)
     lcd.deleteAlbumArt();
     for (int i = 0; i < id3.getPictureCount(); i++) {
         if (id3.getPicturePos(i, &mime, &ptype, &img_pos, &size)) {
-            if (mime == jpeg) { lcd.addAlbumArtJpeg(idx_play, img_pos, size); }
-            else if (mime == png) { lcd.addAlbumArtPng(idx_play, img_pos, size); }
+            if (mime == jpeg) { lcd.addAlbumArtJpeg(idx_play, img_pos, size); img_cnt++; }
+            else if (mime == png) { lcd.addAlbumArtPng(idx_play, img_pos, size); img_cnt++; }
+        }
+    }
+    // if no AlbumArt in ID3, use JPEG or PNG in current folder
+    if (img_cnt == 0) {
+        uint16_t idx = 0;
+        while (idx < file_menu_get_num()) {
+            MutexFsBaseFile f;
+            file_menu_get_obj(idx, &f);
+            f.getName(str, sizeof(str));
+            char* ext_pos = strrchr(str, '.');
+            if (ext_pos) {
+                if (strncmp(ext_pos, ".jpg", 4) == 0  || strncmp(ext_pos, ".JPG", 4) == 0 ||
+                    strncmp(ext_pos, ".jpeg", 5) == 0 || strncmp(ext_pos, ".JPEG", 5) == 0) {
+                    lcd.addAlbumArtJpeg(idx, 0, f.fileSize());
+                    img_cnt++;
+                } else if (strncmp(ext_pos, ".png", 4) == 0  || strncmp(ext_pos, ".PNG", 4) == 0) {
+                    lcd.addAlbumArtPng(idx, 0, f.fileSize());
+                    img_cnt++;
+                }
+            }
+            idx++;
         }
     }
 }

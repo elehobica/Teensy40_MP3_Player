@@ -16,20 +16,89 @@ ID3Read::~ID3Read()
 
 int ID3Read::loadFile(uint16_t file_idx)
 {
-    int result;
     if (id3v1) ID31Free(id3v1);
     if (id3v2) ID32Free(id3v2);
+
     file_menu_get_obj(file_idx, &file);
-    result = GetID3HeadersFull(&file, 1, &id3v1, &id3v2); // 1: no-debug display, 0: debug display
-    //file.rewind();
-    return result;
+
+    // try ID3v1 or ID3v2
+    if (GetID3HeadersFull(&file, 1 /* 1: no-debug display, 0: debug display */, &id3v1, &id3v2) == 0) { return 1; }
+
+    // If ID3 fails, try to read LIST chunk for WAV file
+    file.rewind();
+    if (getListChunk(&file)) { return 1; }
+
+    return 0;
 }
 
-int ID3Read::GetID3HeadersFull(MutexFsBaseFile* infile, int testfail, id31** id31save, id32** id32save)
+// int ID3Read::findNextChunk(MutexFsBaseFile *file, uint32_t end_pos, char chunk_id[4], uint32_t *pos, uint32_t *size)
+// end_pos: chunk search stop position
+// chunk_id: out: chunk id deteced`
+// *pos: in: chunk search start position, out: next chunk search start position
+// *size: out: chunk size detected
+int ID3Read::findNextChunk(MutexFsBaseFile *file, uint32_t end_pos, char chunk_id[4], uint32_t *pos, uint32_t *size)
+{
+    if (end_pos <= *pos + 8) { return 0; }
+    file->seekSet(*pos);
+    file->read(chunk_id, 4);
+    file->read(size, sizeof(uint32_t));
+    *size = (*size + 1)/2*2; // next offset must be even number
+    *pos += *size + 8;
+    if (end_pos < *pos) { return 0; }
+    return 1;
+}
+
+int ID3Read::getListChunk(MutexFsBaseFile *file)
+{
+    char str[256];
+    file->read(str, 12);
+	if (str[ 0]=='R' && str[ 1]=='I' && str[ 2]=='F' && str[ 3]=='F' &&
+	    str[ 8]=='W' && str[ 9]=='A' && str[10]=='V' && str[11]=='E')
+	{
+        uint32_t wav_end_pos;
+        memcpy(&wav_end_pos, &str[4], 4);
+        wav_end_pos += 8;
+        char chunk_id[4];
+        uint32_t pos = 12;
+        uint32_t size;
+        while (findNextChunk(file, wav_end_pos, chunk_id, &pos, &size)) { // search from 'RIFF' + size + 'WAVE' for every chunk
+			if (memcmp(chunk_id, "LIST", 4) == 0) {
+                file->seekSet(pos-size);
+                char info_id[4];
+                file->read(info_id, sizeof(info_id));
+                if (memcmp(info_id, "INFO", 4) == 0) { // info is not chunk element
+                    uint32_t list_end_pos = pos;
+                    pos = pos - size + 4;
+                    while (findNextChunk(file, list_end_pos, chunk_id, &pos, &size)) { // search from 'LIST' + size + 'INFO' for every chunk
+                        file->seekSet(pos-size);
+                        file->read(str, size);
+                        // copy LIST INFO data to ID3v1 member (note that ID3v1 members don't finish with '\0')
+                        if (memcmp(chunk_id, "IART", 4) == 0) { // Artist
+                            strncpy(id3v1->artist, str, sizeof(id3v1->artist));
+                        } else if (memcmp(chunk_id, "INAM", 4) == 0) { // Title
+                            strncpy(id3v1->title, str, sizeof(id3v1->title));
+                        } else if (memcmp(chunk_id, "IPRD", 4) == 0) { // Album
+                            strncpy(id3v1->album, str, sizeof(id3v1->album));
+                        } else if (memcmp(chunk_id, "ICRD", 4) == 0) { // Year
+                            strncpy(id3v1->year, str, sizeof(id3v1->year));
+                        } else if (memcmp(chunk_id, "IPRT", 4) == 0) { // Track  ==> type not matched
+                            id3v1->tracknum = (unsigned char) atoi(str); // atoi stops conversion if non-number appeared
+                        //} else if (memcmp(chunk_id, "IGNR", 4) == 0) { // Genre  ==> type not matched
+                        }
+                    }
+                    return 1;
+                }
+            }
+        }
+    }
+    return 0;
+}
+
+int ID3Read::GetID3HeadersFull(MutexFsBaseFile *infile, int testfail, id31** id31save, id32** id32save)
 {
     int result;
     char* input;
-    id31* id3header;
+    id31* id31header;
     id32* id32header;
     int fail = 0;
     // seek to start of header
@@ -55,12 +124,12 @@ int ID3Read::GetID3HeadersFull(MutexFsBaseFile* infile, int testfail, id31** id3
   
     // now call id3print
   
-    id3header = ID31Detect(input);
+    int flg = ID31Detect(input, &id31header);
     // do we win?
-    if (id3header) {
+    if (flg) {
         if (!testfail) {
             Serial.println("Valid ID3v1 header detected");
-            ID31Print(id3header);
+            ID31Print(id31header);
         }
     } else {
         if (!testfail) {
@@ -69,6 +138,7 @@ int ID3Read::GetID3HeadersFull(MutexFsBaseFile* infile, int testfail, id31** id3
             fail=1;
         }
     }
+    free(input);
     id32header=ID32Detect(infile);
     if (id32header) {
         if (!testfail) {
@@ -83,12 +153,12 @@ int ID3Read::GetID3HeadersFull(MutexFsBaseFile* infile, int testfail, id31** id3
             fail+=2;
         }
     }
-    *id31save=id3header;
+    *id31save=id31header;
     *id32save=id32header;
     return fail;
 }
 
-id32* ID3Read::ID32Detect(MutexFsBaseFile* infile)
+id32* ID3Read::ID32Detect(MutexFsBaseFile *infile)
 {
     unsigned char* buffer;
     int result;
@@ -339,27 +409,56 @@ id32* ID3Read::ID32Detect(MutexFsBaseFile* infile)
 
 int ID3Read::getUTF8Track(char* str, size_t size)
 {
-    return GetID32UTF8("TRK", "TRCK", str, size);
+    if (GetID32UTF8("TRK", "TRCK", str, size)) { return 1; }
+    if (strlen(id3v1->title) && size >= 4) { // check titlte because track is unsigned char
+        sprintf(str, "%d", id3v1->tracknum);
+        return 1;
+    }
+    return 0;
 }
 
 int ID3Read::getUTF8Title(char* str, size_t size)
 {
-    return GetID32UTF8("TT2", "TIT2", str, size);
+    if (GetID32UTF8("TT2", "TIT2", str, size)) { return 1; }
+    if (strlen(id3v1->title)) {
+        memset(str, 0, size);
+        strncpy(str, id3v1->title, (strlen(id3v1->title) < size - 1) ? strlen(id3v1->title) : size - 1);
+        return 1;
+    }
+    return 0;
 }
 
 int ID3Read::getUTF8Album(char* str, size_t size)
 {
-    return GetID32UTF8("TAL", "TALB", str, size);
+    if (GetID32UTF8("TAL", "TALB", str, size)) { return 1; }
+    if (strlen(id3v1->album)) {
+        memset(str, 0, size);
+        strncpy(str, id3v1->album, (strlen(id3v1->album) < size - 1) ? strlen(id3v1->album) : size - 1);
+        return 1;
+    }
+    return 0;
 }
 
 int ID3Read::getUTF8Artist(char* str, size_t size)
 {
-    return GetID32UTF8("TP1", "TPE1", str, size);
+    if (GetID32UTF8("TP1", "TPE1", str, size)) { return 1; }
+    if (strlen(id3v1->artist)) {
+        memset(str, 0, size);
+        strncpy(str, id3v1->artist, (strlen(id3v1->artist) < size - 1) ? strlen(id3v1->artist) : size - 1);
+        return 1;
+    }
+    return 0;
 }
 
 int ID3Read::getUTF8Year(char* str, size_t size)
 {
-    return GetID32UTF8("TYE", "TYER", str, size);
+    if (GetID32UTF8("TYE", "TYER", str, size)) { return 1; }
+    if (strlen(id3v1->year)) {
+        memset(str, 0, size);
+        strncpy(str, id3v1->year, (strlen(id3v1->year) < size - 1) ? strlen(id3v1->year) : size - 1);
+        return 1;
+    }
+    return 0;
 }
 
 int ID3Read::getPictureCount()
@@ -764,20 +863,20 @@ id32flat* ID3Read::ID3Copy1to2(id31* bonar)
     return final;
 }
 
-id31* ID3Read::ID31Detect(char* header)
+int ID3Read::ID31Detect(char* header, id31 **id31header)
 {
     char test[4];
-    id31* toreturn = (id31 *) calloc(sizeof(id31), 1);
+    *id31header = (id31 *) calloc(sizeof(id31), 1);
     memcpy(test, header, 3);
     test[3] = 0;
     // make sure TAG is present
     if (!strcmp("TAG", test)) {
         // successrar
-        memcpy(toreturn, header, sizeof(id31));
-        return toreturn;
+        memcpy(*id31header, header, sizeof(id31));
+        return 1;
     }
     // otherwise fail
-    return NULL;
+    return 0;
 }
 
 void ID3Read::ID31Print(id31* id31header)

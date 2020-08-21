@@ -94,13 +94,14 @@ public:
     int getUTF8Year(char *str, size_t size);
     int getPictureCount();
     int getPicturePos(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size);
+    int getListChunk(MutexFsBaseFile *file);
 
 private:
     MutexFsBaseFile file;
     id31 *id3v1;
     id32 *id3v2;
-    int GetID3HeadersFull(MutexFsBaseFile* infile, int testfail, id31** id31save, id32** id32save);
-    id32* ID32Detect(MutexFsBaseFile* infile);
+    int GetID3HeadersFull(MutexFsBaseFile *infile, int testfail, id31** id31save, id32** id32save);
+    id32* ID32Detect(MutexFsBaseFile *infile);
     int GetID32UTF8(const char *id3v22, const char *id3v23, char *str, size_t size);
     int GetIDCount(const char *id3v22, const char *id3v23);
     void ID32Print(id32* id32header);
@@ -110,10 +111,11 @@ private:
     void ID32Finalise(id32flat* gary);
     int ID32Append(id32flat* gary, char* filename);
     id32flat* ID3Copy1to2(id31* bonar);
-    id31* ID31Detect(char* header);
+    int ID31Detect(char* header, id31 **id31header);
     void ID31Print(id31* id31header);
     void ID31Free(id31* id31header);
     int getPicture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size);
+    int findNextChunk(MutexFsBaseFile *file, uint32_t end_pos, char chunk_id[4], uint32_t *pos, uint32_t *size);
 };
 
 #endif //_ID3READ_H_

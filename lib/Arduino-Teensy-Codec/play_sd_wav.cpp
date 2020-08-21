@@ -38,7 +38,7 @@
 
  /* The Helix-Library is modified for Teensy 3.1 */
 
-// Total RAM Usage: 35 KB
+// Total RAM Usage: ??? KB
 
 #include "play_sd_wav.h"
 #include <TeensyThreads.h>
