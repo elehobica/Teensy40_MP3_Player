@@ -148,6 +148,7 @@ typedef void *HAACDecoder;
 
 /* public C API */
 HAACDecoder AACInitDecoder(void);
+HAACDecoder AACResetDecoder(HAACDecoder hAACDecoder);
 void AACFreeDecoder(HAACDecoder hAACDecoder);
 int AACDecode(HAACDecoder hAACDecoder, unsigned char **inbuf, int *bytesLeft, short *outbuf);
 

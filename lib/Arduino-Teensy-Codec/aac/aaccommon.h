@@ -147,6 +147,7 @@ typedef struct _AACDecInfo {
 
 /* decoder functions which must be implemented for each platform */
 AACDecInfo *AllocateBuffers(void);
+AACDecInfo *ResetBuffers(AACDecInfo *aacDecInfo);
 void FreeBuffers(AACDecInfo *aacDecInfo);
 void ClearBuffer(void *buf, int nBytes);
 

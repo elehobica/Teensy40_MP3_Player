@@ -81,6 +81,12 @@ HAACDecoder AACInitDecoder(void)
 	return (HAACDecoder)aacDecInfo;
 }
 
+HAACDecoder AACResetDecoder(HAACDecoder hAACDecoder)
+{
+	ResetBuffers((AACDecInfo *) hAACDecoder);
+	return hAACDecoder;
+}
+
 /**************************************************************************************
  * Function:    AACFreeDecoder
  *

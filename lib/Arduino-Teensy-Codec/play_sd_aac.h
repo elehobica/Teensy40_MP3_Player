@@ -43,23 +43,25 @@
 
 #include "codecs.h"
 #include "AudioStream.h"
-#include "spi_interrupt.h"
+//#include "spi_interrupt.h"
 #include "aac/aacdec.h"
+
+//#define DEBUG_PLAY_SD_AAC
 
 struct _ATOM		{unsigned int position;unsigned int size;};
 struct _ATOMINFO	{uint32_t size;char name[4];};
 
-//class AudioPlaySdAac : public AudioStream
 class AudioPlaySdAac : public AudioCodec
 {
 public:
-	//AudioPlaySdAac(void) : AudioStream(0, NULL) {}
-	int play(const char *filename) {stop();if (!fopen(filename)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
-	int play(const size_t p, const size_t size) {stop();if (!fopen(p,size)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
-	int play(const uint8_t*p, const size_t size) {stop();if (!fopen(p,size))  return ERR_CODEC_FILE_NOT_FOUND; return play();}
 	void stop(void);
-
-	uint32_t lengthMillis(void);
+	int standby_play(MutexFsBaseFile *file);
+	int play(MutexFsBaseFile *file, size_t position = 0, unsigned samples_played = 0) {stop();if (!fopen(file)) return ERR_CODEC_FILE_NOT_FOUND; return play(position, samples_played);}
+	//int play(const char *filename) {stop();if (!fopen(filename)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
+	//int play(const size_t p, const size_t size) {stop();if (!fopen(p,size)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
+	//int play(const uint8_t*p, const size_t size) {stop();if (!fopen(p,size))  return ERR_CODEC_FILE_NOT_FOUND; return play();}
+	unsigned lengthMillis(void);
+	size_t fposition(void) { return AudioCodec::fposition() - sd_left; }
 
 protected:
 
@@ -74,22 +76,24 @@ protected:
 
 	bool isRAW;		//true AAC(streamable)
 	uintptr_t		play_pos;
-	size_t 			size_id3;
 	uint32_t 		firstChunk, lastChunk;	//for MP4/M4A //TODO: use for ID3 too
 	unsigned		duration;
 
 	HAACDecoder		hAACDecoder;
 	AACFrameInfo	aacFrameInfo;
 
-	int play(void);
+	void stop_for_next(void);
+	int play(size_t position = 0, unsigned samples_played = 0);
 	uint16_t fread16(size_t position);
 	uint32_t fread32(size_t position);
 	void setupDecoder(int channels, int samplerate, int profile);
 	_ATOM findMp4Atom(const char *atom, const uint32_t posi, const bool loop);
 	bool setupMp4(void);
 	void update(void);
-	friend void decodeAac(void);
+	friend void decodeAac_core(void);
 };
 
+void decodeAac_core(void);
+void decodeAac_core_x2(void);
 
 #endif

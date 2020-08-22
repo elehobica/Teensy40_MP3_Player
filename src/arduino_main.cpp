@@ -12,8 +12,9 @@
 #include <TeensyThreads.h>
 
 #include <Audio.h>
-#include <play_sd_wav.h>
 #include <play_sd_mp3.h>
+#include <play_sd_wav.h>
+#include <play_sd_aac.h>
 #include <output_i2s.h>
 
 #include "stack.h"
@@ -103,6 +104,7 @@ LcdCanvas lcd = LcdCanvas(TFT_CS, TFT_DC, TFT_RST);
 AudioCodec          *play;
 AudioPlaySdMp3      playMp3;
 AudioPlaySdWav      playWav;
+AudioPlaySdAac      playAac;
 AudioOutputI2S      i2s1;
 AudioMixer4         mixer0;
 AudioMixer4         mixer1;
@@ -110,6 +112,8 @@ AudioConnection     patchCordIn0_0(playMp3, 0, mixer0, 0);
 AudioConnection     patchCordIn0_1(playMp3, 1, mixer1, 0);
 AudioConnection     patchCordIn1_0(playWav, 0, mixer0, 1);
 AudioConnection     patchCordIn1_1(playWav, 1, mixer1, 1);
+AudioConnection     patchCordIn2_0(playAac, 0, mixer0, 2);
+AudioConnection     patchCordIn2_1(playAac, 1, mixer1, 2);
 AudioConnection     patchCordOut0(mixer0, 0, i2s1, 0);
 AudioConnection     patchCordOut1(mixer1, 0, i2s1, 1);
 
@@ -171,21 +175,29 @@ void initEEPROM(void)
 
 void loadFromEEPROM(void)
 {
+    bool err_flg = false;
     randomSeed(((uint16_t) EEPROM.read(CFG_SEED1) << 8) | ((uint16_t) EEPROM.read(CFG_SEED0)));
     i2s1.set_volume(EEPROM.read(CFG_VOLUME));
     for (int i = EEPROM.read(CFG_STACK_COUNT) - 1; i >= 0; i--) {
         item.head = ((uint16_t) EEPROM.read(CFG_STACK_HEAD0_H + i*4) << 8) | ((uint16_t) EEPROM.read(CFG_STACK_HEAD0_L + i*4));
         item.column = ((uint16_t) EEPROM.read(CFG_STACK_COLUMN0_H + i*4) << 8) | ((uint16_t) EEPROM.read(CFG_STACK_COLUMN0_L + i*4));
+        if (item.head+item.column >= file_menu_get_num()) { err_flg = true; break; } // idx overflow
         file_menu_sort_entry(item.head+item.column, item.head+item.column + 1);
-        if (file_menu_is_dir(item.head+item.column) <= 0 || item.head+item.column == 0) { // Not Directory or Parent Directory
-            break;
-        }
+        if (file_menu_is_dir(item.head+item.column) <= 0 || item.head+item.column == 0) { err_flg = true; break; } // Not Directory or Parent Directory
         stack_push(stack, &item);
         file_menu_ch_dir(item.head+item.column);
     }
     idx_head = ((uint16_t) EEPROM.read(CFG_IDX_HEAD_H) << 8) | ((uint16_t) EEPROM.read(CFG_IDX_HEAD_L));
     idx_column = ((uint16_t) EEPROM.read(CFG_IDX_COLUMN_H) << 8) | ((uint16_t) EEPROM.read(CFG_IDX_COLUMN_L));
     mode = static_cast<LcdCanvas::mode_enm>(EEPROM.read(CFG_MODE));
+    if (idx_head+idx_column >= file_menu_get_num()) { err_flg = true; } // idx overflow
+    if (err_flg) { // Load Error
+        stack_delete(stack);
+        stack = stack_init();
+        file_menu_open_root_dir();
+        idx_head = idx_column = 0;
+        mode = LcdCanvas::FileView;
+    }
     idx_play = ((uint16_t) EEPROM.read(CFG_IDX_PLAY_H) << 8) | ((uint16_t) EEPROM.read(CFG_IDX_PLAY_L));
     if (mode == LcdCanvas::Play) {
         mode = LcdCanvas::FileView;
@@ -209,7 +221,6 @@ void loadFromEEPROM(void)
 void power_off(void)
 {
     lcd.switchToPowerOff();
-    lcd.draw();
     uint8_t volume = i2s1.get_volume();
     fpos = 0;
     samples_played = 0;
@@ -252,6 +263,7 @@ void power_off(void)
     for (int i = 0; i < 4; i++) {
         EEPROM.write(CFG_SAMPLES_PLAYED0 + i, (uint8_t) ((samples_played >> i*8) & 0xff));
     }
+    lcd.draw();
     // Self Power Off
     /* do pin control here */
     // Endless Loop
@@ -520,6 +532,10 @@ int get_audio_file(uint16_t idx, int seq_flg, MutexFsBaseFile *f)
                 play = &playWav;
                 flg = 1;
                 break;
+            } else if (strncmp(ext_pos, ".m4a", 4) == 0 || strncmp(ext_pos, ".M4A", 4) == 0) {
+                play = &playAac;
+                flg = 1;
+                break;
             }
         }
         if (!seq_flg) { break; }
@@ -596,6 +612,7 @@ void codec_thread()
         codec_event.clear();
         decodeMp3_core();
         decodeWav_core();
+        decodeAac_core_x2();
     }
 }
 
@@ -619,7 +636,7 @@ void setup() {
 
     // Audio connections require memory to work.  For more
     // detailed information, see the MemoryAndCpuUsage example
-    AudioMemory(10); // 5 for Single MP3
+    AudioMemory(15); // 5 for Single MP3
 
     // Restore power off situation
     loadFromEEPROM();

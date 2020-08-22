@@ -113,6 +113,18 @@ AACDecInfo *AllocateBuffers(void)
 	return aacDecInfo;
 }
 
+AACDecInfo *ResetBuffers(AACDecInfo *aacDecInfo)
+{
+	PSInfoBase *ib = (PSInfoBase *) aacDecInfo->psInfoBase;
+
+	ClearBuffer(ib, sizeof(PSInfoBase));
+	ClearBuffer(aacDecInfo, sizeof(AACDecInfo));
+
+	aacDecInfo->psInfoBase = (void *) ib;
+
+	return aacDecInfo;
+}
+
 #ifndef SAFE_FREE
 #define SAFE_FREE(x)	{if (x)	free(x);	(x) = 0;}	/* helper macro */
 #endif

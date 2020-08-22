@@ -81,7 +81,6 @@ size_t AudioPlaySdWav::parseFmtChunk(uint8_t *sd_buf, size_t sd_buf_size)
 	return ofs;
 }
 
-// stop called from normal (mylock blocking)
 void AudioPlaySdWav::stop(void)
 {
 	NVIC_DISABLE_IRQ(IRQ_AUDIOCODEC);
@@ -461,7 +460,6 @@ wavend:
 	*/
 }
 
-// stop called from ISR (mylock non-blocking)
 void AudioPlaySdWav::stop_for_next(void)
 {
 	//NVIC_DISABLE_IRQ(IRQ_AUDIOCODEC);

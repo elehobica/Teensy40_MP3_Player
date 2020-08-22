@@ -64,7 +64,6 @@ static AudioPlaySdMp3 	*mp3objptr;
 
 void decodeMp3(void);
 
-// stop called from normal (mylock blocking)
 void AudioPlaySdMp3::stop(void)
 {
 	NVIC_DISABLE_IRQ(IRQ_AUDIOCODEC);
@@ -473,7 +472,6 @@ mp3end:
 	*/
 }
 
-// stop called from ISR (mylock non-blocking)
 void AudioPlaySdMp3::stop_for_next(void)
 {
 	//NVIC_DISABLE_IRQ(IRQ_AUDIOCODEC);
@@ -491,10 +489,10 @@ void AudioPlaySdMp3::stop_for_next(void)
 // lengthMillis (Override)
 unsigned AudioPlaySdMp3::lengthMillis(void)
 {
-	if (mp3FrameInfo.numFrames) { // VBR case
+	if (mp3FrameInfo.numFrames) { // also safe for VBR case
 		// numFrames - 1: Sub a frame where Xing Header exists
 		return ((unsigned long long) (mp3FrameInfo.numFrames - 1) * mp3FrameInfo.nChans * 576 * 1000 / AUDIO_SAMPLE_RATE_EXACT);
 	} else {
-		return max((fsize() - size_id3) * 8 / (bitrate * 1000),  positionMillis());
+		return max((fsize() - size_id3) * 8 / bitrate,  positionMillis());
 	}
 }
