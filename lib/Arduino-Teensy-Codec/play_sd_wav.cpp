@@ -476,5 +476,5 @@ void AudioPlaySdWav::stop_for_next(void)
 // lengthMillis (Override)
 unsigned AudioPlaySdWav::lengthMillis(void)
 {
-	return max(data_size / (samprate * _channels * bitsPerSample/8),  positionMillis());
+	return max((uint64_t) data_size * 1000 / ((uint32_t) samprate * _channels * bitsPerSample/8), positionMillis());
 }
