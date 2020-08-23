@@ -1,5 +1,5 @@
-#ifndef _ID3READ_H_
-#define _ID3READ_H_
+#ifndef _TAGREAD_H_
+#define _TAGREAD_H_
 
 #include <ff_util.h>
 
@@ -104,11 +104,11 @@ typedef enum _ptype_t {
 const size_t frame_size_limit = 1024;
 const size_t frame_start_bytes = 16;
 
-class ID3Read
+class TagRead
 {
 public:
-    ID3Read();
-    ~ID3Read();
+    TagRead();
+    ~TagRead();
     int loadFile(uint16_t file_idx);
     int getUTF8Track(char *str, size_t size);
     int getUTF8Title(char *str, size_t size);
@@ -153,4 +153,4 @@ private:
     int getMP4Picture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size);
 };
 
-#endif //_ID3READ_H_
+#endif //_TAGREAD_H_

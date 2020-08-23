@@ -1,21 +1,21 @@
-#include "id3read.h"
+#include "TagRead.h"
 #include <Arduino.h>
 #include "utf_conv.h"
 
-ID3Read::ID3Read()
+TagRead::TagRead()
 {
     id3v1 = NULL;
     id3v2 = NULL;
     clearMP4_ilst();
 }
 
-ID3Read::~ID3Read()
+TagRead::~TagRead()
 {
     if (id3v1) ID31Free(id3v1);
     if (id3v2) ID32Free(id3v2);
 }
 
-int ID3Read::loadFile(uint16_t file_idx)
+int TagRead::loadFile(uint16_t file_idx)
 {
     if (id3v1) ID31Free(id3v1);
     if (id3v2) ID32Free(id3v2);
@@ -36,7 +36,7 @@ int ID3Read::loadFile(uint16_t file_idx)
     return 0;
 }
 
-int ID3Read::GetID3HeadersFull(MutexFsBaseFile *infile, int testfail, id31** id31save, id32** id32save)
+int TagRead::GetID3HeadersFull(MutexFsBaseFile *infile, int testfail, id31** id31save, id32** id32save)
 {
     int result;
     char* input;
@@ -100,7 +100,7 @@ int ID3Read::GetID3HeadersFull(MutexFsBaseFile *infile, int testfail, id31** id3
     return fail;
 }
 
-id32* ID3Read::ID32Detect(MutexFsBaseFile *infile)
+id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
 {
     unsigned char* buffer;
     int result;
@@ -349,7 +349,7 @@ id32* ID3Read::ID32Detect(MutexFsBaseFile *infile)
     return id32header;
 }
 
-int ID3Read::getUTF8Track(char* str, size_t size)
+int TagRead::getUTF8Track(char* str, size_t size)
 {
     char mp4_type[4] = {0xa9, 't', 'r', 'k'};
     if (GetMP4BoxUTF8(mp4_type, str, size)) { return 1; }
@@ -362,7 +362,7 @@ int ID3Read::getUTF8Track(char* str, size_t size)
     return 0;
 }
 
-int ID3Read::getUTF8Title(char* str, size_t size)
+int TagRead::getUTF8Title(char* str, size_t size)
 {
     char mp4_type[4] = {0xa9, 'n', 'a', 'm'};
     if (GetMP4BoxUTF8(mp4_type, str, size)) { return 1; }
@@ -375,7 +375,7 @@ int ID3Read::getUTF8Title(char* str, size_t size)
     return 0;
 }
 
-int ID3Read::getUTF8Album(char* str, size_t size)
+int TagRead::getUTF8Album(char* str, size_t size)
 {
     char mp4_type[4] = {0xa9, 'a', 'l', 'b'};
     if (GetMP4BoxUTF8(mp4_type, str, size)) { return 1; }
@@ -388,7 +388,7 @@ int ID3Read::getUTF8Album(char* str, size_t size)
     return 0;
 }
 
-int ID3Read::getUTF8Artist(char* str, size_t size)
+int TagRead::getUTF8Artist(char* str, size_t size)
 {
     char mp4_type[4] = {0xa9, 'A', 'R', 'T'};
     if (GetMP4BoxUTF8(mp4_type, str, size)) { return 1; }
@@ -401,7 +401,7 @@ int ID3Read::getUTF8Artist(char* str, size_t size)
     return 0;
 }
 
-int ID3Read::getUTF8Year(char* str, size_t size)
+int TagRead::getUTF8Year(char* str, size_t size)
 {
     char mp4_type[4] = {0xa9, 'd', 'a', 'y'};
     if (GetMP4BoxUTF8(mp4_type, str, size)) { return 1; }
@@ -414,12 +414,12 @@ int ID3Read::getUTF8Year(char* str, size_t size)
     return 0;
 }
 
-int ID3Read::getPictureCount()
+int TagRead::getPictureCount()
 {
     return GetMP4TypeCount("covr") + GetID3IDCount("PIC", "APIC");
 }
 
-int ID3Read::getPicturePos(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size)
+int TagRead::getPicturePos(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size)
 {
     if (idx < GetMP4TypeCount("covr")) {
         getMP4Picture(idx, mime, ptype, pos, size);
@@ -433,7 +433,7 @@ int ID3Read::getPicturePos(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos,
     return 0;
 }
 
-int ID3Read::getID3Picture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size)
+int TagRead::getID3Picture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size)
 {
     int count = 0;
     *mime = non;
@@ -520,7 +520,7 @@ int ID3Read::getID3Picture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos,
     return (hasFullData == true);
 }
 
-int ID3Read::GetID32UTF8(const char *id3v22, const char *id3v23, char *str, size_t size)
+int TagRead::GetID32UTF8(const char *id3v22, const char *id3v23, char *str, size_t size)
 {
     int flg = 0;
     if (!id3v2) { return 0; }
@@ -586,7 +586,7 @@ int ID3Read::GetID32UTF8(const char *id3v22, const char *id3v23, char *str, size
     return flg;
 }
 
-int ID3Read::GetID3IDCount(const char *id3v22, const char *id3v23)
+int TagRead::GetID3IDCount(const char *id3v22, const char *id3v23)
 {
     int count = 0;
     if (!id3v2) { return 0; }
@@ -610,7 +610,7 @@ int ID3Read::GetID3IDCount(const char *id3v22, const char *id3v23)
     return count;
 }
 
-void ID3Read::ID32Print(id32* id32header)
+void TagRead::ID32Print(id32* id32header)
 {
     id32frame* thisframe;
     int ver = id32header->version[0];
@@ -664,7 +664,7 @@ void ID3Read::ID32Print(id32* id32header)
     }
 }
 
-void ID3Read::ID32Free(id32* id32header)
+void TagRead::ID32Free(id32* id32header)
 {
     if (id32header->version[0] == 3) {
         id32frame* bonar=id32header->firstframe;
@@ -686,7 +686,7 @@ void ID3Read::ID32Free(id32* id32header)
     free(id32header);
 }
 
-id32flat* ID3Read::ID32Create()
+id32flat* TagRead::ID32Create()
 {
     id32flat* gary = (id32flat *) calloc(1, sizeof(id32flat));
     // allocate 10 bytes for the main header
@@ -695,7 +695,7 @@ id32flat* ID3Read::ID32Create()
     return gary;
 }
 
-void ID3Read::ID32AddTag(id32flat* gary, const char* ID, char* data, char* flags, size_t size)
+void TagRead::ID32AddTag(id32flat* gary, const char* ID, char* data, char* flags, size_t size)
 {
     // resize the buffer
     int i;
@@ -725,7 +725,7 @@ void ID3Read::ID32AddTag(id32flat* gary, const char* ID, char* data, char* flags
     // done :D
 }
 
-void ID3Read::ID32Finalise(id32flat* gary)
+void TagRead::ID32Finalise(id32flat* gary)
 {
     int killsize;
     int i;
@@ -748,7 +748,7 @@ void ID3Read::ID32Finalise(id32flat* gary)
     // done :D
 }
 
-int ID3Read::ID32Append(id32flat* gary, char* filename)
+int TagRead::ID32Append(id32flat* gary, char* filename)
 {
     char* mp3;
     unsigned long size;
@@ -789,7 +789,7 @@ int ID3Read::ID32Append(id32flat* gary, char* filename)
     return 0;
 }
 
-id32flat* ID3Read::ID3Copy1to2(id31* bonar)
+id32flat* TagRead::ID3Copy1to2(id31* bonar)
 {
     // todo: get rid of spaces on the end of padded ID3v1 :/
     Serial.println("Creating new ID3v2 header");
@@ -824,7 +824,7 @@ id32flat* ID3Read::ID3Copy1to2(id31* bonar)
     return final;
 }
 
-int ID3Read::ID31Detect(char* header, id31 **id31header)
+int TagRead::ID31Detect(char* header, id31 **id31header)
 {
     char test[4];
     *id31header = (id31 *) calloc(sizeof(id31), 1);
@@ -840,7 +840,7 @@ int ID3Read::ID31Detect(char* header, id31 **id31header)
     return 0;
 }
 
-void ID3Read::ID31Print(id31* id31header)
+void TagRead::ID31Print(id31* id31header)
 {
     char str[256];
     char* buffer = (char *) calloc(1, 31);
@@ -856,7 +856,7 @@ void ID3Read::ID31Print(id31* id31header)
     free(buffer);
 }
 
-void ID3Read::ID31Free(id31* id31header)
+void TagRead::ID31Free(id31* id31header)
 {
     free(id31header);
 }
@@ -864,12 +864,12 @@ void ID3Read::ID31Free(id31* id31header)
 // ========================
 // LIST parsing Start
 // ========================
-// int ID3Read::findNextChunk(MutexFsBaseFile *file, uint32_t end_pos, char chunk_id[4], uint32_t *pos, uint32_t *size)
+// int TagRead::findNextChunk(MutexFsBaseFile *file, uint32_t end_pos, char chunk_id[4], uint32_t *pos, uint32_t *size)
 // end_pos: chunk search stop position
 // chunk_id: out: chunk id deteced`
 // *pos: in: chunk search start position, out: next chunk search start position
 // *size: out: chunk size detected
-int ID3Read::findNextChunk(MutexFsBaseFile *file, uint32_t end_pos, char chunk_id[4], uint32_t *pos, uint32_t *size)
+int TagRead::findNextChunk(MutexFsBaseFile *file, uint32_t end_pos, char chunk_id[4], uint32_t *pos, uint32_t *size)
 {
     if (end_pos <= *pos + 8) { return 0; }
     file->seekSet(*pos);
@@ -881,7 +881,7 @@ int ID3Read::findNextChunk(MutexFsBaseFile *file, uint32_t end_pos, char chunk_i
     return 1;
 }
 
-int ID3Read::getListChunk(MutexFsBaseFile *file)
+int TagRead::getListChunk(MutexFsBaseFile *file)
 {
     char str[256];
     file->read(str, 12);
@@ -933,7 +933,7 @@ int ID3Read::getListChunk(MutexFsBaseFile *file)
 // ========================
 // MP4 parsing Start
 // ========================
-uint32_t ID3Read::getMP4BoxBE32(unsigned char c[4])
+uint32_t TagRead::getMP4BoxBE32(unsigned char c[4])
 {
     uint32_t be32 = 0;
     be32 = 0;
@@ -943,7 +943,7 @@ uint32_t ID3Read::getMP4BoxBE32(unsigned char c[4])
     return be32;
 }
 
-int ID3Read::findNextMP4Box(MutexFsBaseFile *file, uint32_t end_pos, char type[4], uint32_t *pos, uint32_t *size)
+int TagRead::findNextMP4Box(MutexFsBaseFile *file, uint32_t end_pos, char type[4], uint32_t *pos, uint32_t *size)
 {
     unsigned char c[8]; // size(4) + type(4)
     if (end_pos <= *pos + 8) { return 0; }
@@ -1028,7 +1028,7 @@ int ID3Read::findNextMP4Box(MutexFsBaseFile *file, uint32_t end_pos, char type[4
     return 1;
 }
 
-void ID3Read::clearMP4_ilst()
+void TagRead::clearMP4_ilst()
 {
     MP4_ilst_item *mp4_ilst_item = mp4_ilst.first;
     while (mp4_ilst_item) {
@@ -1041,7 +1041,7 @@ void ID3Read::clearMP4_ilst()
     mp4_ilst.last = NULL;
 }
 
-int ID3Read::getMP4Box(MutexFsBaseFile *file)
+int TagRead::getMP4Box(MutexFsBaseFile *file)
 {
     char type[4];
     uint32_t end_pos = file->fileSize();
@@ -1050,7 +1050,7 @@ int ID3Read::getMP4Box(MutexFsBaseFile *file)
     return findNextMP4Box(file, end_pos, type, &pos, &size);
 }
 
-int ID3Read::GetMP4BoxUTF8(const char *mp4_type, char *str, size_t size)
+int TagRead::GetMP4BoxUTF8(const char *mp4_type, char *str, size_t size)
 {
     MP4_ilst_item *mp4_ilst_item = mp4_ilst.first;
     size_t max_size;
@@ -1091,7 +1091,7 @@ int ID3Read::GetMP4BoxUTF8(const char *mp4_type, char *str, size_t size)
     return 0;
 }
 
-int ID3Read::GetMP4TypeCount(const char *mp4_type)
+int TagRead::GetMP4TypeCount(const char *mp4_type)
 {
     int count = 0;
     MP4_ilst_item *mp4_ilst_item = mp4_ilst.first;
@@ -1102,7 +1102,7 @@ int ID3Read::GetMP4TypeCount(const char *mp4_type)
     return count;
 }
 
-int ID3Read::getMP4Picture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size)
+int TagRead::getMP4Picture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size)
 {
     int count = 0;
     MP4_ilst_item *mp4_ilst_item = mp4_ilst.first;

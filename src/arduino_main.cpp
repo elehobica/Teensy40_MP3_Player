@@ -18,7 +18,7 @@
 #include <output_i2s.h>
 
 #include "stack.h"
-#include "id3read.h"
+#include "TagRead.h"
 #include "utf_conv.h"
 
 const int Version = 100;
@@ -136,7 +136,7 @@ uint16_t idx_idle_count = 0;
 uint16_t idx_play = 0;
 volatile bool is_waiting_next_random = false;
 
-ID3Read id3;
+TagRead tag;
 
 void initEEPROM(void)
 {
@@ -551,7 +551,7 @@ int get_audio_file(uint16_t idx, int seq_flg, MutexFsBaseFile *f)
     }
 }
 
-void loadID3(uint16_t idx_play)
+void loadTag(uint16_t idx_play)
 {
     char str[256];
     mime_t mime;
@@ -560,29 +560,29 @@ void loadID3(uint16_t idx_play)
     size_t size;
     int img_cnt = 0;
 
-    id3.loadFile(idx_play);
+    tag.loadFile(idx_play);
 
-    // copy ID3 text
-    if (id3.getUTF8Track(str, sizeof(str))) lcd.setTrack(str, utf8); else lcd.setTrack("");
-    if (id3.getUTF8Title(str, sizeof(str))) {
+    // copy TAG text
+    if (tag.getUTF8Track(str, sizeof(str))) lcd.setTrack(str, utf8); else lcd.setTrack("");
+    if (tag.getUTF8Title(str, sizeof(str))) {
         lcd.setTitle(str, utf8);
-    } else { // display filename if no ID3
+    } else { // display filename if no TAG
         file_menu_get_fname_UTF16(idx_play, (char16_t *) str, sizeof(str)/2);
         lcd.setTitle(utf16_to_utf8((const char16_t *) str).c_str(), utf8);
     }
-    if (id3.getUTF8Album(str, sizeof(str))) lcd.setAlbum(str, utf8); else lcd.setAlbum("");
-    if (id3.getUTF8Artist(str, sizeof(str))) lcd.setArtist(str, utf8); else lcd.setArtist("");
-    if (id3.getUTF8Year(str, sizeof(str))) lcd.setYear(str, utf8); else lcd.setYear("");
+    if (tag.getUTF8Album(str, sizeof(str))) lcd.setAlbum(str, utf8); else lcd.setAlbum("");
+    if (tag.getUTF8Artist(str, sizeof(str))) lcd.setArtist(str, utf8); else lcd.setArtist("");
+    if (tag.getUTF8Year(str, sizeof(str))) lcd.setYear(str, utf8); else lcd.setYear("");
 
-    // copy ID3 image
+    // copy TAG image
     lcd.deleteAlbumArt();
-    for (int i = 0; i < id3.getPictureCount(); i++) {
-        if (id3.getPicturePos(i, &mime, &ptype, &img_pos, &size)) {
+    for (int i = 0; i < tag.getPictureCount(); i++) {
+        if (tag.getPicturePos(i, &mime, &ptype, &img_pos, &size)) {
             if (mime == jpeg) { lcd.addAlbumArtJpeg(idx_play, img_pos, size); img_cnt++; }
             else if (mime == png) { lcd.addAlbumArtPng(idx_play, img_pos, size); img_cnt++; }
         }
     }
-    // if no AlbumArt in ID3, use JPEG or PNG in current folder
+    // if no AlbumArt in TAG, use JPEG or PNG in current folder
     if (img_cnt == 0) {
         uint16_t idx = 0;
         while (idx < file_menu_get_num()) {
@@ -705,7 +705,7 @@ void loop() {
             idx_play = get_audio_file(idx_play, 0, &file);
             if (idx_play) { // Play Audio File
                 mode = LcdCanvas::Play;
-                loadID3(idx_play);
+                loadTag(idx_play);
                 play->play(&file, fpos, samples_played); // with resuming file position and play time
                 fpos = 0;
                 samples_played = 0;
@@ -780,7 +780,7 @@ void loop() {
             if (!play->isPlaying() || (play->positionMillis() + 500 > play->lengthMillis())) {
                 idx_play = get_audio_file(idx_play+1, 1, &file);
                 if (idx_play) {
-                    loadID3(idx_play);
+                    loadTag(idx_play);
                     play->standby_play(&file);
                 } else {
                     while (play->isPlaying()) { delay(1); } // minimize gap between tracks
