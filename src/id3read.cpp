@@ -6,6 +6,7 @@ ID3Read::ID3Read()
 {
     id3v1 = NULL;
     id3v2 = NULL;
+    clearMP4_ilst();
 }
 
 ID3Read::~ID3Read()
@@ -18,8 +19,12 @@ int ID3Read::loadFile(uint16_t file_idx)
 {
     if (id3v1) ID31Free(id3v1);
     if (id3v2) ID32Free(id3v2);
+    clearMP4_ilst();
 
     file_menu_get_obj(file_idx, &file);
+
+    // try MP4 first (and try ID3 next because ID3 header objects need to be generated)
+    getMP4Box(&file);
 
     // try ID3v1 or ID3v2
     if (GetID3HeadersFull(&file, 1 /* 1: no-debug display, 0: debug display */, &id3v1, &id3v2) == 0) { return 1; }
@@ -28,69 +33,6 @@ int ID3Read::loadFile(uint16_t file_idx)
     file.rewind();
     if (getListChunk(&file)) { return 1; }
 
-    return 0;
-}
-
-// int ID3Read::findNextChunk(MutexFsBaseFile *file, uint32_t end_pos, char chunk_id[4], uint32_t *pos, uint32_t *size)
-// end_pos: chunk search stop position
-// chunk_id: out: chunk id deteced`
-// *pos: in: chunk search start position, out: next chunk search start position
-// *size: out: chunk size detected
-int ID3Read::findNextChunk(MutexFsBaseFile *file, uint32_t end_pos, char chunk_id[4], uint32_t *pos, uint32_t *size)
-{
-    if (end_pos <= *pos + 8) { return 0; }
-    file->seekSet(*pos);
-    file->read(chunk_id, 4);
-    file->read(size, sizeof(uint32_t));
-    *size = (*size + 1)/2*2; // next offset must be even number
-    *pos += *size + 8;
-    if (end_pos < *pos) { return 0; }
-    return 1;
-}
-
-int ID3Read::getListChunk(MutexFsBaseFile *file)
-{
-    char str[256];
-    file->read(str, 12);
-	if (str[ 0]=='R' && str[ 1]=='I' && str[ 2]=='F' && str[ 3]=='F' &&
-	    str[ 8]=='W' && str[ 9]=='A' && str[10]=='V' && str[11]=='E')
-	{
-        uint32_t wav_end_pos;
-        memcpy(&wav_end_pos, &str[4], 4);
-        wav_end_pos += 8;
-        char chunk_id[4];
-        uint32_t pos = 12;
-        uint32_t size;
-        while (findNextChunk(file, wav_end_pos, chunk_id, &pos, &size)) { // search from 'RIFF' + size + 'WAVE' for every chunk
-			if (memcmp(chunk_id, "LIST", 4) == 0) {
-                file->seekSet(pos-size);
-                char info_id[4];
-                file->read(info_id, sizeof(info_id));
-                if (memcmp(info_id, "INFO", 4) == 0) { // info is not chunk element
-                    uint32_t list_end_pos = pos;
-                    pos = pos - size + 4;
-                    while (findNextChunk(file, list_end_pos, chunk_id, &pos, &size)) { // search from 'LIST' + size + 'INFO' for every chunk
-                        file->seekSet(pos-size);
-                        file->read(str, size);
-                        // copy LIST INFO data to ID3v1 member (note that ID3v1 members don't finish with '\0')
-                        if (memcmp(chunk_id, "IART", 4) == 0) { // Artist
-                            strncpy(id3v1->artist, str, sizeof(id3v1->artist));
-                        } else if (memcmp(chunk_id, "INAM", 4) == 0) { // Title
-                            strncpy(id3v1->title, str, sizeof(id3v1->title));
-                        } else if (memcmp(chunk_id, "IPRD", 4) == 0) { // Album
-                            strncpy(id3v1->album, str, sizeof(id3v1->album));
-                        } else if (memcmp(chunk_id, "ICRD", 4) == 0) { // Year
-                            strncpy(id3v1->year, str, sizeof(id3v1->year));
-                        } else if (memcmp(chunk_id, "IPRT", 4) == 0) { // Track  ==> type not matched
-                            id3v1->tracknum = (unsigned char) atoi(str); // atoi stops conversion if non-number appeared
-                        //} else if (memcmp(chunk_id, "IGNR", 4) == 0) { // Genre  ==> type not matched
-                        }
-                    }
-                    return 1;
-                }
-            }
-        }
-    }
     return 0;
 }
 
@@ -409,6 +351,9 @@ id32* ID3Read::ID32Detect(MutexFsBaseFile *infile)
 
 int ID3Read::getUTF8Track(char* str, size_t size)
 {
+    char mp4_type[4] = {0xa9, 't', 'r', 'k'};
+    if (GetMP4BoxUTF8(mp4_type, str, size)) { return 1; }
+    if (GetMP4BoxUTF8("trkn", str, size)) { return 1; }
     if (GetID32UTF8("TRK", "TRCK", str, size)) { return 1; }
     if (strlen(id3v1->title) && size >= 4) { // check titlte because track is unsigned char
         sprintf(str, "%d", id3v1->tracknum);
@@ -419,6 +364,8 @@ int ID3Read::getUTF8Track(char* str, size_t size)
 
 int ID3Read::getUTF8Title(char* str, size_t size)
 {
+    char mp4_type[4] = {0xa9, 'n', 'a', 'm'};
+    if (GetMP4BoxUTF8(mp4_type, str, size)) { return 1; }
     if (GetID32UTF8("TT2", "TIT2", str, size)) { return 1; }
     if (strlen(id3v1->title)) {
         memset(str, 0, size);
@@ -430,6 +377,8 @@ int ID3Read::getUTF8Title(char* str, size_t size)
 
 int ID3Read::getUTF8Album(char* str, size_t size)
 {
+    char mp4_type[4] = {0xa9, 'a', 'l', 'b'};
+    if (GetMP4BoxUTF8(mp4_type, str, size)) { return 1; }
     if (GetID32UTF8("TAL", "TALB", str, size)) { return 1; }
     if (strlen(id3v1->album)) {
         memset(str, 0, size);
@@ -441,6 +390,8 @@ int ID3Read::getUTF8Album(char* str, size_t size)
 
 int ID3Read::getUTF8Artist(char* str, size_t size)
 {
+    char mp4_type[4] = {0xa9, 'A', 'R', 'T'};
+    if (GetMP4BoxUTF8(mp4_type, str, size)) { return 1; }
     if (GetID32UTF8("TP1", "TPE1", str, size)) { return 1; }
     if (strlen(id3v1->artist)) {
         memset(str, 0, size);
@@ -452,6 +403,8 @@ int ID3Read::getUTF8Artist(char* str, size_t size)
 
 int ID3Read::getUTF8Year(char* str, size_t size)
 {
+    char mp4_type[4] = {0xa9, 'd', 'a', 'y'};
+    if (GetMP4BoxUTF8(mp4_type, str, size)) { return 1; }
     if (GetID32UTF8("TYE", "TYER", str, size)) { return 1; }
     if (strlen(id3v1->year)) {
         memset(str, 0, size);
@@ -463,16 +416,24 @@ int ID3Read::getUTF8Year(char* str, size_t size)
 
 int ID3Read::getPictureCount()
 {
-    return GetIDCount("PIC", "APIC");
+    return GetMP4TypeCount("covr") + GetID3IDCount("PIC", "APIC");
 }
 
 int ID3Read::getPicturePos(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size)
 {
-    getPicture(idx, mime, ptype, pos, size);
-    return (*size != 0);
+    if (idx < GetMP4TypeCount("covr")) {
+        getMP4Picture(idx, mime, ptype, pos, size);
+        return (*size != 0);
+    }
+    int id3_idx = idx - GetMP4TypeCount("covr");
+    if (id3_idx >= 0) {
+        getID3Picture(id3_idx, mime, ptype, pos, size);
+        return (*size != 0);
+    }
+    return 0;
 }
 
-int ID3Read::getPicture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size)
+int ID3Read::getID3Picture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size)
 {
     int count = 0;
     *mime = non;
@@ -625,7 +586,7 @@ int ID3Read::GetID32UTF8(const char *id3v22, const char *id3v23, char *str, size
     return flg;
 }
 
-int ID3Read::GetIDCount(const char *id3v22, const char *id3v23)
+int ID3Read::GetID3IDCount(const char *id3v22, const char *id3v23)
 {
     int count = 0;
     if (!id3v2) { return 0; }
@@ -899,3 +860,267 @@ void ID3Read::ID31Free(id31* id31header)
 {
     free(id31header);
 }
+
+// ========================
+// LIST parsing Start
+// ========================
+// int ID3Read::findNextChunk(MutexFsBaseFile *file, uint32_t end_pos, char chunk_id[4], uint32_t *pos, uint32_t *size)
+// end_pos: chunk search stop position
+// chunk_id: out: chunk id deteced`
+// *pos: in: chunk search start position, out: next chunk search start position
+// *size: out: chunk size detected
+int ID3Read::findNextChunk(MutexFsBaseFile *file, uint32_t end_pos, char chunk_id[4], uint32_t *pos, uint32_t *size)
+{
+    if (end_pos <= *pos + 8) { return 0; }
+    file->seekSet(*pos);
+    file->read(chunk_id, 4);
+    file->read(size, sizeof(uint32_t));
+    *size = (*size + 1)/2*2; // next offset must be even number
+    *pos += *size + 8;
+    if (end_pos < *pos) { return 0; }
+    return 1;
+}
+
+int ID3Read::getListChunk(MutexFsBaseFile *file)
+{
+    char str[256];
+    file->read(str, 12);
+	if (str[ 0]=='R' && str[ 1]=='I' && str[ 2]=='F' && str[ 3]=='F' &&
+	    str[ 8]=='W' && str[ 9]=='A' && str[10]=='V' && str[11]=='E')
+	{
+        uint32_t wav_end_pos;
+        memcpy(&wav_end_pos, &str[4], 4);
+        wav_end_pos += 8;
+        char chunk_id[4];
+        uint32_t pos = 12;
+        uint32_t size;
+        while (findNextChunk(file, wav_end_pos, chunk_id, &pos, &size)) { // search from 'RIFF' + size + 'WAVE' for every chunk
+			if (memcmp(chunk_id, "LIST", 4) == 0) {
+                file->seekSet(pos-size);
+                char info_id[4];
+                file->read(info_id, sizeof(info_id));
+                if (memcmp(info_id, "INFO", 4) == 0) { // info is not chunk element
+                    uint32_t list_end_pos = pos;
+                    pos = pos - size + 4;
+                    while (findNextChunk(file, list_end_pos, chunk_id, &pos, &size)) { // search from 'LIST' + size + 'INFO' for every chunk
+                        file->seekSet(pos-size);
+                        file->read(str, size);
+                        // copy LIST INFO data to ID3v1 member (note that ID3v1 members don't finish with '\0')
+                        if (memcmp(chunk_id, "IART", 4) == 0) { // Artist
+                            strncpy(id3v1->artist, str, sizeof(id3v1->artist));
+                        } else if (memcmp(chunk_id, "INAM", 4) == 0) { // Title
+                            strncpy(id3v1->title, str, sizeof(id3v1->title));
+                        } else if (memcmp(chunk_id, "IPRD", 4) == 0) { // Album
+                            strncpy(id3v1->album, str, sizeof(id3v1->album));
+                        } else if (memcmp(chunk_id, "ICRD", 4) == 0) { // Year
+                            strncpy(id3v1->year, str, sizeof(id3v1->year));
+                        } else if (memcmp(chunk_id, "IPRT", 4) == 0) { // Track  ==> type not matched
+                            id3v1->tracknum = (unsigned char) atoi(str); // atoi stops conversion if non-number appeared
+                        //} else if (memcmp(chunk_id, "IGNR", 4) == 0) { // Genre  ==> type not matched
+                        }
+                    }
+                    return 1;
+                }
+            }
+        }
+    }
+    return 0;
+}
+// ========================
+// LIST parsing End
+// ========================
+
+// ========================
+// MP4 parsing Start
+// ========================
+uint32_t ID3Read::getMP4BoxBE32(unsigned char c[4])
+{
+    uint32_t be32 = 0;
+    be32 = 0;
+    for (int i = 0; i < 4; i++) {
+        be32 += (uint32_t) c[i] << ((3-i)*8);
+    }
+    return be32;
+}
+
+int ID3Read::findNextMP4Box(MutexFsBaseFile *file, uint32_t end_pos, char type[4], uint32_t *pos, uint32_t *size)
+{
+    unsigned char c[8]; // size(4) + type(4)
+    if (end_pos <= *pos + 8) { return 0; }
+    file->seekSet(*pos);
+    file->read(c, sizeof(c));
+    *size = getMP4BoxBE32(c);
+    memcpy(type, &c[4], 4);
+    if (*size < 8) { return 0; } // size is out of 32bit range
+    *pos += *size;
+    if (end_pos < *pos) { return 0; } // size overflow
+    /*
+    { // DEBUG
+        char str[256];
+        sprintf(str, "%c%c%c%c: %lu Byte", type[0], type[1], type[2], type[3], *size);
+        Serial.println(str);
+    }
+    */
+    // for sub container holders
+    if (strncmp(type, "moov", 4) == 0 ||
+        strncmp(type, "trak", 4) == 0 ||
+        strncmp(type, "mdia", 4) == 0 ||
+        strncmp(type, "minf", 4) == 0 ||
+        strncmp(type, "stbl", 4) == 0 ||
+        strncmp(type, "dinf", 4) == 0 ||
+        strncmp(type, "udta", 4) == 0 ||
+        strncmp(type, "ilst", 4) == 0 ||
+        0) {
+        uint32_t pos_next = *pos - *size + 8;
+        uint32_t size_next;
+        //while (findNextMP4Box(file, *pos, type, &pos_next, &size_next)) {}
+        findNextMP4Box(file, *pos, type, &pos_next, &size_next);
+    } else if (strncmp(type, "meta", 4) == 0) {
+        uint32_t pos_next = *pos - *size + 8 + 4; // meta is illegal size position somehow
+        uint32_t size_next;
+        //while (findNextMP4Box(file, *pos, type, &pos_next, &size_next)) {}
+        findNextMP4Box(file, *pos, type, &pos_next, &size_next);
+
+    // below are end leaves of optional APPLE item list box
+    } else if (type[0] == 0xa9 || strncmp(type, "covr", 4) == 0 ||strncmp(type, "trkn", 4) == 0) {
+        /*
+        { // DEBUG
+            char str[256];
+            sprintf(str, "%c%c%c%c: %lu Byte", type[0], type[1], type[2], type[3], *size);
+            Serial.println(str);
+        }
+        */
+        unsigned char data[8];
+        file->seekSet(*pos - *size + 8);
+        file->read(data, sizeof(data));
+        uint32_t data_size = getMP4BoxBE32(data) - 8 - 8; // - 8 - 8: - (size(4) + 'data'(4)) - (data_type(4) + data_locale(4))
+        if (data[4] == 'd' && data[5] == 'a' && data[6] == 't' && data[7] == 'a') {
+            unsigned char data_type[4];
+            unsigned char data_locale[4];
+            file->read(data_type, sizeof(data_type));
+            file->read(data_locale, sizeof(data_locale));
+            MP4_ilst_item *mp4_ilst_item = (MP4_ilst_item *) calloc(1, sizeof(MP4_ilst_item));
+            if (mp4_ilst.first == NULL) {
+                mp4_ilst.first = mp4_ilst.last = mp4_ilst_item;
+            } else {
+                mp4_ilst.last->next = mp4_ilst_item;
+                mp4_ilst.last = mp4_ilst.last->next;
+            }
+            mp4_ilst.last = mp4_ilst_item;
+            memcpy(mp4_ilst.last->type, type, 4);
+            mp4_ilst.last->data_type = static_cast<mp4_data_t>(getMP4BoxBE32(data_type));
+            mp4_ilst.last->data_size = data_size;
+            mp4_ilst.last->pos = file->position();
+            if (data_size < frame_size_limit) {
+                mp4_ilst.last->hasFullData = true;
+                mp4_ilst.last->data_buf = (char *) calloc(1, data_size);
+                file->read(mp4_ilst.last->data_buf, data_size);
+            } else {
+                mp4_ilst.last->hasFullData = false;
+                mp4_ilst.last->data_buf = (char *) calloc(1, frame_start_bytes);
+                file->read(mp4_ilst.last->data_buf, frame_start_bytes);
+            }
+            mp4_ilst.last->next = NULL;
+        }
+    }
+    // for next leaf
+    findNextMP4Box(file, end_pos, type, pos, size);
+    return 1;
+}
+
+void ID3Read::clearMP4_ilst()
+{
+    MP4_ilst_item *mp4_ilst_item = mp4_ilst.first;
+    while (mp4_ilst_item) {
+        if (mp4_ilst_item->data_buf) free(mp4_ilst_item->data_buf);
+        MP4_ilst_item *temp = mp4_ilst_item->next;
+        free(mp4_ilst_item);
+        mp4_ilst_item = temp;
+    }
+    mp4_ilst.first = NULL;
+    mp4_ilst.last = NULL;
+}
+
+int ID3Read::getMP4Box(MutexFsBaseFile *file)
+{
+    char type[4];
+    uint32_t end_pos = file->fileSize();
+    uint32_t pos = 0;
+    uint32_t size;
+    return findNextMP4Box(file, end_pos, type, &pos, &size);
+}
+
+int ID3Read::GetMP4BoxUTF8(const char *mp4_type, char *str, size_t size)
+{
+    MP4_ilst_item *mp4_ilst_item = mp4_ilst.first;
+    size_t max_size;
+
+    while (mp4_ilst_item) {
+        /*
+        { // DEBUG
+            char str[256];
+            sprintf(str, "%c%c%c%c: %lu Byte", mp4_ilst_item->type[0], mp4_ilst_item->type[1], mp4_ilst_item->type[2], mp4_ilst_item->type[3], mp4_ilst_item->data_size);
+            Serial.println(str);
+        }
+        */
+        if (memcmp(mp4_ilst_item->type, mp4_type, 4) == 0) {
+            //Serial.println("  matched");
+            if (mp4_ilst_item->data_type == reserved) { // for track number
+                unsigned char c[4];
+                memcpy(c, mp4_ilst_item->data_buf, 4);
+                sprintf(str, "%lu", getMP4BoxBE32(c));
+                return 1;
+            } else if (mp4_ilst_item->data_type == UTF8) {
+                max_size = (mp4_ilst_item->data_size <= size - 1) ? mp4_ilst_item->data_size : size - 1;
+                memcpy(str, mp4_ilst_item->data_buf, max_size);
+                str[max_size] = '\0';
+                return 1;
+            } else if (mp4_ilst_item->data_type == UTF16) {
+                char _str[256*2] = {};
+                max_size = (mp4_ilst_item->data_size - 3 <= 256*2-2) ? mp4_ilst_item->data_size - 3 : 256*2-2;
+                memcpy(_str, &mp4_ilst_item->data_buf[3], max_size);
+                std::string utf8_str = utf16_to_utf8((const char16_t *) _str);
+                max_size = (utf8_str.length() <= size - 1) ? utf8_str.length() : size - 1;
+                memcpy(str, utf8_str.c_str(), max_size);
+                str[max_size] = '\0';
+                return 1;
+            }
+        }
+        mp4_ilst_item = mp4_ilst_item->next;
+    }
+    return 0;
+}
+
+int ID3Read::GetMP4TypeCount(const char *mp4_type)
+{
+    int count = 0;
+    MP4_ilst_item *mp4_ilst_item = mp4_ilst.first;
+    while (mp4_ilst_item) {
+        if (memcmp(mp4_ilst_item->type, mp4_type, 4) == 0) { count++; }
+        mp4_ilst_item = mp4_ilst_item->next;
+    }
+    return count;
+}
+
+int ID3Read::getMP4Picture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size)
+{
+    int count = 0;
+    MP4_ilst_item *mp4_ilst_item = mp4_ilst.first;
+    while (mp4_ilst_item) {
+        if (memcmp(mp4_ilst_item->type, "covr", 4) == 0) {
+            if (idx == count++) {
+                *mime = (mp4_ilst_item->data_type == JPEG) ? jpeg : (mp4_ilst_item->data_type == PNG) ? png : non;
+                *ptype = front_cover; // no info in MP4 'covr'
+                *pos = mp4_ilst_item->pos;
+                *size = (size_t) mp4_ilst_item->data_size;
+                return 1;
+            }
+        }
+        mp4_ilst_item = mp4_ilst_item->next;
+    }
+    return 0;
+}
+
+// ========================
+// MP4 parsing End
+// ========================

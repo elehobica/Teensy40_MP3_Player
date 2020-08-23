@@ -48,6 +48,29 @@ typedef struct _id32flat {
     char* buffer;
 } id32flat;
 
+typedef enum _mp4_data_t {
+    reserved = 0x00000000,
+    UTF8 = 0x00000001,
+    UTF16 = 0x00000002,
+    JPEG = 0x0000000d,
+    PNG = 0x0000000e
+} mp4_data_t;
+
+typedef struct _MP4_ilst_item {
+    char type[4];
+    mp4_data_t data_type;
+    uint32_t data_size;
+    uint64_t pos; // position in the file
+    char *data_buf;
+    bool hasFullData;
+    struct _MP4_ilst_item* next;
+} MP4_ilst_item;
+
+typedef struct _MP4_ilst {
+    MP4_ilst_item *first;
+    MP4_ilst_item *last;
+} MP4_ilst;
+
 typedef enum _mime_t {
     non = 0,
     jpeg,
@@ -94,16 +117,20 @@ public:
     int getUTF8Year(char *str, size_t size);
     int getPictureCount();
     int getPicturePos(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size);
+
     int getListChunk(MutexFsBaseFile *file);
+
+    int getMP4Box(MutexFsBaseFile *file);
 
 private:
     MutexFsBaseFile file;
     id31 *id3v1;
     id32 *id3v2;
+    MP4_ilst mp4_ilst;
     int GetID3HeadersFull(MutexFsBaseFile *infile, int testfail, id31** id31save, id32** id32save);
     id32* ID32Detect(MutexFsBaseFile *infile);
     int GetID32UTF8(const char *id3v22, const char *id3v23, char *str, size_t size);
-    int GetIDCount(const char *id3v22, const char *id3v23);
+    int GetID3IDCount(const char *id3v22, const char *id3v23);
     void ID32Print(id32* id32header);
     void ID32Free(id32* id32header);
     id32flat* ID32Create();
@@ -114,8 +141,16 @@ private:
     int ID31Detect(char* header, id31 **id31header);
     void ID31Print(id31* id31header);
     void ID31Free(id31* id31header);
-    int getPicture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size);
+    int getID3Picture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size);
+
     int findNextChunk(MutexFsBaseFile *file, uint32_t end_pos, char chunk_id[4], uint32_t *pos, uint32_t *size);
+
+    void clearMP4_ilst();
+    int findNextMP4Box(MutexFsBaseFile *file, uint32_t end_pos, char chunk_id[4], uint32_t *pos, uint32_t *size);
+    uint32_t getMP4BoxBE32(unsigned char c[4]);
+    int GetMP4BoxUTF8(const char *mp4_type, char *str, size_t size);
+    int GetMP4TypeCount(const char *mp4_type);
+    int getMP4Picture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size);
 };
 
 #endif //_ID3READ_H_
