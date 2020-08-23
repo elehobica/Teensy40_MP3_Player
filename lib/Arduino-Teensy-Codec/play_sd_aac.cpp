@@ -346,6 +346,20 @@ int AudioPlaySdAac::play(size_t position, unsigned samples_played)
 
 	for (int i=0; i< DECODE_NUM_STATES; i++) decodeAac_core();
 
+	// For Resume play with 'position'
+	if (position != 0 && position < fsize()) {
+		fseek(position);
+		this->samples_played += samples_played;
+		// Replace sd_buf data after sd_p with Frame Data in 'position'
+
+		// [Method 1]: just replace data after sd_p with Frame Data in 'position'
+		//fread(sd_p, sd_left);
+
+		// [Method 2]: set sd_p = sd_buf and fill sd_buf fully with Frame Data in 'position'
+		sd_left = fillReadBuffer(sd_buf, sd_p, 0, AAC_SD_BUF_SIZE);
+		sd_p = sd_buf;
+	}
+
 	if((aacFrameInfo.sampRateOut != AUDIOCODECS_SAMPLE_RATE ) || (aacFrameInfo.nChans > 2)) {
 		//Serial.println("incompatible AAC file.");
 		lastError = ERR_CODEC_FORMAT;

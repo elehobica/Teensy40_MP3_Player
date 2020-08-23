@@ -151,7 +151,7 @@ public:
 	int bitRate(void) {return bitrate;}
 	void processorUsageMaxResetDecoder(void){__disable_irq();decode_cycles_max = decode_cycles_max_read = 0;__enable_irq();}
 	int freeRam(void);
-	size_t fposition(void) {return CodecFile::fposition();}
+	virtual size_t fposition(void) {return CodecFile::fposition();}
 	virtual int play(MutexFsBaseFile *file, size_t position = 0, unsigned samples_played = 0) = 0;
 	virtual int standby_play(MutexFsBaseFile *file) = 0;
 	virtual void stop(void) = 0;
