@@ -351,8 +351,7 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
 
 int TagRead::getUTF8Track(char* str, size_t size)
 {
-    char mp4_type[4] = {0xa9, 't', 'r', 'k'};
-    if (GetMP4BoxUTF8(mp4_type, str, size)) { return 1; }
+    if (GetMP4BoxUTF8("\xa9""trk", str, size)) { return 1; }
     if (GetMP4BoxUTF8("trkn", str, size)) { return 1; }
     if (GetID32UTF8("TRK", "TRCK", str, size)) { return 1; }
     if (strlen(id3v1->title) && size >= 4) { // check titlte because track is unsigned char
@@ -364,8 +363,7 @@ int TagRead::getUTF8Track(char* str, size_t size)
 
 int TagRead::getUTF8Title(char* str, size_t size)
 {
-    char mp4_type[4] = {0xa9, 'n', 'a', 'm'};
-    if (GetMP4BoxUTF8(mp4_type, str, size)) { return 1; }
+    if (GetMP4BoxUTF8("\xa9""nam", str, size)) { return 1; }
     if (GetID32UTF8("TT2", "TIT2", str, size)) { return 1; }
     if (strlen(id3v1->title)) {
         memset(str, 0, size);
@@ -377,8 +375,7 @@ int TagRead::getUTF8Title(char* str, size_t size)
 
 int TagRead::getUTF8Album(char* str, size_t size)
 {
-    char mp4_type[4] = {0xa9, 'a', 'l', 'b'};
-    if (GetMP4BoxUTF8(mp4_type, str, size)) { return 1; }
+    if (GetMP4BoxUTF8("\xa9""alb", str, size)) { return 1; }
     if (GetID32UTF8("TAL", "TALB", str, size)) { return 1; }
     if (strlen(id3v1->album)) {
         memset(str, 0, size);
@@ -390,8 +387,7 @@ int TagRead::getUTF8Album(char* str, size_t size)
 
 int TagRead::getUTF8Artist(char* str, size_t size)
 {
-    char mp4_type[4] = {0xa9, 'A', 'R', 'T'};
-    if (GetMP4BoxUTF8(mp4_type, str, size)) { return 1; }
+    if (GetMP4BoxUTF8("\xa9""ART", str, size)) { return 1; }
     if (GetID32UTF8("TP1", "TPE1", str, size)) { return 1; }
     if (strlen(id3v1->artist)) {
         memset(str, 0, size);
@@ -403,8 +399,7 @@ int TagRead::getUTF8Artist(char* str, size_t size)
 
 int TagRead::getUTF8Year(char* str, size_t size)
 {
-    char mp4_type[4] = {0xa9, 'd', 'a', 'y'};
-    if (GetMP4BoxUTF8(mp4_type, str, size)) { return 1; }
+    if (GetMP4BoxUTF8("\xa9""day", str, size)) { return 1; }
     if (GetID32UTF8("TYE", "TYER", str, size)) { return 1; }
     if (strlen(id3v1->year)) {
         memset(str, 0, size);
@@ -933,6 +928,20 @@ int TagRead::getListChunk(MutexFsBaseFile *file)
 // ========================
 // MP4 parsing Start
 // ========================
+void TagRead::clearMP4_ilst()
+{
+    MP4_ilst_item *mp4_ilst_item = mp4_ilst.first;
+    while (mp4_ilst_item) {
+        if (mp4_ilst_item->data_buf) free(mp4_ilst_item->data_buf);
+        MP4_ilst_item *temp = mp4_ilst_item->next;
+        free(mp4_ilst_item);
+        mp4_ilst_item = temp;
+    }
+    mp4_ilst.first = NULL;
+    mp4_ilst.last = NULL;
+}
+
+// Big Endian read for char[4]
 uint32_t TagRead::getMP4BoxBE32(unsigned char c[4])
 {
     uint32_t be32 = 0;
@@ -973,12 +982,10 @@ int TagRead::findNextMP4Box(MutexFsBaseFile *file, uint32_t end_pos, char type[4
         0) {
         uint32_t pos_next = *pos - *size + 8;
         uint32_t size_next;
-        //while (findNextMP4Box(file, *pos, type, &pos_next, &size_next)) {}
         findNextMP4Box(file, *pos, type, &pos_next, &size_next);
     } else if (strncmp(type, "meta", 4) == 0) {
         uint32_t pos_next = *pos - *size + 8 + 4; // meta is illegal size position somehow
         uint32_t size_next;
-        //while (findNextMP4Box(file, *pos, type, &pos_next, &size_next)) {}
         findNextMP4Box(file, *pos, type, &pos_next, &size_next);
 
     // below are end leaves of optional APPLE item list box
@@ -1026,19 +1033,6 @@ int TagRead::findNextMP4Box(MutexFsBaseFile *file, uint32_t end_pos, char type[4
     // for next leaf
     findNextMP4Box(file, end_pos, type, pos, size);
     return 1;
-}
-
-void TagRead::clearMP4_ilst()
-{
-    MP4_ilst_item *mp4_ilst_item = mp4_ilst.first;
-    while (mp4_ilst_item) {
-        if (mp4_ilst_item->data_buf) free(mp4_ilst_item->data_buf);
-        MP4_ilst_item *temp = mp4_ilst_item->next;
-        free(mp4_ilst_item);
-        mp4_ilst_item = temp;
-    }
-    mp4_ilst.first = NULL;
-    mp4_ilst.last = NULL;
 }
 
 int TagRead::getMP4Box(MutexFsBaseFile *file)
