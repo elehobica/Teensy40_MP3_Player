@@ -1161,9 +1161,13 @@ void LcdCanvas::setVolume(uint8_t value)
     volume.setInt((int) value);
 }
 
-void LcdCanvas::setTrack(const char *str, encoding_t encoding)
+void LcdCanvas::setTrack(const char *str)
 {
-    track.setText(str, encoding);
+    if (strlen(str)) {
+        track.setFormatText("[ %s ]", str);
+    } else {
+        track.setText("");
+    }
 }
 
 void LcdCanvas::setPlayTime(uint32_t positionSec, uint32_t lengthSec)

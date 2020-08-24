@@ -563,7 +563,7 @@ void loadTag(uint16_t idx_play)
     tag.loadFile(idx_play);
 
     // copy TAG text
-    if (tag.getUTF8Track(str, sizeof(str))) lcd.setTrack(str, utf8); else lcd.setTrack("");
+    if (tag.getUTF8Track(str, sizeof(str))) lcd.setTrack(str); else lcd.setTrack("");
     if (tag.getUTF8Title(str, sizeof(str))) {
         lcd.setTitle(str, utf8);
     } else { // display filename if no TAG

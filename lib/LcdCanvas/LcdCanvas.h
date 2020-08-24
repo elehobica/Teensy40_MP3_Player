@@ -287,7 +287,7 @@ public:
 	void setBitRate(uint16_t value);
 	void setVolume(uint8_t value);
 	void setPlayTime(uint32_t posionSec, uint32_t lengthSec);
-	void setTrack(const char *str, encoding_t encoding = none);
+	void setTrack(const char *str);
 	void setTitle(const char *str, encoding_t encoding = none);
 	void setAlbum(const char *str, encoding_t encoding = none);
 	void setArtist(const char *str, encoding_t encoding = none);
