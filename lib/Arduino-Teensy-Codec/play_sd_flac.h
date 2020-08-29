@@ -38,34 +38,35 @@
 
 #include "codecs.h"
 #include "AudioStream.h"
-#include "spi_interrupt.h"
+//#include "spi_interrupt.h"
 #include "FLAC/all.h"
 #include "audiobuffer.h"
 
+#define DEBUG_PLAY_SD_FLAC
 #define FLAC_USE_SWI
-
-
-#define FLAC_BUFFERS(x)  (x*2)
+#define FLAC_BUFFERS(x)  ((x)*2)
 
 class AudioPlaySdFlac : public AudioCodec
 {
 public:
-	//AudioPlaySdFlac(void){};
-	int play(const char *filename) {stop();if (!fopen(filename)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
-	int play(const size_t p, const size_t size) {stop();if (!fopen(p,size)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
-	int play(const uint8_t*p, const size_t size) {stop();if (!fopen(p,size))  return ERR_CODEC_FILE_NOT_FOUND; return play();}
 	void stop(void);
-
-	uint32_t lengthMillis(void);
-	unsigned sampleRate(void);
+	//int standby_play(MutexFsBaseFile *file);
+	int play(MutexFsBaseFile *file, size_t position = 0, unsigned samples_played = 0) {stop();if (!fopen(file)) return ERR_CODEC_FILE_NOT_FOUND; return play(position, samples_played);}
+	//int play(const char *filename) {stop();if (!fopen(filename)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
+	//int play(const size_t p, const size_t size) {stop();if (!fopen(p,size)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
+	//int play(const uint8_t*p, const size_t size) {stop();if (!fopen(p,size))  return ERR_CODEC_FILE_NOT_FOUND; return play();}
+	unsigned lengthMillis(void);
+	size_t fposition(void) { return AudioCodec::fposition() /*- sd_left*/; }
 
 protected:
 
 	AudioBuffer *audiobuffer;
 	uint16_t	minbuffers = 0;
-	static FLAC__StreamDecoder	*hFLACDecoder ;
+	static FLAC__StreamDecoder	*hFLACDecoder;
+	static int run;
 
-	int play(void);
+	//void stop_for_next(void);
+	int play(size_t position = 0, unsigned samples_played = 0);
 
 	friend FLAC__StreamDecoderWriteStatus write_callback(const FLAC__StreamDecoder *decoder, const FLAC__Frame *frame, const FLAC__int32 *const buffer[], void *client_data);
 	friend FLAC__StreamDecoderReadStatus read_callback(const FLAC__StreamDecoder *decoder, FLAC__byte buffer[], size_t *bytes, void *client_data);
@@ -76,10 +77,11 @@ protected:
 	friend void error_callback(const FLAC__StreamDecoder *decoder, FLAC__StreamDecoderErrorStatus status, void *client_data);
 
 	void update(void);
-	friend void decodeFlac(void) ;
-
-
-//private:
+	friend void decodeFlac_core(void) ;
+	friend void decodeFlac_core_half(void) ;
 };
+
+void decodeFlac_core(void) ;
+void decodeFlac_core_half(void) ;
 
 #endif

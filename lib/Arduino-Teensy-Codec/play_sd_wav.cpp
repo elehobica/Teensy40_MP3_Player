@@ -107,6 +107,7 @@ float AudioPlaySdWav::processorUsageMaxSD(void){
 };
 */
 
+#if 0
 int AudioPlaySdWav::standby_play(MutexFsBaseFile *file)
 {
 
@@ -187,6 +188,7 @@ int AudioPlaySdWav::standby_play(MutexFsBaseFile *file)
 #endif
     return lastError;
 }
+#endif
 
 int AudioPlaySdWav::play(size_t position, unsigned samples_played)
 {
@@ -451,7 +453,8 @@ wavend:
 	if (o->decoding_state >= DECODE_NUM_STATES) o->decoding_state = 0;
 
 	if (eof) {
-		o->stop_for_next();
+		//o->stop_for_next();
+		o->stop();
 	}
 
 	/*
@@ -460,6 +463,7 @@ wavend:
 	*/
 }
 
+#if 0
 void AudioPlaySdWav::stop_for_next(void)
 {
 	//NVIC_DISABLE_IRQ(IRQ_AUDIOCODEC);
@@ -472,6 +476,7 @@ void AudioPlaySdWav::stop_for_next(void)
 	fclose();
 	wavobjptr = NULL;
 }
+#endif
 
 // lengthMillis (Override)
 unsigned AudioPlaySdWav::lengthMillis(void)

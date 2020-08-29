@@ -15,6 +15,7 @@
 #include <play_sd_mp3.h>
 #include <play_sd_wav.h>
 #include <play_sd_aac.h>
+#include <play_sd_flac.h>
 #include <output_i2s.h>
 
 #include "stack.h"
@@ -101,10 +102,11 @@ uint16_t eprw_count; // EEPROM Write Count (to check for write endurance of 100,
 //Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
 LcdCanvas lcd = LcdCanvas(TFT_CS, TFT_DC, TFT_RST);
 
-AudioCodec          *play;
 AudioPlaySdMp3      playMp3;
 AudioPlaySdWav      playWav;
 AudioPlaySdAac      playAac;
+AudioPlaySdFlac     playFlac;
+AudioCodec          *codec = &playMp3;
 AudioOutputI2S      i2s1;
 AudioMixer4         mixer0;
 AudioMixer4         mixer1;
@@ -114,6 +116,8 @@ AudioConnection     patchCordIn1_0(playWav, 0, mixer0, 1);
 AudioConnection     patchCordIn1_1(playWav, 1, mixer1, 1);
 AudioConnection     patchCordIn2_0(playAac, 0, mixer0, 2);
 AudioConnection     patchCordIn2_1(playAac, 1, mixer1, 2);
+AudioConnection     patchCordIn3_0(playFlac, 0, mixer0, 3);
+AudioConnection     patchCordIn3_1(playFlac, 1, mixer1, 3);
 AudioConnection     patchCordOut0(mixer0, 0, i2s1, 0);
 AudioConnection     patchCordOut1(mixer1, 0, i2s1, 1);
 
@@ -224,15 +228,15 @@ void power_off(void)
     uint8_t volume = i2s1.get_volume();
     fpos = 0;
     samples_played = 0;
-    if (play->isPlaying()) {
-        fpos = play->fposition();
-        samples_played = play->getSamplesPlayed();
+    if (codec->isPlaying()) {
+        fpos = codec->fposition();
+        samples_played = codec->getSamplesPlayed();
         while (i2s1.get_volume() > 0) {
             i2s1.volume_down();
             delay(5);
             yield(); // Arduino msg loop
         }
-        play->stop();
+        codec->stop();
     }
     // Save Config Data to EEPROM
     eprw_count++;
@@ -511,29 +515,34 @@ void tick_100ms(void)
 
 // Get .mp3/.wav file which idx == idx_play (if seq_flg == 1, successive mp3 is searched)
 //   and link play to suitable codec object
-int get_audio_file(uint16_t idx, int seq_flg, MutexFsBaseFile *f)
+AudioCodec *get_audio_file(uint16_t *idx, int seq_flg, MutexFsBaseFile *f)
 {
+    AudioCodec *next_codec = NULL;
     int flg = 0;
     int ofs = 0;
     char str[256];
     //Serial.print("get_audio_file: ");
     //Serial.println(millis());
-    while (idx + ofs < file_menu_get_num()) {
-        file_menu_get_obj(idx + ofs, f);
+    while (*idx + ofs < file_menu_get_num()) {
+        file_menu_get_obj(*idx + ofs, f);
         f->getName(str, sizeof(str));
-        //file_menu_get_fname(idx + ofs, str, sizeof(str));
+        //file_menu_get_fname(*idx + ofs, str, sizeof(str));
         char* ext_pos = strrchr(str, '.');
         if (ext_pos) {
             if (strncmp(ext_pos, ".mp3", 4) == 0 || strncmp(ext_pos, ".MP3", 4) == 0) {
-                play = &playMp3;
+                next_codec = &playMp3;
                 flg = 1;
                 break;
             } else if (strncmp(ext_pos, ".wav", 4) == 0 || strncmp(ext_pos, ".WAV", 4) == 0) {
-                play = &playWav;
+                next_codec = &playWav;
                 flg = 1;
                 break;
             } else if (strncmp(ext_pos, ".m4a", 4) == 0 || strncmp(ext_pos, ".M4A", 4) == 0) {
-                play = &playAac;
+                next_codec = &playAac;
+                flg = 1;
+                break;
+            } else if (strncmp(ext_pos, ".flac", 5) == 0 || strncmp(ext_pos, ".FLAC", 5) == 0) {
+                next_codec = &playFlac;
                 flg = 1;
                 break;
             }
@@ -545,10 +554,12 @@ int get_audio_file(uint16_t idx, int seq_flg, MutexFsBaseFile *f)
     //Serial.println(millis());
     if (flg) {
         Serial.println(str);
-        return idx + ofs;
+        *idx += ofs;
     } else {
-        return 0;
+        *idx = 0;
+        next_codec = NULL;
     }
+    return next_codec;
 }
 
 void loadTag(uint16_t idx_play)
@@ -613,6 +624,7 @@ void codec_thread()
         decodeMp3_core();
         decodeWav_core();
         decodeAac_core_x2();
+        decodeFlac_core_half();
     }
 }
 
@@ -644,20 +656,20 @@ void setup() {
 
 #if 0	
 Serial.print("Max Usage: ");
-Serial.print(play->processorUsageMax());
+Serial.print(codec->processorUsageMax());
 Serial.print("% Audio, ");
-Serial.print(play->processorUsageMaxDecoder());
+Serial.print(codec->processorUsageMaxDecoder());
 Serial.print("% Decoding max, ");
 
-Serial.print(play->processorUsageMaxSD());
+Serial.print(codec->processorUsageMaxSD());
 Serial.print("% SD max, ");
   
 Serial.print(AudioProcessorUsageMax());
 Serial.println("% All");
 
 AudioProcessorUsageMaxReset();
-play->processorUsageMaxReset();
-play->processorUsageMaxResetDecoder();
+codec->processorUsageMaxReset();
+codec->processorUsageMaxResetDecoder();
 #endif 
 
 void loop() {
@@ -665,10 +677,10 @@ void loop() {
     char str[256];
     unsigned long time = millis();
     if (aud_req == 1) { // Play / Pause
-        play->pause(!play->isPaused());
+        codec->pause(!codec->isPaused());
         aud_req = 0;
     } else if (aud_req == 2) { // Stop
-        play->stop();
+        codec->stop();
         mode = LcdCanvas::FileView;
         lcd.switchToFileView();
         aud_req = 0;
@@ -702,11 +714,11 @@ void loop() {
         } else { // Target is File
             file_menu_full_sort();
             if (fpos == 0) { idx_play = idx_head + idx_column; } // fpos == 0: play indicated track,  fpos != 0: use idx_play in EEPROM
-            idx_play = get_audio_file(idx_play, 0, &file);
-            if (idx_play) { // Play Audio File
+            codec = get_audio_file(&idx_play, 0, &file);
+            if (codec) { // Play Audio File
                 mode = LcdCanvas::Play;
                 loadTag(idx_play);
-                play->play(&file, fpos, samples_played); // with resuming file position and play time
+                codec->play(&file, fpos, samples_played); // with resuming file position and play time
                 fpos = 0;
                 samples_played = 0;
                 idx_idle_count = 0;
@@ -715,8 +727,8 @@ void loop() {
         }
         idx_req_open = 0;
     } else if (idx_req_open == 2) { // Random Play
-        if (play->isPlaying()) {
-            play->stop();
+        if (codec->isPlaying()) {
+            codec->stop();
             mode = LcdCanvas::FileView;
             lcd.switchToFileView();
         }
@@ -741,7 +753,8 @@ void loop() {
                 }
                 // Check if Next Target Dir has Audio track files
                 if (stack_count == stack_get_count(stack) &&
-                    (file_menu_get_ext_num("mp3", 3) > 0 || file_menu_get_ext_num("m4a", 3) > 0 || file_menu_get_ext_num("wav", 3) > 0)) {
+                    (file_menu_get_ext_num("mp3", 3) > 0 || file_menu_get_ext_num("m4a", 3) > 0 || 
+                     file_menu_get_ext_num("wav", 3) > 0 || file_menu_get_ext_num("flac", 4) > 0)) {
                     break;
                 }
                 // Otherwise, chdir to stack_count-2 and retry again
@@ -777,14 +790,18 @@ void loop() {
         idx_idle_count = 0;
     } else {
         if (mode == LcdCanvas::Play) {
-            if (!play->isPlaying() || (play->positionMillis() + 500 > play->lengthMillis())) {
-                idx_play = get_audio_file(idx_play+1, 1, &file);
-                if (idx_play) {
+            if (!codec->isPlaying() || (codec->positionMillis() + 500 > codec->lengthMillis())) {
+                idx_play++;
+                AudioCodec *next_codec = get_audio_file(&idx_play, 1, &file);
+                if (next_codec) {
                     loadTag(idx_play);
-                    play->standby_play(&file);
+                    //codec->standby_play(&file);
+                    while (codec->isPlaying()) { /*delay(1);*/ }
+                    codec = next_codec;
+                    codec->play(&file);
                 } else {
-                    while (play->isPlaying()) { delay(1); } // minimize gap between tracks
-                    play->stop();
+                    while (codec->isPlaying()) { delay(1); } // minimize gap between tracks
+                    codec->stop();
                     mode = LcdCanvas::FileView;
                     lcd.switchToFileView();
                     idx_req = 1;
@@ -793,8 +810,8 @@ void loop() {
                 }
             }
             lcd.setVolume(i2s1.get_volume());
-            lcd.setBitRate(play->bitRate());
-            lcd.setPlayTime(play->positionMillis()/1000, play->lengthMillis()/1000);
+            lcd.setBitRate(codec->bitRate());
+            lcd.setPlayTime(codec->positionMillis()/1000, codec->lengthMillis()/1000);
         } else if (mode == LcdCanvas::FileView) {
             idx_idle_count++;
             if (idx_idle_count > 100) {

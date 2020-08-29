@@ -52,7 +52,7 @@ class AudioPlaySdMp3 : public AudioCodec
 {
 public:
 	void stop(void);
-	int standby_play(MutexFsBaseFile *file);
+	//int standby_play(MutexFsBaseFile *file);
 	int play(MutexFsBaseFile *file, size_t position = 0, unsigned samples_played = 0) {stop();if (!fopen(file)) return ERR_CODEC_FILE_NOT_FOUND; return play(position, samples_played);}
 	//int play(const char *filename) {stop();if (!fopen(filename)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
 	//int play(const size_t p, const size_t size) {stop();if (!fopen(p,size)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
@@ -76,7 +76,7 @@ protected:
 	HMP3Decoder		hMP3Decoder;
 	MP3FrameInfo	mp3FrameInfo;
 
-	void stop_for_next(void);
+	//void stop_for_next(void);
 	int play(size_t position = 0, unsigned samples_played = 0);
 	void update(void);
 	friend void decodeMp3_core(void);

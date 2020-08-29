@@ -71,6 +71,7 @@ void AudioPlaySdAac::stop(void)
 	aacobjptr = NULL;
 }
 
+#if 0
 int AudioPlaySdAac::standby_play(MutexFsBaseFile *file)
 {
 
@@ -157,6 +158,7 @@ int AudioPlaySdAac::standby_play(MutexFsBaseFile *file)
 #endif
     return lastError;
 }
+#endif
 
 //read big endian 16-Bit from fileposition(position)
 uint16_t AudioPlaySdAac::fread16(size_t position)
@@ -361,7 +363,7 @@ int AudioPlaySdAac::play(size_t position, unsigned samples_played)
 	}
 
 	if((aacFrameInfo.sampRateOut != AUDIOCODECS_SAMPLE_RATE ) || (aacFrameInfo.nChans > 2)) {
-		//Serial.println("incompatible AAC file.");
+		Serial.println("incompatible AAC file.");
 		lastError = ERR_CODEC_FORMAT;
 		stop();
 		return lastError;
@@ -533,10 +535,14 @@ aacend:
 	o->decoding_state++;
 	if (o->decoding_state >= DECODE_NUM_STATES) o->decoding_state = 0;
 
-	if (eof) o->stop_for_next();
+	if (eof) {
+		//o->stop_for_next();
+		o->stop();
+	}
 
 }
 
+#if 0
 void AudioPlaySdAac::stop_for_next(void)
 {
 	//NVIC_DISABLE_IRQ(IRQ_AUDIOCODEC);
@@ -551,6 +557,7 @@ void AudioPlaySdAac::stop_for_next(void)
 	fclose();
 	aacobjptr = NULL;
 }
+#endif
 
 // lengthMillis (Override)
 unsigned AudioPlaySdAac::lengthMillis(void)

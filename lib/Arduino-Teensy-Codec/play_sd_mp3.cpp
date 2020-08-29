@@ -91,6 +91,7 @@ float AudioPlaySdMp3::processorUsageMaxSD(void){
 };
 */
 
+#if 0
 int AudioPlaySdMp3::standby_play(MutexFsBaseFile *file)
 {
 	//ftype=codec_file; fptr=NULL; _file = *file; _fsize=_file.fileSize(); _fposition=0;
@@ -187,6 +188,7 @@ int AudioPlaySdMp3::standby_play(MutexFsBaseFile *file)
 #endif
     return lastError;
 }
+#endif
 
 int AudioPlaySdMp3::play(size_t position, unsigned samples_played)
 {
@@ -463,7 +465,8 @@ mp3end:
 	if (o->decoding_state >= DECODE_NUM_STATES) o->decoding_state = 0;
 
 	if (eof) {
-		o->stop_for_next();
+		//o->stop_for_next();
+		o->stop();
 	}
 
 	/*
@@ -472,6 +475,7 @@ mp3end:
 	*/
 }
 
+#if 0
 void AudioPlaySdMp3::stop_for_next(void)
 {
 	//NVIC_DISABLE_IRQ(IRQ_AUDIOCODEC);
@@ -485,6 +489,7 @@ void AudioPlaySdMp3::stop_for_next(void)
 	fclose();
 	mp3objptr = NULL;
 }
+#endif
 
 // lengthMillis (Override)
 unsigned AudioPlaySdMp3::lengthMillis(void)

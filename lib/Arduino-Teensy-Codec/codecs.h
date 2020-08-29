@@ -153,7 +153,7 @@ public:
 	int freeRam(void);
 	virtual size_t fposition(void) {return CodecFile::fposition();}
 	virtual int play(MutexFsBaseFile *file, size_t position = 0, unsigned samples_played = 0) = 0;
-	virtual int standby_play(MutexFsBaseFile *file) = 0;
+	//virtual int standby_play(MutexFsBaseFile *file) = 0;
 	virtual void stop(void) = 0;
 
 	static short	lastError;
