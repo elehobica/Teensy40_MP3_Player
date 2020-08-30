@@ -7,19 +7,22 @@ TagRead::TagRead()
     id3v1 = NULL;
     id3v2 = NULL;
     clearMP4_ilst();
+    flac_tags = NULL;
 }
 
 TagRead::~TagRead()
 {
     if (id3v1) ID31Free(id3v1);
     if (id3v2) ID32Free(id3v2);
+    if (flac_tags) FLAC__metadata_object_delete(flac_tags);
 }
 
 int TagRead::loadFile(uint16_t file_idx)
 {
-    if (id3v1) ID31Free(id3v1);
-    if (id3v2) ID32Free(id3v2);
+    if (id3v1) { ID31Free(id3v1); id3v1 = NULL; }
+    if (id3v2) { ID32Free(id3v2); id3v2 = NULL; }
     clearMP4_ilst();
+    if (flac_tags) { FLAC__metadata_object_delete(flac_tags); flac_tags = NULL; }
 
     file_menu_get_obj(file_idx, &file);
 
@@ -29,7 +32,11 @@ int TagRead::loadFile(uint16_t file_idx)
     // try ID3v1 or ID3v2
     if (GetID3HeadersFull(&file, 1 /* 1: no-debug display, 0: debug display */, &id3v1, &id3v2) == 0) { return 1; }
 
-    // If ID3 fails, try to read LIST chunk for WAV file
+    // If ID3 failed, try to read FLAC tag
+    file.rewind();
+    FLAC__metadata_get_tags_sd_file(&file, &flac_tags);
+
+    // If all failed, try to read LIST chunk (for WAV file)
     file.rewind();
     if (getListChunk(&file)) { return 1; }
 
@@ -354,6 +361,7 @@ int TagRead::getUTF8Track(char* str, size_t size)
     if (GetMP4BoxUTF8("\xa9""trk", str, size)) { return 1; }
     if (GetMP4BoxUTF8("trkn", str, size)) { return 1; }
     if (GetID32UTF8("TRK", "TRCK", str, size)) { return 1; }
+    if (GetFlacTagUTF8("tracknumber", 11, str, size)) { return 1; }
     if (strlen(id3v1->title) && size >= 4) { // check titlte because track is unsigned char
         sprintf(str, "%d", id3v1->tracknum);
         return 1;
@@ -365,6 +373,7 @@ int TagRead::getUTF8Title(char* str, size_t size)
 {
     if (GetMP4BoxUTF8("\xa9""nam", str, size)) { return 1; }
     if (GetID32UTF8("TT2", "TIT2", str, size)) { return 1; }
+    if (GetFlacTagUTF8("title", 5, str, size)) { return 1; }
     if (strlen(id3v1->title)) {
         memset(str, 0, size);
         strncpy(str, id3v1->title, (strlen(id3v1->title) < size - 1) ? strlen(id3v1->title) : size - 1);
@@ -377,6 +386,7 @@ int TagRead::getUTF8Album(char* str, size_t size)
 {
     if (GetMP4BoxUTF8("\xa9""alb", str, size)) { return 1; }
     if (GetID32UTF8("TAL", "TALB", str, size)) { return 1; }
+    if (GetFlacTagUTF8("album", 5, str, size)) { return 1; }
     if (strlen(id3v1->album)) {
         memset(str, 0, size);
         strncpy(str, id3v1->album, (strlen(id3v1->album) < size - 1) ? strlen(id3v1->album) : size - 1);
@@ -389,6 +399,7 @@ int TagRead::getUTF8Artist(char* str, size_t size)
 {
     if (GetMP4BoxUTF8("\xa9""ART", str, size)) { return 1; }
     if (GetID32UTF8("TP1", "TPE1", str, size)) { return 1; }
+    if (GetFlacTagUTF8("artist", 6, str, size)) { return 1; }
     if (strlen(id3v1->artist)) {
         memset(str, 0, size);
         strncpy(str, id3v1->artist, (strlen(id3v1->artist) < size - 1) ? strlen(id3v1->artist) : size - 1);
@@ -401,6 +412,7 @@ int TagRead::getUTF8Year(char* str, size_t size)
 {
     if (GetMP4BoxUTF8("\xa9""day", str, size)) { return 1; }
     if (GetID32UTF8("TYE", "TYER", str, size)) { return 1; }
+    if (GetFlacTagUTF8("date", 4, str, size)) { return 1; }
     if (strlen(id3v1->year)) {
         memset(str, 0, size);
         strncpy(str, id3v1->year, (strlen(id3v1->year) < size - 1) ? strlen(id3v1->year) : size - 1);
@@ -1117,4 +1129,37 @@ int TagRead::getMP4Picture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos,
 
 // ========================
 // MP4 parsing End
+// ========================
+
+// ========================
+// FLAC handling Start
+// ========================
+int TagRead::GetFlacTagUTF8(const char *lc_key, size_t key_size, char *str, size_t size)
+{
+    if (flac_tags == NULL) return 0;
+    char uc_key[key_size+1];
+    for (int i = 0; i < (int) key_size; i++) uc_key[i] = toupper(lc_key[i]);
+    uc_key[key_size] = '\0';
+    for (int i = 0; i < (int) flac_tags->data.vorbis_comment.num_comments; i++) {
+        //Serial.println((char *) flac_tags->data.vorbis_comment.comments[i].entry);
+        // comment format example: "album=Schumann:Fantasiestucke, Op.12"
+        char* comment_pair = (char *) flac_tags->data.vorbis_comment.comments[i].entry;
+        char* ext_pos = strchr(comment_pair, '=');
+        if (ext_pos != NULL && ext_pos - comment_pair < 16) {
+            char key[16];
+            memcpy(key, comment_pair, ext_pos - comment_pair);
+            key[ext_pos - comment_pair] = '\0';
+            char *value = ext_pos + 1;
+            if (strncmp(key, lc_key, key_size) == 0 || strncmp(key, uc_key, key_size) == 0) {
+                //Serial.println((char *) value);
+                memset(str, 0, size);
+                strncpy(str, value, (strlen(value) < size - 1) ? strlen(value) : size - 1);
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+// ========================
+// FLAC handling End
 // ========================

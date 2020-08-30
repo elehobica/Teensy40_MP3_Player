@@ -17,4 +17,6 @@
 #include "FLAC/memory.c"
 #include "FLAC/stream_decoder.c"
 #include "FLAC/cpu.c"
+#include "FLAC/metadata_iterators.c"
+#include "FLAC/metadata_object.c"
 

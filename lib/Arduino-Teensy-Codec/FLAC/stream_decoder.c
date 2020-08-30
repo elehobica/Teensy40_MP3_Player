@@ -122,6 +122,14 @@ static FLAC__StreamDecoderTellStatus file_tell_callback_(const FLAC__StreamDecod
 static FLAC__StreamDecoderLengthStatus file_length_callback_(const FLAC__StreamDecoder *decoder, FLAC__uint64 *stream_length, void *client_data);
 static FLAC__bool file_eof_callback_(const FLAC__StreamDecoder *decoder, void *client_data);
 
+#ifdef USE_SD_FAT
+static FLAC__StreamDecoderReadStatus sd_file_read_callback_(const FLAC__StreamDecoder *decoder, FLAC__byte buffer[], size_t *bytes, void *client_data);
+static FLAC__StreamDecoderSeekStatus sd_file_seek_callback_(const FLAC__StreamDecoder *decoder, FLAC__uint64 absolute_byte_offset, void *client_data);
+static FLAC__StreamDecoderTellStatus sd_file_tell_callback_(const FLAC__StreamDecoder *decoder, FLAC__uint64 *absolute_byte_offset, void *client_data);
+static FLAC__StreamDecoderLengthStatus sd_file_length_callback_(const FLAC__StreamDecoder *decoder, FLAC__uint64 *stream_length, void *client_data);
+static FLAC__bool sd_file_eof_callback_(const FLAC__StreamDecoder *decoder, void *client_data);
+#endif // USE_SD_FAT
+
 /***********************************************************************
  *
  * Private class data
@@ -148,6 +156,9 @@ typedef struct FLAC__StreamDecoderPrivate {
 	void (*local_lpc_restore_signal_16bit)(const FLAC__int32 residual[], unsigned data_len, const FLAC__int32 qlp_coeff[], unsigned order, int lp_quantization, FLAC__int32 data[]);
 	void *client_data;
 	FILE *file; /* only used if FLAC__stream_decoder_init_file()/FLAC__stream_decoder_init_file() called, else NULL */
+#ifdef USE_SD_FAT
+	SD_FAT_FILE *sd_file;
+#endif // USE_SD_FAT
 	FLAC__BitReader *input;
 	FLAC__int32 *output[FLAC__MAX_CHANNELS];
 	FLAC__int32 *residual[FLAC__MAX_CHANNELS]; /* WATCHOUT: these are the aligned pointers; the real pointers that should be free()'d are residual_unaligned[] below */
@@ -585,6 +596,49 @@ FLAC_API FLAC__StreamDecoderInitStatus FLAC__stream_decoder_init_ogg_FILE(
 	return init_FILE_internal_(decoder, file, write_callback, metadata_callback, error_callback, client_data, /*is_ogg=*/true);
 }
 
+#ifdef USE_SD_FAT
+static FLAC__StreamDecoderInitStatus init_sd_file_internal_(
+	FLAC__StreamDecoder *decoder,
+	SD_FAT_FILE *f,
+	FLAC__StreamDecoderWriteCallback write_callback,
+	FLAC__StreamDecoderMetadataCallback metadata_callback,
+	FLAC__StreamDecoderErrorCallback error_callback,
+	void *client_data,
+	FLAC__bool is_ogg
+)
+{
+	FLAC__ASSERT(0 != decoder);
+	FLAC__ASSERT(0 != f);
+
+	if(decoder->protected_->state != FLAC__STREAM_DECODER_UNINITIALIZED)
+		return decoder->protected_->initstate = FLAC__STREAM_DECODER_INIT_STATUS_ALREADY_INITIALIZED;
+
+	if(0 == write_callback || 0 == error_callback)
+		return decoder->protected_->initstate = FLAC__STREAM_DECODER_INIT_STATUS_INVALID_CALLBACKS;
+
+	/*
+	 * To make sure that our file does not go unclosed after an error, we
+	 * must assign the FILE pointer before any further error can occur in
+	 * this routine.
+	 */
+	decoder->private_->sd_file = f;
+
+	return init_stream_internal_(
+		decoder,
+		sd_file_read_callback_,
+		sd_file_seek_callback_,
+		sd_file_tell_callback_,
+		sd_file_length_callback_,
+		sd_file_eof_callback_,
+		write_callback,
+		metadata_callback,
+		error_callback,
+		client_data,
+		is_ogg
+	);
+}
+#endif // USE_SD_FAT
+
 static FLAC__StreamDecoderInitStatus init_file_internal_(
 	FLAC__StreamDecoder *decoder,
 	const char *filename,
@@ -617,6 +671,20 @@ static FLAC__StreamDecoderInitStatus init_file_internal_(
 
 	return init_FILE_internal_(decoder, file, write_callback, metadata_callback, error_callback, client_data, is_ogg);
 }
+
+#ifdef USE_SD_FAT
+FLAC_API FLAC__StreamDecoderInitStatus FLAC__stream_decoder_init_sd_file(
+	FLAC__StreamDecoder *decoder,
+	SD_FAT_FILE *f,
+	FLAC__StreamDecoderWriteCallback write_callback,
+	FLAC__StreamDecoderMetadataCallback metadata_callback,
+	FLAC__StreamDecoderErrorCallback error_callback,
+	void *client_data
+)
+{
+	return init_sd_file_internal_(decoder, f, write_callback, metadata_callback, error_callback, client_data, /*is_ogg=*/false);
+}
+#endif // USE_SD_FAT
 
 FLAC_API FLAC__StreamDecoderInitStatus FLAC__stream_decoder_init_file(
 	FLAC__StreamDecoder *decoder,
@@ -3393,3 +3461,61 @@ FLAC__bool file_eof_callback_(const FLAC__StreamDecoder *decoder, void *client_d
 
 	return feof(decoder->private_->file)? true : false;
 }
+
+#ifdef USE_SD_FAT
+FLAC__StreamDecoderReadStatus sd_file_read_callback_(const FLAC__StreamDecoder *decoder, FLAC__byte buffer[], size_t *bytes, void *client_data)
+{
+	(void)client_data;
+
+	if(*bytes > 0) {
+		*bytes = decoder->private_->sd_file->read(buffer, *bytes);
+		if(decoder->private_->sd_file->getError()) {
+			return FLAC__STREAM_DECODER_READ_STATUS_ABORT;
+		} else if(*bytes == 0) {
+			return FLAC__STREAM_DECODER_READ_STATUS_END_OF_STREAM;
+		} else
+			return FLAC__STREAM_DECODER_READ_STATUS_CONTINUE;
+	}
+	else
+		return FLAC__STREAM_DECODER_READ_STATUS_ABORT; /* abort to avoid a deadlock */
+}
+
+FLAC__StreamDecoderSeekStatus sd_file_seek_callback_(const FLAC__StreamDecoder *decoder, FLAC__uint64 absolute_byte_offset, void *client_data)
+{
+	(void)client_data;
+
+	if(decoder->private_->sd_file->seekSet((FLAC__off_t)absolute_byte_offset))
+		return FLAC__STREAM_DECODER_SEEK_STATUS_ERROR;
+	else
+		return FLAC__STREAM_DECODER_SEEK_STATUS_OK;
+}
+
+FLAC__StreamDecoderTellStatus sd_file_tell_callback_(const FLAC__StreamDecoder *decoder, FLAC__uint64 *absolute_byte_offset, void *client_data)
+{
+	(void)client_data;
+
+	*absolute_byte_offset = (FLAC__off_t) decoder->private_->sd_file->position();
+	if(decoder->private_->sd_file->getError())
+		return FLAC__STREAM_DECODER_TELL_STATUS_ERROR;
+	else
+		return FLAC__STREAM_DECODER_TELL_STATUS_OK;
+}
+
+FLAC__StreamDecoderLengthStatus sd_file_length_callback_(const FLAC__StreamDecoder *decoder, FLAC__uint64 *stream_length, void *client_data)
+{
+	(void)client_data;
+
+	*stream_length = (FLAC__uint64) decoder->private_->sd_file->size();
+	if(decoder->private_->sd_file->getError())
+		return FLAC__STREAM_DECODER_LENGTH_STATUS_ERROR;
+	else
+		return FLAC__STREAM_DECODER_LENGTH_STATUS_OK;
+}
+
+FLAC__bool sd_file_eof_callback_(const FLAC__StreamDecoder *decoder, void *client_data)
+{
+	(void)client_data;
+
+	return (decoder->private_->sd_file->available()) ? false : true;
+}
+#endif // USE_SD_FAT

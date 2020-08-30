@@ -34,6 +34,8 @@
 #  include <config.h>
 #endif
 
+#define FLAC_METADATA_NO_TIME
+
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -48,8 +50,12 @@
 #include "FLAC/stream_decoder.h"
 #include "share/alloc.h"
 #include "share/compat.h"
+
+#ifndef FLAC_METADATA_NO_TIME
 #include "share/macros.h"
 #include "share/safe_str.h"
+#endif // FLAC_METADATA_NO_TIME
+
 #include "private/macros.h"
 #include "private/memory.h"
 
@@ -155,6 +161,47 @@ typedef struct {
 	FLAC__StreamMetadata *object;
 } level0_client_data;
 
+#ifdef USE_SD_FAT
+static FLAC__StreamMetadata *get_one_metadata_block_sd_file_(SD_FAT_FILE *f, FLAC__MetadataType type)
+{
+	level0_client_data cd;
+	FLAC__StreamDecoder *decoder;
+
+	FLAC__ASSERT(0 != f);
+
+	cd.got_error = false;
+	cd.object = 0;
+
+	decoder = FLAC__stream_decoder_new();
+
+	if(0 == decoder)
+		return 0;
+
+	FLAC__stream_decoder_set_md5_checking(decoder, false);
+	FLAC__stream_decoder_set_metadata_ignore_all(decoder);
+	FLAC__stream_decoder_set_metadata_respond(decoder, type);
+
+	if(FLAC__stream_decoder_init_sd_file(decoder, f, write_callback_, metadata_callback_, error_callback_, &cd) != FLAC__STREAM_DECODER_INIT_STATUS_OK || cd.got_error) {
+		(void)FLAC__stream_decoder_finish(decoder);
+		FLAC__stream_decoder_delete(decoder);
+		return 0;
+	}
+
+	if(!FLAC__stream_decoder_process_until_end_of_metadata(decoder) || cd.got_error) {
+		(void)FLAC__stream_decoder_finish(decoder);
+		FLAC__stream_decoder_delete(decoder);
+		if(0 != cd.object)
+			FLAC__metadata_object_delete(cd.object);
+		return 0;
+	}
+
+	(void)FLAC__stream_decoder_finish(decoder);
+	FLAC__stream_decoder_delete(decoder);
+
+	return cd.object;
+}
+#endif // USE_SD_FAT
+
 static FLAC__StreamMetadata *get_one_metadata_block_(const char *filename, FLAC__MetadataType type)
 {
 	level0_client_data cd;
@@ -213,6 +260,18 @@ FLAC_API FLAC__bool FLAC__metadata_get_streaminfo(const char *filename, FLAC__St
 		return false;
 	}
 }
+
+#ifdef USE_SD_FAT
+FLAC_API FLAC__bool FLAC__metadata_get_tags_sd_file(SD_FAT_FILE *f, FLAC__StreamMetadata **tags)
+{
+	FLAC__ASSERT(0 != f);
+	FLAC__ASSERT(0 != tags);
+
+	*tags = get_one_metadata_block_sd_file_(f, FLAC__METADATA_TYPE_VORBIS_COMMENT);
+
+	return 0 != *tags;
+}
+#endif // USE_SD_FAT
 
 FLAC_API FLAC__bool FLAC__metadata_get_tags(const char *filename, FLAC__StreamMetadata **tags)
 {
@@ -3343,6 +3402,7 @@ FLAC__bool get_file_stats_(const char *filename, struct flac_stat_s *stats)
 
 void set_file_stats_(const char *filename, struct flac_stat_s *stats)
 {
+#ifndef FLAC_METADATA_NO_TIME
 	struct utimbuf srctime;
 
 	FLAC__ASSERT(0 != filename);
@@ -3356,6 +3416,7 @@ void set_file_stats_(const char *filename, struct flac_stat_s *stats)
 	FLAC_CHECK_RETURN(chown(filename, stats->st_uid, -1));
 	FLAC_CHECK_RETURN(chown(filename, -1, stats->st_gid));
 #endif
+#endif // FLAC_METADATA_NO_TIME
 }
 
 int fseek_wrapper_(FLAC__IOHandle handle, FLAC__int64 offset, int whence)

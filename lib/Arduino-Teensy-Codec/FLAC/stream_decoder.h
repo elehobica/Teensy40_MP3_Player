@@ -1293,6 +1293,17 @@ FLAC_API FLAC__StreamDecoderInitStatus FLAC__stream_decoder_init_ogg_FILE(
  *    \c FLAC__STREAM_DECODER_INIT_STATUS_OK if initialization was successful;
  *    see FLAC__StreamDecoderInitStatus for the meanings of other return values.
  */
+#ifdef USE_SD_FAT
+FLAC_API FLAC__StreamDecoderInitStatus FLAC__stream_decoder_init_sd_file(
+	FLAC__StreamDecoder *decoder,
+	SD_FAT_FILE *f,
+	FLAC__StreamDecoderWriteCallback write_callback,
+	FLAC__StreamDecoderMetadataCallback metadata_callback,
+	FLAC__StreamDecoderErrorCallback error_callback,
+	void *client_data
+);
+#endif // USE_SD_FAT
+
 FLAC_API FLAC__StreamDecoderInitStatus FLAC__stream_decoder_init_file(
 	FLAC__StreamDecoder *decoder,
 	const char *filename,

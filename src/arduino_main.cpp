@@ -628,7 +628,8 @@ void codec_thread()
     }
 }
 
-void setup() {
+void setup()
+{
     Serial.begin(115200);
     {
         char str[64];
@@ -672,7 +673,8 @@ codec->processorUsageMaxReset();
 codec->processorUsageMaxResetDecoder();
 #endif 
 
-void loop() {
+void loop()
+{
     int i;
     char str[256];
     unsigned long time = millis();
@@ -799,6 +801,7 @@ void loop() {
                     while (codec->isPlaying()) { /*delay(1);*/ }
                     codec = next_codec;
                     codec->play(&file);
+                    //lcd.switchToPlay();
                 } else {
                     while (codec->isPlaying()) { delay(1); } // minimize gap between tracks
                     codec->stop();

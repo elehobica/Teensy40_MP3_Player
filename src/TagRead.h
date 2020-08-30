@@ -3,6 +3,8 @@
 
 #include <ff_util.h>
 
+#include <FLAC/metadata.h>
+
 typedef struct _id31 {
     char header[3];
     char title[30];
@@ -118,15 +120,12 @@ public:
     int getPictureCount();
     int getPicturePos(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size);
 
-    int getListChunk(MutexFsBaseFile *file);
-
-    int getMP4Box(MutexFsBaseFile *file);
-
 private:
     MutexFsBaseFile file;
     id31 *id3v1;
     id32 *id3v2;
     MP4_ilst mp4_ilst;
+    FLAC__StreamMetadata *flac_tags;
     int GetID3HeadersFull(MutexFsBaseFile *infile, int testfail, id31** id31save, id32** id32save);
     id32* ID32Detect(MutexFsBaseFile *infile);
     int GetID32UTF8(const char *id3v22, const char *id3v23, char *str, size_t size);
@@ -143,14 +142,18 @@ private:
     void ID31Free(id31* id31header);
     int getID3Picture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size);
 
+    int getListChunk(MutexFsBaseFile *file);
     int findNextChunk(MutexFsBaseFile *file, uint32_t end_pos, char chunk_id[4], uint32_t *pos, uint32_t *size);
 
     void clearMP4_ilst();
+    int getMP4Box(MutexFsBaseFile *file);
     int findNextMP4Box(MutexFsBaseFile *file, uint32_t end_pos, char chunk_id[4], uint32_t *pos, uint32_t *size);
     uint32_t getMP4BoxBE32(unsigned char c[4]);
     int GetMP4BoxUTF8(const char *mp4_type, char *str, size_t size);
     int GetMP4TypeCount(const char *mp4_type);
     int getMP4Picture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size);
+
+    int GetFlacTagUTF8(const char *lc_key, size_t key_size, char *str, size_t size);
 };
 
 #endif //_TAGREAD_H_

@@ -92,6 +92,13 @@ extern FLAC_API int FLAC_API_SUPPORTS_OGG_FLAC;
 }
 #endif
 
+#define USE_SD_FAT
+
+#ifdef USE_SD_FAT
+#include <SdFat.h>
+#define SD_FAT_FILE MutexFsBaseFile
+#endif // USE_SD_FAT
+
 /* \} */
 
 #endif

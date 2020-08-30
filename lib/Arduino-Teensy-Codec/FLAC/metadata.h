@@ -175,6 +175,7 @@ FLAC_API FLAC__bool FLAC__metadata_get_streaminfo(const char *filename, FLAC__St
  *    decoder error, or the file contained no VORBIS_COMMENT block, and
  *    \a *tags will be set to \c NULL.
  */
+FLAC_API FLAC__bool FLAC__metadata_get_tags_sd_file(SD_FAT_FILE *f, FLAC__StreamMetadata **tags);
 FLAC_API FLAC__bool FLAC__metadata_get_tags(const char *filename, FLAC__StreamMetadata **tags);
 
 /** Read the CUESHEET metadata block of the given FLAC file.  This
