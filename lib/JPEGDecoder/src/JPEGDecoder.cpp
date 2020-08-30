@@ -456,6 +456,7 @@ void JPEGDecoder::abort(void) {
 	if (jpg_source == JPEG_SD_FILE) if (g_pInFileSd) g_pInFileSd.close();
 #endif
 #ifdef LOAD_SDFAT_LIBRARY
-	if (jpg_source == JPEG_SD_FILE) if (g_pInFileSd) g_pInFileSd->close();
+	// don't close for reuse
+	//if (jpg_source == JPEG_SD_FILE) if (g_pInFileSd) g_pInFileSd->close();
 #endif
 }
