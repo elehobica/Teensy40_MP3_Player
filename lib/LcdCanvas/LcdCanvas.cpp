@@ -195,6 +195,7 @@ void ImageBox::loadJpegFile(uint16_t file_idx, uint64_t pos, size_t size)
     )) { // Use reduce decode for x8 larger image
         reduce = true;
         JpegDec.abort();
+        file_menu_get_obj(file_idx, &file);
         decoded = JpegDec.decodeSdFile(&file, pos, size, 1); // reduce == 1
         if (decoded <= 0) { return; }
     }
