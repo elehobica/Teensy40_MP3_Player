@@ -104,11 +104,11 @@ static FRESULT idx_f_stat(uint16_t idx,  MutexFsBaseFile *fp)
 	}
 	for (;;) {
         fp->openNext(&dir);
-		if (fp->isHidden()) continue;
+		if (fp->isHidden()) { fp->close(); continue; }
 		if (!(target & TGT_DIRS)) { // File Only
-			if (fp->isDir()) continue;
+			if (fp->isDir()) { fp->close(); continue; }
 		} else if (!(target & TGT_FILES)) { // Dir Only
-			if (!(fp->isDir())) continue;
+			if (!(fp->isDir())) { fp->close(); continue; }
 		}
 		if (f_stat_cnt++ >= idx) break;
 	}

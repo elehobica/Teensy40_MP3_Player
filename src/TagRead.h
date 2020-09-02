@@ -122,10 +122,9 @@ public:
 
 private:
     MutexFsBaseFile file;
+
     id31 *id3v1;
     id32 *id3v2;
-    MP4_ilst mp4_ilst;
-    FLAC__StreamMetadata *flac_tags;
     int GetID3HeadersFull(MutexFsBaseFile *infile, int testfail, id31** id31save, id32** id32save);
     id32* ID32Detect(MutexFsBaseFile *infile);
     int GetID32UTF8(const char *id3v22, const char *id3v23, char *str, size_t size);
@@ -145,6 +144,7 @@ private:
     int getListChunk(MutexFsBaseFile *file);
     int findNextChunk(MutexFsBaseFile *file, uint32_t end_pos, char chunk_id[4], uint32_t *pos, uint32_t *size);
 
+    MP4_ilst mp4_ilst;
     void clearMP4_ilst();
     int getMP4Box(MutexFsBaseFile *file);
     int findNextMP4Box(MutexFsBaseFile *file, uint32_t end_pos, char chunk_id[4], uint32_t *pos, uint32_t *size);
@@ -153,7 +153,14 @@ private:
     int GetMP4TypeCount(const char *mp4_type);
     int getMP4Picture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size);
 
+    FLAC__StreamMetadata *flac_tags;
+    FLAC__StreamMetadata **flac_pics;
+    int flac_pics_count;
+    int getFlacMetadata(MutexFsBaseFile *file);
     int GetFlacTagUTF8(const char *lc_key, size_t key_size, char *str, size_t size);
+    int GetFlacPictureCount();
+    int getFlacPicture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size);
+    void flacFree();
 };
 
 #endif //_TAGREAD_H_

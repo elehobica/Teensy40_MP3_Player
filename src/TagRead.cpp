@@ -8,13 +8,15 @@ TagRead::TagRead()
     id3v2 = NULL;
     clearMP4_ilst();
     flac_tags = NULL;
+    flac_pics = NULL;
+    flac_pics_count = 0;
 }
 
 TagRead::~TagRead()
 {
     if (id3v1) ID31Free(id3v1);
     if (id3v2) ID32Free(id3v2);
-    if (flac_tags) FLAC__metadata_object_delete(flac_tags);
+    flacFree();
 }
 
 int TagRead::loadFile(uint16_t file_idx)
@@ -22,24 +24,25 @@ int TagRead::loadFile(uint16_t file_idx)
     if (id3v1) { ID31Free(id3v1); id3v1 = NULL; }
     if (id3v2) { ID32Free(id3v2); id3v2 = NULL; }
     clearMP4_ilst();
-    if (flac_tags) { FLAC__metadata_object_delete(flac_tags); flac_tags = NULL; }
-
+    flacFree();
+    flac_tags = NULL;
+    flac_pics = NULL;
+    
     file_menu_get_obj(file_idx, &file);
 
     // try MP4 first (and try ID3 next because ID3 header objects need to be generated)
     getMP4Box(&file);
 
     // try ID3v1 or ID3v2
-    if (GetID3HeadersFull(&file, 1 /* 1: no-debug display, 0: debug display */, &id3v1, &id3v2) == 0) { return 1; }
+    if (GetID3HeadersFull(&file, 1 /* 1: no-debug display, 0: debug display */, &id3v1, &id3v2) == 0) { file.close(); return 1; }
 
     // If ID3 failed, try to read FLAC tag
-    file.rewind();
-    FLAC__metadata_get_tags_sd_file(&file, &flac_tags);
+    if (getFlacMetadata(&file)) { file.close(); return 1; }
 
     // If all failed, try to read LIST chunk (for WAV file)
-    file.rewind();
-    if (getListChunk(&file)) { return 1; }
+    if (getListChunk(&file)) { file.close(); return 1; }
 
+    file.close();
     return 0;
 }
 
@@ -423,20 +426,33 @@ int TagRead::getUTF8Year(char* str, size_t size)
 
 int TagRead::getPictureCount()
 {
-    return GetMP4TypeCount("covr") + GetID3IDCount("PIC", "APIC");
+    return GetMP4TypeCount("covr") + GetID3IDCount("PIC", "APIC") + GetFlacPictureCount();
 }
 
 int TagRead::getPicturePos(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size)
 {
-    if (idx < GetMP4TypeCount("covr")) {
-        getMP4Picture(idx, mime, ptype, pos, size);
+    int i = idx;
+    // for MP4 Picture
+
+    if (i < GetMP4TypeCount("covr")) {
+        getMP4Picture(i, mime, ptype, pos, size);
         return (*size != 0);
     }
-    int id3_idx = idx - GetMP4TypeCount("covr");
-    if (id3_idx >= 0) {
-        getID3Picture(id3_idx, mime, ptype, pos, size);
+    i -= GetMP4TypeCount("covr");
+
+    // for MP4 Picture
+    if (i >= 0 && i < GetID3IDCount("PIC", "APIC")) {
+        getID3Picture(i, mime, ptype, pos, size);
         return (*size != 0);
     }
+    i -= GetID3IDCount("PIC", "APIC");
+
+    // for FLAC Picture
+    if (i >= 0 && i < GetFlacPictureCount()) {
+        getFlacPicture(i, mime, ptype, pos, size);
+        return (*size != 0);
+    }
+
     return 0;
 }
 
@@ -891,6 +907,7 @@ int TagRead::findNextChunk(MutexFsBaseFile *file, uint32_t end_pos, char chunk_i
 int TagRead::getListChunk(MutexFsBaseFile *file)
 {
     char str[256];
+    file->rewind();
     file->read(str, 12);
 	if (str[ 0]=='R' && str[ 1]=='I' && str[ 2]=='F' && str[ 3]=='F' &&
 	    str[ 8]=='W' && str[ 9]=='A' && str[10]=='V' && str[11]=='E')
@@ -1134,12 +1151,32 @@ int TagRead::getMP4Picture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos,
 // ========================
 // FLAC handling Start
 // ========================
+int TagRead::getFlacMetadata(MutexFsBaseFile *file)
+{
+    FLAC__bool has_tags;
+
+    // for FLAC Tags
+    file->rewind();
+    has_tags = FLAC__metadata_get_tags_sd_file(file, &flac_tags);
+
+    // for FLAC Pictures
+    file->rewind();
+    flac_pics_count = FLAC__metadata_get_picture_count_sd_file(file, /*type*/-1, /*mime_type*/NULL, /*description*/NULL, /*max_width*/(unsigned) -1, /*max_height*/(unsigned) -1, /*max_depth*/(unsigned) -1, /*max_colors*/(unsigned) -1);
+    flac_pics = (FLAC__StreamMetadata **) calloc(flac_pics_count, sizeof(FLAC__StreamMetadata *));
+    for (int i = 0; i < flac_pics_count; i++) {
+        file->rewind();
+        //file_menu_get_obj(file_idx, &file);
+        FLAC__metadata_get_picture_sd_file(file, /*idx*/i, /*picture*/&flac_pics[i], /*type*/-1, /*mime_type*/NULL, /*description*/NULL, /*max_width*/(unsigned) -1, /*max_height*/(unsigned) -1, /*max_depth*/(unsigned) -1, /*max_colors*/(unsigned) -1);
+    }
+
+    if (has_tags || flac_pics_count > 0) { return 1; }
+
+    return 0;
+}
+
 int TagRead::GetFlacTagUTF8(const char *lc_key, size_t key_size, char *str, size_t size)
 {
     if (flac_tags == NULL) return 0;
-    char uc_key[key_size+1];
-    for (int i = 0; i < (int) key_size; i++) uc_key[i] = toupper(lc_key[i]);
-    uc_key[key_size] = '\0';
     for (int i = 0; i < (int) flac_tags->data.vorbis_comment.num_comments; i++) {
         //Serial.println((char *) flac_tags->data.vorbis_comment.comments[i].entry);
         // comment format example: "album=Schumann:Fantasiestucke, Op.12"
@@ -1148,9 +1185,10 @@ int TagRead::GetFlacTagUTF8(const char *lc_key, size_t key_size, char *str, size
         if (ext_pos != NULL && ext_pos - comment_pair < 16) {
             char key[16];
             memcpy(key, comment_pair, ext_pos - comment_pair);
+            for (int j = 0; j < (int) (ext_pos - comment_pair); j++) key[j] = tolower(key[j]); // key to lower
             key[ext_pos - comment_pair] = '\0';
             char *value = ext_pos + 1;
-            if (strncmp(key, lc_key, key_size) == 0 || strncmp(key, uc_key, key_size) == 0) {
+            if (strncmp(key, lc_key, key_size) == 0) {
                 //Serial.println((char *) value);
                 memset(str, 0, size);
                 strncpy(str, value, (strlen(value) < size - 1) ? strlen(value) : size - 1);
@@ -1160,6 +1198,39 @@ int TagRead::GetFlacTagUTF8(const char *lc_key, size_t key_size, char *str, size
     }
     return 0;
 }
+
+int TagRead::GetFlacPictureCount()
+{
+    return flac_pics_count;
+}
+
+int TagRead::getFlacPicture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size)
+{
+    if (idx >= flac_pics_count) { return 0; }
+    if (flac_pics[idx] == NULL) { return 0; }
+    if (strncmp(flac_pics[idx]->data.picture.mime_type, "image/jpeg", 10) == 0) {
+        *mime = jpeg;
+    } else if (strncmp(flac_pics[idx]->data.picture.mime_type, "image/png", 9) == 0) {
+        *mime = png;
+    } else {
+        *mime = non;
+    }
+    *ptype = static_cast<ptype_t>(flac_pics[idx]->data.picture.type); // FLAC picture type is as same as ID3's
+    *pos = flac_pics[idx]->data.picture.position;
+    *size = flac_pics[idx]->data.picture.data_length;
+    return 1;
+}
+
+void TagRead::flacFree()
+{
+    if (flac_tags) FLAC__metadata_object_delete(flac_tags);
+    for (int i = 0; i < flac_pics_count; i++) {
+        if (flac_pics[i]) FLAC__metadata_object_delete(flac_pics[i]);
+    }
+    if (flac_pics) free(flac_pics);
+    flac_pics_count = 0;
+}
+
 // ========================
 // FLAC handling End
 // ========================

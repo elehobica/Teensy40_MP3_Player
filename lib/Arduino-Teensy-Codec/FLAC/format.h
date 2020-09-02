@@ -803,6 +803,9 @@ typedef struct {
 	 * number of palette entries), or \c 0 for non-indexed (i.e. 2^depth).
 	 */
 
+	FLAC__uint64 position;
+	/**< file posiiton of binary picture data in bytes. */
+
 	FLAC__uint32 data_length;
 	/**< Length of binary picture data in bytes. */
 

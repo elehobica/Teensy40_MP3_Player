@@ -38,6 +38,12 @@
 #include "callback.h"
 #include "format.h"
 
+#ifdef USE_SD_FAT
+#define FLAC_META_FILE	SD_FAT_FILE
+#else
+#define FLAC_META_FILE	FILE
+#endif // USE_SD_FAT
+
 /* --------------------------------------------------------------------
    (For an example of how all these routines are used, see the source
    code for the unit tests in src/test_libFLAC/metadata_*.c, or
@@ -158,6 +164,25 @@ extern "C" {
  */
 FLAC_API FLAC__bool FLAC__metadata_get_streaminfo(const char *filename, FLAC__StreamMetadata *streaminfo);
 
+/** Read the VORBIS_COMMENT metadata block of the given FLAC file by SdFat.
+ *  This function will try to skip any ID3v2 tag at the head of the file.
+ *
+ * \param f           The pointer of the FLAC SdFat file object to read
+ * \param tags        The address where the returned pointer will be
+ *                    stored.  The \a tags object must be deleted by
+ *                    the caller using FLAC__metadata_object_delete().
+ * \assert
+ *    \code f != NULL \endcode
+ *    \code tags != NULL \endcode
+ * \retval FLAC__bool
+ *    \c true if a valid VORBIS_COMMENT block was read from \a f,
+ *    and \a *tags will be set to the address of the metadata structure.
+ *    Returns \c false if there was a memory allocation error, a file
+ *    decoder error, or the file contained no VORBIS_COMMENT block, and
+ *    \a *tags will be set to \c NULL.
+ */
+FLAC_API FLAC__bool FLAC__metadata_get_tags_sd_file(SD_FAT_FILE *f, FLAC__StreamMetadata **tags);
+
 /** Read the VORBIS_COMMENT metadata block of the given FLAC file.  This
  *  function will try to skip any ID3v2 tag at the head of the file.
  *
@@ -175,7 +200,6 @@ FLAC_API FLAC__bool FLAC__metadata_get_streaminfo(const char *filename, FLAC__St
  *    decoder error, or the file contained no VORBIS_COMMENT block, and
  *    \a *tags will be set to \c NULL.
  */
-FLAC_API FLAC__bool FLAC__metadata_get_tags_sd_file(SD_FAT_FILE *f, FLAC__StreamMetadata **tags);
 FLAC_API FLAC__bool FLAC__metadata_get_tags(const char *filename, FLAC__StreamMetadata **tags);
 
 /** Read the CUESHEET metadata block of the given FLAC file.  This
@@ -236,6 +260,84 @@ FLAC_API FLAC__bool FLAC__metadata_get_cuesheet(const char *filename, FLAC__Stre
  *    block, and \a *picture will be set to \c NULL.
  */
 FLAC_API FLAC__bool FLAC__metadata_get_picture(const char *filename, FLAC__StreamMetadata **picture, FLAC__StreamMetadata_Picture_Type type, const char *mime_type, const FLAC__byte *description, unsigned max_width, unsigned max_height, unsigned max_depth, unsigned max_colors);
+
+#ifdef USE_SD_FAT
+/** Get number of PICTUREs metadata block of the given FLAC file.  This
+ *  function will try to skip any ID3v2 tag at the head of the file.
+ *  Since there can be more than one PICTURE block in a file, this
+ *  function takes a number of parameters that act as constraints to
+ *  the search.  The PICTURE block with the largest area matching all
+ *  the constraints will be returned, or \a *picture will be set to
+ *  \c NULL if there was no such block.
+ *
+ * \param f           The pointer of SD_FAT_FILE object
+ * \param type        The desired picture type.  Use \c -1 to mean
+ *                    "any type".
+ * \param mime_type   The desired MIME type, e.g. "image/jpeg".  The
+ *                    string will be matched exactly.  Use \c NULL to
+ *                    mean "any MIME type".
+ * \param description The desired description.  The string will be
+ *                    matched exactly.  Use \c NULL to mean "any
+ *                    description".
+ * \param max_width   The maximum width in pixels desired.  Use
+ *                    \c (unsigned)(-1) to mean "any width".
+ * \param max_height  The maximum height in pixels desired.  Use
+ *                    \c (unsigned)(-1) to mean "any height".
+ * \param max_depth   The maximum color depth in bits-per-pixel desired.
+ *                    Use \c (unsigned)(-1) to mean "any depth".
+ * \param max_colors  The maximum number of colors desired.  Use
+ *                    \c (unsigned)(-1) to mean "any number of colors".
+ * \assert
+ *    \code filename != NULL \endcode
+ *    \code picture != NULL \endcode
+ * \retval FLAC__uint32
+ *    \c number of PICTUREs if a valid PICTURE block was read from \a f,
+ *    Returns \c 0 if there was a memory allocation
+ *    error, a file decoder error, or the file contained no PICTURE block.
+ */
+FLAC_API FLAC__uint32 FLAC__metadata_get_picture_count_sd_file(SD_FAT_FILE *f, FLAC__StreamMetadata_Picture_Type type, const char *mime_type, const FLAC__byte *description, unsigned max_width, unsigned max_height, unsigned max_depth, unsigned max_colors);
+
+/** Read a PICTURE metadata block in designated index of the given FLAC file.
+ *  This function will try to skip any ID3v2 tag at the head of the file.
+ *  Since there can be more than one PICTURE block in a file, this
+ *  function takes a number of parameters that act as constraints to
+ *  the search.  The PICTURE block with the largest area matching all
+ *  the constraints will be returned, or \a *picture will be set to
+ *  \c NULL if there was no such block.
+ *
+ * \param filename    The path to the FLAC file to read.
+ * \param idx         The index number from PICTUREs
+ * \param picture     The address where the returned pointer will be
+ *                    stored.  The \a picture object must be deleted by
+ *                    the caller using FLAC__metadata_object_delete().
+ * \param type        The desired picture type.  Use \c -1 to mean
+ *                    "any type".
+ * \param mime_type   The desired MIME type, e.g. "image/jpeg".  The
+ *                    string will be matched exactly.  Use \c NULL to
+ *                    mean "any MIME type".
+ * \param description The desired description.  The string will be
+ *                    matched exactly.  Use \c NULL to mean "any
+ *                    description".
+ * \param max_width   The maximum width in pixels desired.  Use
+ *                    \c (unsigned)(-1) to mean "any width".
+ * \param max_height  The maximum height in pixels desired.  Use
+ *                    \c (unsigned)(-1) to mean "any height".
+ * \param max_depth   The maximum color depth in bits-per-pixel desired.
+ *                    Use \c (unsigned)(-1) to mean "any depth".
+ * \param max_colors  The maximum number of colors desired.  Use
+ *                    \c (unsigned)(-1) to mean "any number of colors".
+ * \assert
+ *    \code filename != NULL \endcode
+ *    \code picture != NULL \endcode
+ * \retval FLAC__bool
+ *    \c true if a valid PICTURE block was read from \a filename,
+ *    and \a *picture will be set to the address of the metadata
+ *    structure.  Returns \c false if there was a memory allocation
+ *    error, a file decoder error, or the file contained no PICTURE
+ *    block, and \a *picture will be set to \c NULL.
+ */
+FLAC_API FLAC__bool FLAC__metadata_get_picture_sd_file(SD_FAT_FILE *f, FLAC__uint32 idx, FLAC__StreamMetadata **picture, FLAC__StreamMetadata_Picture_Type type, const char *mime_type, const FLAC__byte *description, unsigned max_width, unsigned max_height, unsigned max_depth, unsigned max_colors);
+#endif // USE_SD_FAT
 
 /* \} */
 
@@ -405,6 +507,10 @@ FLAC_API FLAC__Metadata_SimpleIteratorStatus FLAC__metadata_simple_iterator_stat
  *    opened, or another error occurs, else \c true.
  */
 FLAC_API FLAC__bool FLAC__metadata_simple_iterator_init(FLAC__Metadata_SimpleIterator *iterator, const char *filename, FLAC__bool read_only, FLAC__bool preserve_file_stats);
+
+#ifdef USE_SD_FAT
+FLAC_API FLAC__bool FLAC__metadata_simple_iterator_init_sd_file(FLAC__Metadata_SimpleIterator *iterator, SD_FAT_FILE *f, FLAC__bool read_only, FLAC__bool preserve_file_stats);
+#endif // USE_SD_FAT
 
 /** Returns \c true if the FLAC file is writable.  If \c false, calls to
  *  FLAC__metadata_simple_iterator_set_block() and
