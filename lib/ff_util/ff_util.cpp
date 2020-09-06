@@ -278,6 +278,11 @@ static void idx_qsort_entry_list_by_range(uint16_t r_start, uint16_t r_end_1, ui
 					bottom--;
 				}
 			}
+			if (top > end_1 - 1) { // case that all items equal to key --> give up sorting and set boundary to 1/2 point
+				top = start + (end_1 - start)/2;
+				bottom = top - 1;
+				break;
+			}
 			if (top > bottom) break;
 		}
 		#ifdef DEBUG_FF_UTIL_LVL2
