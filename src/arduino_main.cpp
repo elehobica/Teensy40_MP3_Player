@@ -9,6 +9,7 @@
 #include <EEPROM.h>
 #include <LcdCanvas.h>
 #include <ff_util.h>
+#include <utf_conv.h>
 #include <TeensyThreads.h>
 
 #include <Audio.h>
@@ -20,7 +21,6 @@
 
 #include "stack.h"
 #include "TagRead.h"
-#include "utf_conv.h"
 
 const int Version = 100;
 

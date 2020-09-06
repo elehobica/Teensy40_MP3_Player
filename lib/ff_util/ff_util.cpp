@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <utf_conv.h>
 
 #if SD_FAT_TYPE == 2
 SdExFat sd;
@@ -123,6 +124,7 @@ static FRESULT idx_f_stat(uint16_t idx,  MutexFsBaseFile *fp)
 	}
 }
 
+// Get file name by UTF8 for sorting multi-byte string
 static FRESULT idx_f_stat_get_name(uint16_t idx,  MutexFsBaseFile *fp, char *str, size_t size)
 {
 	if (idx_f_stat(idx, fp) != FR_OK) { return FR_INVALID_PARAMETER; }
@@ -131,7 +133,10 @@ static FRESULT idx_f_stat_get_name(uint16_t idx,  MutexFsBaseFile *fp, char *str
 		//strncpy(str, "..", size);
 		str[0] = '\0'; // idx 0 needs to be located at top of entry always
 	} else {
-		fp->getName(str, size);
+		char16_t str_utf16[size] = {};
+		fp->getUTF16Name(str_utf16, size - 1);
+		strncpy(str, utf16_to_utf8((const char16_t *) str_utf16).c_str(), size - 1);
+		str[size-1] = '\0';
 	}
 	return FR_OK;
 }
@@ -205,8 +210,8 @@ static void idx_qsort_entry_list_by_range(uint16_t r_start, uint16_t r_end_1, ui
 		}
 		return;
 	}
-	//sprintf(_str, "r_start %d r_end_1 %d start %d end_1 %d", r_start, r_end_1, start, end_1); Serial.println(_str);
 	#ifdef DEBUG_FF_UTIL_LVL2
+	sprintf(_str, "r_start %d r_end_1 %d start %d end_1 %d", r_start, r_end_1, start, end_1); Serial.println(_str);
 	Serial.println();
 	for (int k = start; k < end_1; k++) {
 		idx_f_stat_get_name(entry_list[k], &file, name, sizeof(name));
@@ -221,7 +226,9 @@ static void idx_qsort_entry_list_by_range(uint16_t r_start, uint16_t r_end_1, ui
 		if (result == 0) {
 			result = my_strncmp(fast_fname_list[entry_list[start]], fast_fname_list[entry_list[start+1]], FFL_SZ);
 		}
-		//sprintf(_str, "fast_fname_list %s %s %d, %d", fast_fname_list[entry_list[0]], fast_fname_list[entry_list[1]], entry_list[0], entry_list[1]); Serial.println(_str);
+		#ifdef DEBUG_FF_UTIL_LVL2
+		sprintf(_str, "fast_fname_list %s %s %d, %d", fast_fname_list[entry_list[0]], fast_fname_list[entry_list[1]], entry_list[0], entry_list[1]); Serial.println(_str);
+		#endif // DEBUG_FF_UTIL_LVL2
 		if (result > 0) {
 			idx_entry_swap(start, start+1);
 		} else if (result < 0) {
@@ -264,7 +271,7 @@ static void idx_qsort_entry_list_by_range(uint16_t r_start, uint16_t r_end_1, ui
 				fno_ptr = (strncmp(name, "The ", 4) == 0) ? &name[4] : name;
 				fno_temp_ptr = (strncmp(name_temp, "The ", 4) == 0) ? &name_temp[4] : name_temp;
 				result = my_strcmp(fno_ptr, fno_temp_ptr);
-				if (result < 0) {
+				if (result <= 0) {
 					top++;
 				} else {
 					idx_entry_swap(top, bottom);
