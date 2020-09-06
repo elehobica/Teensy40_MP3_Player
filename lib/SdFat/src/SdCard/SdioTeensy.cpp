@@ -658,8 +658,8 @@ bool SdioCard::begin(SdioConfig sdioConfig) {
   uint8_t status[64];
   if (cardCMD6(0X00FFFFFF, status) && (2 & status[13]) &&
       cardCMD6(0X80FFFFF1, status) && (status[16] & 0XF) == 1) {
-    //kHzSdClk = 50000;
-    kHzSdClk = 25000; // ignore High Speed mode for stable transfer
+    kHzSdClk = 50000;
+    //kHzSdClk = 25000; // ignore High Speed mode for stable transfer
   } else {
     kHzSdClk = 25000;
   }
