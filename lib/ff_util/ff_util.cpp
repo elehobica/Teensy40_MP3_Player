@@ -36,7 +36,11 @@ const uint8_t SD_CS_PIN = SDCARD_SS_PIN;
 #endif  // HAS_SDIO_CLASS
 
 static int path_depth = 0;					// preserve path depth because SdFat doesn't support relative directory
-#ifdef DEBUG_FF_UTIL
+
+//#define DEBUG_FF_UTIL
+//#define DEBUG_FF_UTIL_LVL2
+
+#if defined(DEBUG_FF_UTIL) || defined(DEBUG_FF_UTIL_LVL2)
 static char _str[256];	// for debug print
 #endif // DEBUG_FF_UTIL
 
@@ -119,6 +123,19 @@ static FRESULT idx_f_stat(uint16_t idx,  MutexFsBaseFile *fp)
 	}
 }
 
+static FRESULT idx_f_stat_get_name(uint16_t idx,  MutexFsBaseFile *fp, char *str, size_t size)
+{
+	if (idx_f_stat(idx, fp) != FR_OK) { return FR_INVALID_PARAMETER; }
+	//idx_f_stat(idx, fp);
+	if (idx == 0) {
+		//strncpy(str, "..", size);
+		str[0] = '\0'; // idx 0 needs to be located at top of entry always
+	} else {
+		fp->getName(str, size);
+	}
+	return FR_OK;
+}
+
 static void set_sorted(uint16_t pos) /* pos is entry_list's position, not index number */
 {
 	*(sorted_flg + (pos/32)) |= 1<<(pos%32);
@@ -189,14 +206,13 @@ static void idx_qsort_entry_list_by_range(uint16_t r_start, uint16_t r_end_1, ui
 		return;
 	}
 	//sprintf(_str, "r_start %d r_end_1 %d start %d end_1 %d", r_start, r_end_1, start, end_1); Serial.println(_str);
-	/* DEBUG
+	#ifdef DEBUG_FF_UTIL_LVL2
 	Serial.println();
 	for (int k = start; k < end_1; k++) {
-		idx_f_stat(entry_list[k], &file);
-        file.getName(name, sizeof(name));
+		idx_f_stat_get_name(entry_list[k], &file, name, sizeof(name));
 		sprintf(_str, "before[%d] %d %s", k, entry_list[k], name); Serial.println(_str);
 	}
-	*/
+	#endif // DEBUG_FF_UTIL_LVL2
 	if (end_1 - start <= 1) {
 		set_sorted(start);
 	} else if (end_1 - start <= 2) {
@@ -212,10 +228,8 @@ static void idx_qsort_entry_list_by_range(uint16_t r_start, uint16_t r_end_1, ui
 			// do nothing
 		} else {
 			// full name compare
-			idx_f_stat(entry_list[start], &file);
-            file.getName(name, sizeof(name));
-			idx_f_stat(entry_list[start+1], &file_temp);
-            file_temp.getName(name_temp, sizeof(name_temp));
+			idx_f_stat_get_name(entry_list[start], &file, name, sizeof(name));
+			idx_f_stat_get_name(entry_list[start+1], &file_temp, name_temp, sizeof(name_temp));
 			fno_ptr = (strncmp(name, "The ", 4) == 0) ? &name[4] : name;
 			fno_temp_ptr = (strncmp(name_temp, "The ", 4) == 0) ? &name_temp[4] : name_temp;
 			result = my_strcmp(fno_ptr, fno_temp_ptr);
@@ -229,9 +243,10 @@ static void idx_qsort_entry_list_by_range(uint16_t r_start, uint16_t r_end_1, ui
 		int top = start;
 		int bottom = end_1 - 1;
 		uint16_t key_idx = entry_list[start+(end_1-start)/2];
-		idx_f_stat(key_idx, &file_temp);
-        file_temp.getName(name_temp, sizeof(name_temp));
-		//sprintf(_str, "key %s", name_temp); Serial.println(_str); // DEBUG
+		idx_f_stat_get_name(key_idx, &file_temp, name_temp, sizeof(name_temp));
+		#ifdef DEBUG_FF_UTIL_LVL2
+		sprintf(_str, "key %s", name_temp); Serial.println(_str); // DEBUG
+		#endif // DEBUG_FF_UTIL_LVL2
 		while (1) {
 			// try fast_fname_list compare
 			result = get_is_file(entry_list[top]) - get_is_file(key_idx);
@@ -245,8 +260,7 @@ static void idx_qsort_entry_list_by_range(uint16_t r_start, uint16_t r_end_1, ui
 				bottom--;				
 			} else {
 				// full name compare
-				idx_f_stat(entry_list[top], &file);
-                file.getName(name, sizeof(name));
+				idx_f_stat_get_name(entry_list[top], &file, name, sizeof(name));
 				fno_ptr = (strncmp(name, "The ", 4) == 0) ? &name[4] : name;
 				fno_temp_ptr = (strncmp(name_temp, "The ", 4) == 0) ? &name_temp[4] : name_temp;
 				result = my_strcmp(fno_ptr, fno_temp_ptr);
@@ -259,18 +273,16 @@ static void idx_qsort_entry_list_by_range(uint16_t r_start, uint16_t r_end_1, ui
 			}
 			if (top > bottom) break;
 		}
-		/* DEBUG
+		#ifdef DEBUG_FF_UTIL_LVL2
 		for (int k = 0; k < top; k++) {
-			idx_f_stat(entry_list[k], &file);
-            file.getName(name, sizeof(name));
+			idx_f_stat_get_name(entry_list[k], &file, name, sizeof(name));
 			sprintf(_str, "top[%d] %d %s", k, entry_list[k], name); Serial.println(_str);
 		}
 		for (int k = top; k < max_entry_cnt; k++) {
-			idx_f_stat(entry_list[k], &file);
-            file.getName(name, sizeof(name));
+			idx_f_stat_get_name(entry_list[k], &file, name, sizeof(name));
 			sprintf(_str, "bottom[%d] %d %s", k, entry_list[k], name); Serial.println(_str);
 		}
-		*/
+		#endif // DEBUG_FF_UTIL_LVL2
 		if ((r_start < top && r_end_1 > start) && !get_range_full_sorted(start, top)) {
 			if (top - start > 1) {
 				idx_qsort_entry_list_by_range(r_start, r_end_1, start, top);
@@ -325,9 +337,8 @@ static void idx_sort_new(void)
 	fast_fname_list = (char (*)[FFL_SZ]) malloc(sizeof(char[FFL_SZ]) * max_entry_cnt);
 	if (fast_fname_list == NULL) Serial.println("malloc fast_fname_list failed");
 	for (i = 0; i < max_entry_cnt; i++) {
-		idx_f_stat(i, &file);
+		idx_f_stat_get_name(i, &file, name, sizeof(name));
 		if (!(file.isDir())) set_is_file(i);
-        file.getName(name, sizeof(name));
 		if (strncmp(name, "The ", 4) == 0) {
 			for (k = 0; k < FFL_SZ; k++) {
 				fast_fname_list[i][k] = name[k+4];
@@ -337,11 +348,11 @@ static void idx_sort_new(void)
 				fast_fname_list[i][k] = name[k];
 			}
 		}
-		/* DEBUG
+		#ifdef DEBUG_FF_UTIL_LVL2
 		char temp_str[5] = "    ";
 		strncpy(temp_str, fast_fname_list[i], 4);
 		sprintf(_str, "fast_fname_list[%d] = %4s, is_file = %d", i, temp_str, get_is_file(i)); Serial.println(_str);
-		*/
+		#endif // DEBUG_FF_UTIL_LVL2
 	}
 }
 
@@ -430,8 +441,7 @@ FRESULT file_menu_get_fname(uint16_t order, char *str, size_t size)
 	if (order == 0) {
 		strncpy(str, "..", size);
 	} else {
-		idx_f_stat(entry_list[order], &file);
-        file.getName(str, size);
+		idx_f_stat_get_name(entry_list[order], &file, str, size);
 		last_order = order;
 	}
 	return FR_OK;
