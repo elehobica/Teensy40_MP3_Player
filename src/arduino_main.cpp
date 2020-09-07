@@ -92,6 +92,8 @@ volatile uint32_t button_repeat_count = 0;
 #define CFG_SAMPLES_PLAYED2 (EEPROM_BASE + 43)
 #define CFG_SAMPLES_PLAYED3 (EEPROM_BASE + 44)
 
+#define PIN_DCDC_SHDN_B   (16)
+
 uint16_t eprw_count; // EEPROM Write Count (to check for write endurance of 100,000 cycles)
 
 // LCD (ST7735, 1.8", 128x160pix)
@@ -274,6 +276,7 @@ void power_off(void)
     while (1) {
         delay(100);
         yield(); // Arduino msg loop
+        digitalWrite(PIN_DCDC_SHDN_B, LOW);
     }
 }
 
@@ -638,6 +641,10 @@ void setup()
         Serial.println(str);
         Serial.println("###################################");
     }
+
+    // Keep Power On for SHDN_B of DC/DC
+    pinMode(PIN_DCDC_SHDN_B, OUTPUT);
+    digitalWrite(PIN_DCDC_SHDN_B, HIGH);
 
     initEEPROM();
     myTimer.begin(tick_100ms, 100000);
