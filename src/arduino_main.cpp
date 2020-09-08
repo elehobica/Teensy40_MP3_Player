@@ -23,6 +23,8 @@
 #include "TagRead.h"
 
 const int Version = 100;
+const int Tick = 50; // loop for every tick (ms)
+const int BackLightBoostTicks = 20 * 1000 / Tick; // 20 sec
 
 IntervalTimer myTimer;
 Threads::Event codec_event;
@@ -827,10 +829,10 @@ void loop()
             }
             lcd.setVolume(i2s1.get_volume());
             lcd.setBitRate(codec->bitRate());
-            lcd.setPlayTime(codec->positionMillis()/1000, codec->lengthMillis()/1000);
+            lcd.setPlayTime(codec->positionMillis()/1000, codec->lengthMillis()/1000, codec->isPaused());
         } else if (mode == LcdCanvas::FileView) {
             if (idle_count > 100) {
-                file_menu_idle();
+                file_menu_idle(); // for background sort
             }
             if (is_waiting_next_random && idle_count > 20 * 60 * 1 && stack_get_count(stack) >= 2) {
                 idx_req_open = 2; // Random Play
@@ -840,15 +842,15 @@ void loop()
         }
     }
     lcd.draw();
-    // Back Light Boost within 10 sec from last stimulus
-    if (idle_count < 200) {
+    // Back Light Boost within BackLightBoostTime from last stimulus
+    if (idle_count < BackLightBoostTicks) {
         digitalWrite(PIN_BACK_LIGHT_BOOST, HIGH);
     } else {
         digitalWrite(PIN_BACK_LIGHT_BOOST, LOW);
     }
     time = millis() - time;
-    if (time < 50) {
-        delay(50 - time);
+    if (time < Tick) {
+        delay(Tick - time);
     } else {
         delay(1);
     }

@@ -183,6 +183,7 @@ protected:
 class NFTextBox : public TextBox
 {
 public:
+	static const int BlinkInterval = 20;
 	NFTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
 	NFTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, align_enm align, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
 	NFTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, const char *str, align_enm align, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
@@ -190,9 +191,12 @@ public:
 	void draw(Adafruit_ST7735 *tft);
 	void clear(Adafruit_ST7735 *tft);
 	virtual void setText(const char *str, encoding_t encoding = none);
+	void setBlink(bool blink);
 protected:
 	GFXcanvas1 *canvas;
 	uint16_t width;
+	uint32_t draw_count;
+	bool blink;
 	void initCanvas();
 };
 
@@ -286,7 +290,7 @@ public:
 	void setFileItem(int column, const char *str, bool isDir = false, bool isFocused = false, encoding_t = none);
 	void setBitRate(uint16_t value);
 	void setVolume(uint8_t value);
-	void setPlayTime(uint32_t posionSec, uint32_t lengthSec);
+	void setPlayTime(uint32_t posionSec, uint32_t lengthSec, bool blink = false);
 	void setTrack(const char *str);
 	void setTitle(const char *str, encoding_t encoding = none);
 	void setAlbum(const char *str, encoding_t encoding = none);

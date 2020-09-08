@@ -704,19 +704,19 @@ void TextBox::setInt(int value)
 // Implementation of NFTextBox class
 //=================================
 NFTextBox::NFTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t fgColor, uint16_t bgColor)
-    : TextBox(pos_x, pos_y, "", Box::AlignLeft, fgColor, bgColor), width(width)
+    : TextBox(pos_x, pos_y, "", Box::AlignLeft, fgColor, bgColor), width(width), draw_count(0), blink(false)
 {
     initCanvas();
 }
 
 NFTextBox::NFTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, align_enm align, uint16_t fgColor, uint16_t bgColor)
-    : TextBox(pos_x, pos_y, "", align, fgColor, bgColor), width(width)
+    : TextBox(pos_x, pos_y, "", align, fgColor, bgColor), width(width), draw_count(0), blink(false)
 {
     initCanvas();
 }
 
 NFTextBox::NFTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, const char *str, align_enm align, uint16_t fgColor, uint16_t bgColor)
-    : TextBox(pos_x, pos_y, str, align, fgColor, bgColor), width(width)
+    : TextBox(pos_x, pos_y, str, align, fgColor, bgColor), width(width), draw_count(0), blink(false)
 {
     initCanvas();
 }
@@ -738,7 +738,7 @@ void NFTextBox::initCanvas()
 
 void NFTextBox::draw(Adafruit_ST7735 *tft)
 {
-    if (!isUpdated) { return; }
+    if (!isUpdated && !(blink && draw_count % (BlinkInterval/2) == 0)) { draw_count++; return; }
     int16_t x_ofs;
     int16_t new_x_ofs;
     uint16_t new_w0;
@@ -757,7 +757,9 @@ void NFTextBox::draw(Adafruit_ST7735 *tft)
     x_ofs = new_x_ofs;
     // Flicker less draw (width must be NFTextBox's width)
     //tft->drawBitmap(pos_x+x_ofs, pos_y, canvas->getBuffer(), width, FONT_HEIGHT, fgColor, bgColor);
-    {
+    if (blink && (draw_count % BlinkInterval >= (BlinkInterval/2))) { // Blink (Disappear) case
+        tft->fillRect(pos_x+x_ofs, pos_y, width, FONT_HEIGHT, bgColor);
+    } else { // Normal case + Blink (Appear) case
         int16_t x = pos_x+x_ofs;
         int16_t y = pos_y;
         const uint8_t *bitmap = canvas->getBuffer();
@@ -784,6 +786,7 @@ void NFTextBox::draw(Adafruit_ST7735 *tft)
         }
         tft->endWrite();
     }
+    draw_count++;
 }
 
 void NFTextBox::clear(Adafruit_ST7735 *tft)
@@ -802,6 +805,13 @@ void NFTextBox::setText(const char *str, encoding_t encoding)
     canvas->fillRect(0, 0, width, FONT_HEIGHT, bgColor);
     canvas->setCursor(0, 0);
     canvas->print(str, encoding);
+}
+
+void NFTextBox::setBlink(bool blink)
+{
+    if (this->blink == blink) { return; }
+    this->blink = blink;
+    update();
 }
 
 //=================================
@@ -1171,9 +1181,10 @@ void LcdCanvas::setTrack(const char *str)
     }
 }
 
-void LcdCanvas::setPlayTime(uint32_t positionSec, uint32_t lengthSec)
+void LcdCanvas::setPlayTime(uint32_t positionSec, uint32_t lengthSec, bool blink)
 {
     playTime.setFormatText("%lu:%02lu / %lu:%02lu", positionSec/60, positionSec%60, lengthSec/60, lengthSec%60);
+    playTime.setBlink(blink);
 }
 
 void LcdCanvas::setTitle(const char *str, encoding_t encoding)
