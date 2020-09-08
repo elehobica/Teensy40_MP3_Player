@@ -443,6 +443,7 @@ void volume_down(void)
 
 void tick_100ms(void)
 {
+    if (millis() < 5 * 1000) { return; } // no reaction within 5 sec after boot
     __disable_irq();
     int i;
     int center_clicks;
@@ -655,7 +656,7 @@ void setup()
 
     initEEPROM();
     myTimer.begin(tick_100ms, 100000);
-    threads.addThread(codec_thread, 0, 2048);
+    threads.addThread(codec_thread, 1, 2048);
 
     stack = stack_init();
     file_menu_open_root_dir();
