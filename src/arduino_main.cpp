@@ -92,7 +92,8 @@ volatile uint32_t button_repeat_count = 0;
 #define CFG_SAMPLES_PLAYED2 (EEPROM_BASE + 43)
 #define CFG_SAMPLES_PLAYED3 (EEPROM_BASE + 44)
 
-#define PIN_DCDC_SHDN_B   (16)
+#define PIN_DCDC_SHDN_B         (16)
+#define PIN_BACK_LIGHT_BOOST    (15)
 
 uint16_t eprw_count; // EEPROM Write Count (to check for write endurance of 100,000 cycles)
 
@@ -138,7 +139,7 @@ volatile int aud_req = 0;
 
 volatile uint16_t idx_head = 0;
 volatile uint16_t idx_column = 0;
-uint16_t idx_idle_count = 0;
+uint16_t idle_count = 0;
 uint16_t idx_play = 0;
 volatile bool is_waiting_next_random = false;
 
@@ -429,11 +430,13 @@ void aud_stop(void)
 void volume_up(void)
 {
     i2s1.volume_up();
+    idle_count = 0;
 }
 
 void volume_down(void)
 {
     i2s1.volume_down();
+    idle_count = 0;
 }
 
 void tick_100ms(void)
@@ -645,6 +648,8 @@ void setup()
     // Keep Power On for SHDN_B of DC/DC
     pinMode(PIN_DCDC_SHDN_B, OUTPUT);
     digitalWrite(PIN_DCDC_SHDN_B, HIGH);
+    pinMode(PIN_BACK_LIGHT_BOOST, OUTPUT);
+    //digitalWrite(PIN_BACK_LIGHT_BOOST, HIGH);
 
     initEEPROM();
     myTimer.begin(tick_100ms, 100000);
@@ -688,13 +693,14 @@ void loop()
     if (aud_req == 1) { // Play / Pause
         codec->pause(!codec->isPaused());
         aud_req = 0;
+        idle_count = 0;
     } else if (aud_req == 2) { // Stop
         codec->stop();
         mode = LcdCanvas::FileView;
         lcd.switchToFileView();
         aud_req = 0;
         idx_req = 1;
-    } else if (idx_req_open == 1 && idx_idle_count > 1) { // idx_idle_count for resume play
+    } else if (idx_req_open == 1 && idle_count > 1) { // idle_count for resume play
         if (file_menu_is_dir(idx_head+idx_column) > 0) { // Target is Directory
             if (idx_head+idx_column > 0) { // normal directory
                 item.head = idx_head;
@@ -730,7 +736,7 @@ void loop()
                 codec->play(&file, fpos, samples_played); // with resuming file position and play time
                 fpos = 0;
                 samples_played = 0;
-                idx_idle_count = 0;
+                idle_count = 0;
                 lcd.switchToPlay();
             }
         }
@@ -780,14 +786,13 @@ void loop()
             idx_req_open = 0;
         }
         idx_req = 0;
-        idx_idle_count = 0;
+        idle_count = 0;
     } else if (idx_req) {
         for (i = 0; i < NUM_IDX_ITEMS; i++) {
             if (idx_head+i >= file_menu_get_num()) {
                 lcd.setFileItem(i, ""); // delete
                 continue;
             }
-            //file_menu_get_fname(idx_head+i, str, sizeof(str));
             if (idx_head+i == 0) {
                 lcd.setFileItem(i, "..", file_menu_is_dir(idx_head+i), (i == idx_column));
             } else {
@@ -796,8 +801,9 @@ void loop()
             }
         }
         idx_req = 0;
-        idx_idle_count = 0;
+        idle_count = 0;
     } else {
+        idle_count++;
         if (mode == LcdCanvas::Play) {
             if (!codec->isPlaying() || (codec->positionMillis() + 500 > codec->lengthMillis())) {
                 idx_play++;
@@ -815,7 +821,7 @@ void loop()
                     mode = LcdCanvas::FileView;
                     lcd.switchToFileView();
                     idx_req = 1;
-                    idx_idle_count = 0;
+                    idle_count = 0;
                     is_waiting_next_random = true;
                 }
             }
@@ -823,11 +829,10 @@ void loop()
             lcd.setBitRate(codec->bitRate());
             lcd.setPlayTime(codec->positionMillis()/1000, codec->lengthMillis()/1000);
         } else if (mode == LcdCanvas::FileView) {
-            idx_idle_count++;
-            if (idx_idle_count > 100) {
+            if (idle_count > 100) {
                 file_menu_idle();
             }
-            if (is_waiting_next_random && idx_idle_count > 20 * 60 * 1 && stack_get_count(stack) >= 2) {
+            if (is_waiting_next_random && idle_count > 20 * 60 * 1 && stack_get_count(stack) >= 2) {
                 idx_req_open = 2; // Random Play
             }
         } else if (mode == LcdCanvas::PowerOff) {
@@ -835,6 +840,12 @@ void loop()
         }
     }
     lcd.draw();
+    // Back Light Boost within 10 sec from last stimulus
+    if (idle_count < 200) {
+        digitalWrite(PIN_BACK_LIGHT_BOOST, HIGH);
+    } else {
+        digitalWrite(PIN_BACK_LIGHT_BOOST, LOW);
+    }
     time = millis() - time;
     if (time < 50) {
         delay(50 - time);
