@@ -301,7 +301,7 @@ public:
 	void deleteAlbumArt();
 	void switchToFileView();
 	void switchToPlay();
-	void switchToPowerOff();
+	void switchToPowerOff(const char *msg = NULL);
 	void draw();
 
 protected:

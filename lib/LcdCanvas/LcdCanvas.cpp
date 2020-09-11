@@ -1094,10 +1094,11 @@ void LcdCanvas::switchToPlay()
     play_count = 0;
 }
 
-void LcdCanvas::switchToPowerOff()
+void LcdCanvas::switchToPowerOff(const char *msg)
 {
     mode = PowerOff;
     clear();
+    if (msg != NULL) { bye_msg.setText(msg); }
     for (int i = 0; i < (int) (sizeof(groupPowerOff)/sizeof(*groupPowerOff)); i++) {
         groupPowerOff[i]->update();
     }

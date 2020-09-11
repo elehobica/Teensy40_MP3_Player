@@ -23,10 +23,14 @@
 #include "TagRead.h"
 
 const int Version = 100;
-const int Tick = 50; // loop for every tick (ms)
-const int BackLightBoostTicks = 20 * 1000 / Tick; // 20 sec
+const int LoopCycleMs = 50; // loop cycle (ms)
+const int BackLightBoostCycles = 20 * 1000 / LoopCycleMs; // 20 sec
 
 IntervalTimer myTimer;
+volatile uint32_t tick_100ms_count = 0;
+
+volatile uint16_t battery_x1000 = 4200; // battery voltage x 1000 (4.2V = 4200)
+
 Threads::Event codec_event;
 
 MutexFsBaseFile file;
@@ -94,8 +98,9 @@ volatile uint32_t button_repeat_count = 0;
 #define CFG_SAMPLES_PLAYED2 (EEPROM_BASE + 43)
 #define CFG_SAMPLES_PLAYED3 (EEPROM_BASE + 44)
 
-#define PIN_DCDC_SHDN_B         (16)
 #define PIN_BACK_LIGHT_BOOST    (15)
+#define PIN_DCDC_SHDN_B         (16)
+#define PIN_BATTERY_CHECK       (18)
 
 uint16_t eprw_count; // EEPROM Write Count (to check for write endurance of 100,000 cycles)
 
@@ -227,9 +232,9 @@ void loadFromEEPROM(void)
     }
 }
 
-void power_off(void)
+void power_off(const char *msg = NULL)
 {
-    lcd.switchToPowerOff();
+    lcd.switchToPowerOff(msg);
     uint8_t volume = i2s1.get_volume();
     fpos = 0;
     samples_played = 0;
@@ -273,6 +278,7 @@ void power_off(void)
         EEPROM.write(CFG_SAMPLES_PLAYED0 + i, (uint8_t) ((samples_played >> i*8) & 0xff));
     }
     lcd.draw();
+    delay(500);
     // Self Power Off
     /* do pin control here */
     // Endless Loop
@@ -286,7 +292,7 @@ void power_off(void)
 uint8_t adc0_get_hp_button(void)
 {
     uint8_t ret;
-    const int max = 1023;
+    const int max = (1<<10) - 1;
     uint16_t adc0_rdata = analogRead(PIN_A8);
     // 3.3V support
     if (adc0_rdata < max*100/3300) { // < 100mV (CENTER)
@@ -444,6 +450,12 @@ void volume_down(void)
 void tick_100ms(void)
 {
     if (millis() < 5 * 1000) { return; } // no reaction within 5 sec after boot
+    if ((tick_100ms_count % (10*5)) == 0) { // Check Battery Voltage at 5 sec each
+        digitalWrite(PIN_BATTERY_CHECK, HIGH);
+        uint32_t adc0_rdata = analogRead(PIN_A0);
+        battery_x1000 = adc0_rdata * 3300 * (33+10) / 1023 / 33;
+        digitalWrite(PIN_BATTERY_CHECK, LOW);
+    }
     __disable_irq();
     int i;
     int center_clicks;
@@ -520,6 +532,7 @@ void tick_100ms(void)
     }
     button_prv[0] = button;
     __enable_irq();
+    tick_100ms_count++;
 }
 
 // Get .mp3/.wav file which idx == idx_play (if seq_flg == 1, successive mp3 is searched)
@@ -648,13 +661,16 @@ void setup()
         Serial.println("###################################");
     }
 
-    // Keep Power On for SHDN_B of DC/DC
+    // Pin Mode Setting
     pinMode(PIN_DCDC_SHDN_B, OUTPUT);
-    digitalWrite(PIN_DCDC_SHDN_B, HIGH);
     pinMode(PIN_BACK_LIGHT_BOOST, OUTPUT);
-    //digitalWrite(PIN_BACK_LIGHT_BOOST, HIGH);
+    pinMode(PIN_BATTERY_CHECK, OUTPUT);
+
+    // Keep Power On for SHDN_B of DC/DC
+    digitalWrite(PIN_DCDC_SHDN_B, HIGH);
 
     initEEPROM();
+    analogReadAveraging(8);
     myTimer.begin(tick_100ms, 100000);
     threads.addThread(codec_thread, 1, 2048);
 
@@ -843,15 +859,18 @@ void loop()
         }
     }
     lcd.draw();
+    if (battery_x1000 < 2900) { // Battery Lower Than 2.9V
+        power_off("Low Battery");
+    }
     // Back Light Boost within BackLightBoostTime from last stimulus
-    if (idle_count < BackLightBoostTicks) {
+    if (idle_count < BackLightBoostCycles) {
         digitalWrite(PIN_BACK_LIGHT_BOOST, HIGH);
     } else {
         digitalWrite(PIN_BACK_LIGHT_BOOST, LOW);
     }
     time = millis() - time;
-    if (time < Tick) {
-        delay(Tick - time);
+    if (time < LoopCycleMs) {
+        delay(LoopCycleMs - time);
     } else {
         delay(1);
     }
