@@ -616,6 +616,35 @@ void IconBox::setIcon(uint8_t *icon)
 }
 
 //=================================
+// Implementation of BatteryIconBox class
+//=================================
+BatteryIconBox::BatteryIconBox(int16_t pos_x, int16_t pos_y, uint16_t fgColor, uint16_t bgColor)
+    : IconBox(pos_x, pos_y, ICON16x16_BATTERY, fgColor, bgColor), level(0) {}
+
+void BatteryIconBox::draw(Adafruit_ST7735 *tft)
+{
+    if (!isUpdated) { return; }
+    isUpdated = false;
+    clear(tft);
+    if (icon != NULL) {
+        tft->drawBitmap(pos_x, pos_y, icon, iconWidth, iconHeight, fgColor);
+        uint16_t color = (level >= 50) ? 0x0600 : (level >= 20) ? 0xc600 : 0xc000;
+        if (level/10 < 9) {
+            tft->fillRect(pos_x+4, pos_y+4, 8, 10-level/10-1, bgColor);
+        }
+        tft->fillRect(pos_x+4, pos_y+13-level/10, 8, level/10+1, color);
+    }
+}
+
+void BatteryIconBox::setLevel(uint8_t value)
+{
+    value = (value <= 100) ? value : 100;
+    if (this->level == value) { return; }
+    this->level = value;
+    update();
+}
+
+//=================================
 // Implementation of TextBox class
 //=================================
 TextBox::TextBox(int16_t pos_x, int16_t pos_y, uint16_t fgColor, uint16_t bgColor)
@@ -1206,6 +1235,13 @@ void LcdCanvas::setArtist(const char *str, encoding_t encoding)
 void LcdCanvas::setYear(const char *str, encoding_t encoding)
 {
     year.setText(str, encoding);
+}
+
+void LcdCanvas::setBatteryVoltage(uint16_t voltage_x1000)
+{
+    const uint16_t lvl100 = 4100;
+    const uint16_t lvl0 = 2900;
+    battery.setLevel(((voltage_x1000 - lvl0) * 100) / (lvl100 - lvl0));
 }
 
 void LcdCanvas::addAlbumArtJpeg(uint16_t file_idx, uint64_t pos, size_t size)

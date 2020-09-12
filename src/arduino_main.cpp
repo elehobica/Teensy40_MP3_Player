@@ -453,7 +453,7 @@ void tick_100ms(void)
     if ((tick_100ms_count % (10*5)) == 0) { // Check Battery Voltage at 5 sec each
         digitalWrite(PIN_BATTERY_CHECK, HIGH);
         uint32_t adc0_rdata = analogRead(PIN_A0);
-        battery_x1000 = adc0_rdata * 3300 * (33+10) / 1023 / 33;
+        battery_x1000 = adc0_rdata * 3300 * (33+10) / 1023 / 33; // voltage divider: 1 Kohm + 3.3 Kohm, ADC ref: 3.3V
         digitalWrite(PIN_BATTERY_CHECK, LOW);
     }
     __disable_irq();
@@ -858,10 +858,11 @@ void loop()
             power_off();
         }
     }
-    lcd.draw();
     if (battery_x1000 < 2900) { // Battery Lower Than 2.9V
         power_off("Low Battery");
     }
+    lcd.setBatteryVoltage(battery_x1000);
+    lcd.draw();
     // Back Light Boost within BackLightBoostTime from last stimulus
     if (idle_count < BackLightBoostCycles) {
         digitalWrite(PIN_BACK_LIGHT_BOOST, HIGH);
