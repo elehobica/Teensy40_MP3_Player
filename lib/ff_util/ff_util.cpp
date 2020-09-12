@@ -134,7 +134,7 @@ static FRESULT idx_f_stat_get_name(uint16_t idx,  MutexFsBaseFile *fp, char *str
 		str[0] = '\0'; // idx 0 needs to be located at top of entry always
 	} else {
 		char16_t str_utf16[size] = {};
-		fp->getUTF16Name(str_utf16, size - 1);
+		fp->getUTF16Name(str_utf16, size/2 - 1);
 		strncpy(str, utf16_to_utf8((const char16_t *) str_utf16).c_str(), size - 1);
 		str[size-1] = '\0';
 	}
@@ -226,9 +226,6 @@ static void idx_qsort_entry_list_by_range(uint16_t r_start, uint16_t r_end_1, ui
 		if (result == 0) {
 			result = my_strncmp(fast_fname_list[entry_list[start]], fast_fname_list[entry_list[start+1]], FFL_SZ);
 		}
-		#ifdef DEBUG_FF_UTIL_LVL2
-		sprintf(_str, "fast_fname_list %s %s %d, %d", fast_fname_list[entry_list[0]], fast_fname_list[entry_list[1]], entry_list[0], entry_list[1]); Serial.println(_str);
-		#endif // DEBUG_FF_UTIL_LVL2
 		if (result > 0) {
 			idx_entry_swap(start, start+1);
 		} else if (result < 0) {
@@ -271,17 +268,12 @@ static void idx_qsort_entry_list_by_range(uint16_t r_start, uint16_t r_end_1, ui
 				fno_ptr = (strncmp(name, "The ", 4) == 0) ? &name[4] : name;
 				fno_temp_ptr = (strncmp(name_temp, "The ", 4) == 0) ? &name_temp[4] : name_temp;
 				result = my_strcmp(fno_ptr, fno_temp_ptr);
-				if (result <= 0) {
+				if (result < 0) {
 					top++;
 				} else {
 					idx_entry_swap(top, bottom);
 					bottom--;
 				}
-			}
-			if (top > end_1 - 1) { // case that all items equal to key --> give up sorting and set boundary to 1/2 point
-				top = start + (end_1 - start)/2;
-				bottom = top - 1;
-				break;
 			}
 			if (top > bottom) break;
 		}
@@ -361,7 +353,7 @@ static void idx_sort_new(void)
 			}
 		}
 		#ifdef DEBUG_FF_UTIL_LVL2
-		char temp_str[5] = "    ";
+		char temp_str[5] = {};
 		strncpy(temp_str, fast_fname_list[i], 4);
 		sprintf(_str, "fast_fname_list[%d] = %4s, is_file = %d", i, temp_str, get_is_file(i)); Serial.println(_str);
 		#endif // DEBUG_FF_UTIL_LVL2
