@@ -23,8 +23,14 @@
 #include "TagRead.h"
 
 const int Version = 100;
+
 const int LoopCycleMs = 50; // loop cycle (ms)
-const int BackLightBoostCycles = 20 * 1000 / LoopCycleMs; // 20 sec
+const int OneSec = 1000 / LoopCycleMs; // 1 Sec
+const int OneMin = 60 * OneSec; // 1 Min
+
+const int BackLightBoostCycles = 20 * OneSec;
+const int WaitCyclesForRandomPlay = 1 * OneMin;
+const int WaitCyclesForPowerOffWhenPaused = 3 * OneMin;
 
 IntervalTimer myTimer;
 volatile uint32_t tick_100ms_count = 0;
@@ -640,9 +646,19 @@ void loadTag(uint16_t idx_play)
 
 void codec_thread()
 {
+    bool wait_timeout = false;
     while (1) {
-        codec_event.wait();
-        codec_event.clear();
+        if (!codec_event.wait(100)) {
+            if (codec->isPlaying() && !wait_timeout) {
+                Serial.println("wait timeout");
+                wait_timeout = true;
+            } else {
+                continue;
+            }
+        } else {
+            codec_event.clear();
+            wait_timeout = false;
+        }
         decodeMp3_core();
         decodeWav_core();
         decodeAac_core_x2();
@@ -792,7 +808,7 @@ void loop()
                     break;
                 }
                 // Otherwise, chdir to stack_count-2 and retry again
-                Serial.println("Retry Random Search");
+                //Serial.println("Retry Random Search");
                 while (stack_count - 2 != stack_get_count(stack)) {
                     file_menu_ch_dir(0); // cd ..
                     stack_pop(stack, &item);
@@ -847,11 +863,14 @@ void loop()
             lcd.setVolume(i2s1.get_volume());
             lcd.setBitRate(codec->bitRate());
             lcd.setPlayTime(codec->positionMillis()/1000, codec->lengthMillis()/1000, codec->isPaused());
+            if (codec->isPaused() && idle_count > WaitCyclesForPowerOffWhenPaused) {
+                mode = LcdCanvas::PowerOff;
+            }
         } else if (mode == LcdCanvas::FileView) {
             if (idle_count > 100) {
                 file_menu_idle(); // for background sort
             }
-            if (is_waiting_next_random && idle_count > 20 * 60 * 1 && stack_get_count(stack) >= 2) {
+            if (is_waiting_next_random && idle_count > WaitCyclesForRandomPlay && stack_get_count(stack) >= 2) {
                 idx_req_open = 2; // Random Play
             }
         } else if (mode == LcdCanvas::PowerOff) {
