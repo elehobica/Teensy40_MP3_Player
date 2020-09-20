@@ -315,7 +315,15 @@ void AudioPlaySdWav::update(void)
 
 	//determine the block we're playing from
 	int playing_block = 1 - db;
-	if (decoded_length[playing_block] <= 0) return;
+	if (decoded_length[playing_block] <= 0) {
+		if (decoded_length[db] > 0) {
+			Serial.println("[play_sd_wav] Swap block for rescue");
+			decoding_block = playing_block;
+			playing_block = db;
+		} else {
+			return;
+		}
+	}
 
 	// allocate the audio blocks to transmit
 	block_left = allocate();
