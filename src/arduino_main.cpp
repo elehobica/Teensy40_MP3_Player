@@ -581,7 +581,8 @@ AudioCodec *get_audio_file(uint16_t *idx, int seq_flg, MutexFsBaseFile *f)
     //Serial.print("get_audio_file done: ");
     //Serial.println(millis());
     if (flg) {
-        Serial.println(str);
+        file_menu_get_fname_UTF16(*idx + ofs, (char16_t *) str, sizeof(str)/2);
+        Serial.println(utf16_to_utf8((const char16_t *) str).c_str());
         *idx += ofs;
     } else {
         *idx = 0;
@@ -782,6 +783,7 @@ void loop()
             mode = LcdCanvas::FileView;
             lcd.switchToFileView();
         }
+        Serial.println("Random Search");
         stack_count = stack_get_count(stack);
         if (stack_count >= 2) { // Random Play for same level folder (Assuming Artist/Alubm/Track)
             for (i = 0; i < 2; i++) {
@@ -808,7 +810,7 @@ void loop()
                     break;
                 }
                 // Otherwise, chdir to stack_count-2 and retry again
-                //Serial.println("Retry Random Search");
+                Serial.println("Retry Random Search");
                 while (stack_count - 2 != stack_get_count(stack)) {
                     file_menu_ch_dir(0); // cd ..
                     stack_pop(stack, &item);
