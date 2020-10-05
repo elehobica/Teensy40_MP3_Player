@@ -110,12 +110,19 @@ volatile uint32_t button_repeat_count = 0;
 
 uint16_t eprw_count; // EEPROM Write Count (to check for write endurance of 100,000 cycles)
 
+#ifdef USE_ST7735
 // LCD (ST7735, 1.8", 128x160pix)
 #define TFT_CS        10
 #define TFT_RST        9 // Or set to -1 and connect to Arduino RESET pin
 #define TFT_DC         8
+#endif
+#ifdef USE_ILI9341
+// LCD (ILI9341, 2.2", 240x320pix)
+#define TFT_CS        10
+#define TFT_RST       -1 // Connected to VCC
+#define TFT_DC         8
+#endif
 
-//Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
 LcdCanvas lcd = LcdCanvas(TFT_CS, TFT_DC, TFT_RST);
 
 AudioPlaySdMp3      playMp3;

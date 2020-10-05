@@ -1,7 +1,18 @@
 #ifndef __LCDCANVAS_H_INCLUDED__
 #define __LCDCANVAS_H_INCLUDED__
 
+//#define USE_ST7735
+#define USE_ILI9341
+
+#ifdef USE_ST7735
 #include <Adafruit_ST7735.h> // Hardware-specific library for ST7735
+#define Adafruit_LCD Adafruit_ST7735
+#endif
+#ifdef USE_ILI9341
+#include <Adafruit_ILI9341.h> // Hardware-specific library for ILI9341
+#define Adafruit_LCD Adafruit_ILI9341
+#endif
+
 //#include <Fonts/FreeMono9pt7b.h>
 #include "Nimbus_Sans_L_Regular_Condensed_12.h"
 #include <SdFat.h>
@@ -15,13 +26,15 @@
 #define CUSTOM_FONT	(&Nimbus_Sans_L_Regular_Condensed_12)
 #define CUSTOM_FONT_OFS_Y	13
 
-// Additional Colors for ST77XX
-#define ST77XX_BRED       0XF81F
-#define ST77XX_GRED       0XFFE0
-#define ST77XX_GBLUE      0X07FF
-#define ST77XX_BROWN      0XBC40
-#define ST77XX_BRRED      0XFC07
-#define ST77XX_GRAY       0X8430
+// Colors for LCD
+#define LCD_WHITE         0XFFFF
+#define LCD_BLACK         0X0000
+#define LCD_BRED          0XF81F
+#define LCD_GRED          0XFFE0
+#define LCD_GBLUE         0X07FF
+#define LCD_BROWN         0XBC40
+#define LCD_BRRED         0XFC07
+#define LCD_GRAY          0X8430
 
 extern uint8_t Icon16[];
 #define ICON16x16_TITLE		&Icon16[32*0]
@@ -46,8 +59,8 @@ public:
 	//virtual ~Box() {}
 	virtual void setBgColor(uint16_t bgColor) = 0;
 	virtual void update() = 0;
-	virtual void draw(Adafruit_ST7735 *tft) = 0;
-	virtual void clear(Adafruit_ST7735 *tft) = 0;
+	virtual void draw(Adafruit_LCD *tft) = 0;
+	virtual void clear(Adafruit_LCD *tft) = 0;
 };
 
 //=================================
@@ -77,11 +90,11 @@ public:
 		uint64_t file_pos;
 		size_t size;
 	} image_t;
-	ImageBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t height, uint16_t bgColor = ST77XX_BLACK);
+	ImageBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t height, uint16_t bgColor = LCD_BLACK);
 	void setBgColor(uint16_t bgColor);
 	void update();
-	void draw(Adafruit_ST7735 *tft);
-	void clear(Adafruit_ST7735 *tft);
+	void draw(Adafruit_LCD *tft);
+	void clear(Adafruit_LCD *tft);
 	void setResizeFit(bool flg);
 	void setKeepAspectRatio(bool flg);
 	void setImageBuf(int16_t x, int16_t y, uint16_t rgb565);
@@ -127,13 +140,13 @@ protected:
 class IconBox : public Box
 {
 public:
-	IconBox(int16_t pos_x, int16_t pos_y, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
-	IconBox(int16_t pos_x, int16_t pos_y, uint8_t *icon, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
+	IconBox(int16_t pos_x, int16_t pos_y, uint16_t fgColor = LCD_WHITE, uint16_t bgColor = LCD_BLACK);
+	IconBox(int16_t pos_x, int16_t pos_y, uint8_t *icon, uint16_t fgColor = LCD_WHITE, uint16_t bgColor = LCD_BLACK);
 	void setFgColor(uint16_t fgColor);
 	void setBgColor(uint16_t bgColor);
 	void update();
-	void draw(Adafruit_ST7735 *tft);
-	void clear(Adafruit_ST7735 *tft);
+	void draw(Adafruit_LCD *tft);
+	void clear(Adafruit_LCD *tft);
 	void setIcon(uint8_t *icon);
 	static const int iconWidth = 16;
 	static const int iconHeight = 16;
@@ -151,8 +164,8 @@ protected:
 class BatteryIconBox : public IconBox
 {
 public:
-	BatteryIconBox(int16_t pos_x, int16_t pos_y, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
-	void draw(Adafruit_ST7735 *tft);
+	BatteryIconBox(int16_t pos_x, int16_t pos_y, uint16_t fgColor = LCD_WHITE, uint16_t bgColor = LCD_BLACK);
+	void draw(Adafruit_LCD *tft);
 	void setLevel(uint8_t value);
 protected:
 	uint8_t level;
@@ -164,15 +177,15 @@ protected:
 class TextBox : public Box
 {
 public:
-	TextBox(int16_t pos_x, int16_t pos_y, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
-	TextBox(int16_t pos_x, int16_t pos_y, align_enm align, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
-	TextBox(int16_t pos_x, int16_t pos_y, const char *str, align_enm align, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
+	TextBox(int16_t pos_x, int16_t pos_y, uint16_t fgColor = LCD_WHITE, uint16_t bgColor = LCD_BLACK);
+	TextBox(int16_t pos_x, int16_t pos_y, align_enm align, uint16_t fgColor = LCD_WHITE, uint16_t bgColor = LCD_BLACK);
+	TextBox(int16_t pos_x, int16_t pos_y, const char *str, align_enm align, uint16_t fgColor = LCD_WHITE, uint16_t bgColor = LCD_BLACK);
 	void setFgColor(uint16_t fgColor);
 	void setBgColor(uint16_t bgColor);
 	void setEncoding(encoding_t encoding);
 	void update();
-	void draw(Adafruit_ST7735 *tft);
-	void clear(Adafruit_ST7735 *tft);
+	void draw(Adafruit_LCD *tft);
+	void clear(Adafruit_LCD *tft);
 	virtual void setText(const char *str, encoding_t encoding = none);
 	void setFormatText(const char *fmt, ...);
 	void setInt(int value);
@@ -197,12 +210,12 @@ class NFTextBox : public TextBox
 {
 public:
 	static const int BlinkInterval = 20;
-	NFTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
-	NFTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, align_enm align, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
-	NFTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, const char *str, align_enm align, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
+	NFTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t fgColor = LCD_WHITE, uint16_t bgColor = LCD_BLACK);
+	NFTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, align_enm align, uint16_t fgColor = LCD_WHITE, uint16_t bgColor = LCD_BLACK);
+	NFTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, const char *str, align_enm align, uint16_t fgColor = LCD_WHITE, uint16_t bgColor = LCD_BLACK);
 	virtual ~NFTextBox();
-	void draw(Adafruit_ST7735 *tft);
-	void clear(Adafruit_ST7735 *tft);
+	void draw(Adafruit_LCD *tft);
+	void clear(Adafruit_LCD *tft);
 	virtual void setText(const char *str, encoding_t encoding = none);
 	void setBlink(bool blink);
 protected:
@@ -219,12 +232,12 @@ protected:
 class IconTextBox : public TextBox
 {
 public:
-	IconTextBox(int16_t pos_x, int16_t pos_y, uint8_t *icon, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
+	IconTextBox(int16_t pos_x, int16_t pos_y, uint8_t *icon, uint16_t fgColor = LCD_WHITE, uint16_t bgColor = LCD_BLACK);
 	void setFgColor(uint16_t fgColor);
 	void setBgColor(uint16_t bgColor);
 	void update();
-	void draw(Adafruit_ST7735 *tft);
-	void clear(Adafruit_ST7735 *tft);
+	void draw(Adafruit_LCD *tft);
+	void clear(Adafruit_LCD *tft);
 	void setIcon(uint8_t *icon);
 protected:
 	IconBox iconBox;
@@ -236,13 +249,13 @@ protected:
 class ScrollTextBox : public Box
 {
 public:
-	ScrollTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
+	ScrollTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t fgColor = LCD_WHITE, uint16_t bgColor = LCD_BLACK);
 	virtual ~ScrollTextBox();
 	void setFgColor(uint16_t fgColor);
 	void setBgColor(uint16_t bgColor);
 	void update();
-	void draw(Adafruit_ST7735 *tft);
-	void clear(Adafruit_ST7735 *tft);
+	void draw(Adafruit_LCD *tft);
+	void clear(Adafruit_LCD *tft);
 	void setScroll(bool scr_en);
 	virtual void setText(const char *str, encoding_t encoding = none);
 	static const int charSize = 256;
@@ -267,22 +280,22 @@ protected:
 class IconScrollTextBox : public ScrollTextBox
 {
 public:
-	IconScrollTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
-	IconScrollTextBox(int16_t pos_x, int16_t pos_y, uint8_t *icon, uint16_t width, uint16_t fgColor = ST77XX_WHITE, uint16_t bgColor = ST77XX_BLACK);
+	IconScrollTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t fgColor = LCD_WHITE, uint16_t bgColor = LCD_BLACK);
+	IconScrollTextBox(int16_t pos_x, int16_t pos_y, uint8_t *icon, uint16_t width, uint16_t fgColor = LCD_WHITE, uint16_t bgColor = LCD_BLACK);
 	void setFgColor(uint16_t fgColor);
 	void setBgColor(uint16_t bgColor);
 	void update();
-	void draw(Adafruit_ST7735 *tft);
-	void clear(Adafruit_ST7735 *tft);
+	void draw(Adafruit_LCD *tft);
+	void clear(Adafruit_LCD *tft);
 	void setIcon(uint8_t *icon);
 protected:
 	IconBox iconBox;
 };
 
 //=================================
-// Definition of LcdCanvas Class < Adafruit_ST7735
+// Definition of LcdCanvas Class < Adafruit_LCD
 //=================================
-class LcdCanvas : public Adafruit_ST7735
+class LcdCanvas : public Adafruit_LCD
 {
 public:
 	typedef enum _mode_enm {
@@ -291,10 +304,10 @@ public:
 		PowerOff
 	} mode_enm;
 
-	//LcdCanvas(int8_t cs, int8_t dc, int8_t mosi, int8_t sclk, int8_t rst) : Adafruit_ST7735(cs, dc, mosi, sclk, rst) {}
+	//LcdCanvas(int8_t cs, int8_t dc, int8_t mosi, int8_t sclk, int8_t rst) : Adaruit_LCD(cs, dc, mosi, sclk, rst) {}
 	LcdCanvas(int8_t cs, int8_t dc, int8_t rst);
 #if !defined(ESP8266)
-	//LcdCanvas(SPIClass *spiClass, int8_t cs, int8_t dc, int8_t rst) : Adafruit_ST7735(spiClass, cs, dc, rst) {}
+	//LcdCanvas(SPIClass *spiClass, int8_t cs, int8_t dc, int8_t rst) : Adaruit_LCD(spiClass, cs, dc, rst) {}
 #endif // end !ESP8266
 
     ~LcdCanvas();
@@ -324,26 +337,26 @@ protected:
 	const int play_cycle = 150;
 	const int play_change = 100;
 	IconScrollTextBox fileItem[10] = {
-		IconScrollTextBox(16*0, 16*0, width(), ST77XX_GRAY),
-		IconScrollTextBox(16*0, 16*1, width(), ST77XX_GRAY),
-		IconScrollTextBox(16*0, 16*2, width(), ST77XX_GRAY),
-		IconScrollTextBox(16*0, 16*3, width(), ST77XX_GRAY),
-		IconScrollTextBox(16*0, 16*4, width(), ST77XX_GRAY),
-		IconScrollTextBox(16*0, 16*5, width(), ST77XX_GRAY),
-		IconScrollTextBox(16*0, 16*6, width(), ST77XX_GRAY),
-		IconScrollTextBox(16*0, 16*7, width(), ST77XX_GRAY),
-		IconScrollTextBox(16*0, 16*8, width(), ST77XX_GRAY),
-		IconScrollTextBox(16*0, 16*9, width(), ST77XX_GRAY)
+		IconScrollTextBox(16*0, 16*0, width(), LCD_GRAY),
+		IconScrollTextBox(16*0, 16*1, width(), LCD_GRAY),
+		IconScrollTextBox(16*0, 16*2, width(), LCD_GRAY),
+		IconScrollTextBox(16*0, 16*3, width(), LCD_GRAY),
+		IconScrollTextBox(16*0, 16*4, width(), LCD_GRAY),
+		IconScrollTextBox(16*0, 16*5, width(), LCD_GRAY),
+		IconScrollTextBox(16*0, 16*6, width(), LCD_GRAY),
+		IconScrollTextBox(16*0, 16*7, width(), LCD_GRAY),
+		IconScrollTextBox(16*0, 16*8, width(), LCD_GRAY),
+		IconScrollTextBox(16*0, 16*9, width(), LCD_GRAY)
 	};
-	BatteryIconBox battery = BatteryIconBox(16*7, 16*0, ST77XX_GRAY);
-	IconTextBox volume = IconTextBox(16*0, 16*0, ICON16x16_VOLUME, ST77XX_GRAY);
-	TextBox bitRate = TextBox(16*4, 16*0, Box::AlignCenter, ST77XX_GRAY);
-	NFTextBox playTime = NFTextBox(width(), 16*9, width(), Box::AlignRight, ST77XX_GRAY);
+	BatteryIconBox battery = BatteryIconBox(width()-16, 16*0, LCD_GRAY);
+	IconTextBox volume = IconTextBox(16*0, 16*0, ICON16x16_VOLUME, LCD_GRAY);
+	TextBox bitRate = TextBox(width()/2, 16*0, Box::AlignCenter, LCD_GRAY);
+	NFTextBox playTime = NFTextBox(width(), height()-16, width(), Box::AlignRight, LCD_GRAY);
 	IconScrollTextBox title = IconScrollTextBox(16*0, 16*3, ICON16x16_TITLE, width());
 	IconScrollTextBox artist = IconScrollTextBox(16*0, 16*4, ICON16x16_ARTIST, width());
 	IconScrollTextBox album = IconScrollTextBox(16*0, 16*5, ICON16x16_ALBUM, width());
 	IconTextBox year = IconTextBox(16*0, 16*6, ICON16x16_YEAR);
-	TextBox track = TextBox(16*0, 16*9, Box::AlignLeft, ST77XX_GRAY);
+	TextBox track = TextBox(16*0, height()-16, Box::AlignLeft, LCD_GRAY);
 	TextBox bye_msg = TextBox(width()/2, height()/2-FONT_HEIGHT, "Bye", Box::AlignCenter);
 	ImageBox albumArt = ImageBox(0, (height() - width())/2, width(), width());
 	Box *groupFileView[10] = {

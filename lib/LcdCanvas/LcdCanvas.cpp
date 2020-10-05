@@ -28,7 +28,7 @@ void ImageBox::update()
     isUpdated = true;
 }
 
-void ImageBox::draw(Adafruit_ST7735 *tft)
+void ImageBox::draw(Adafruit_LCD *tft)
 {
     if (!isUpdated || image == NULL || !isLoaded) { return; }
     isUpdated = false;
@@ -42,7 +42,7 @@ void ImageBox::draw(Adafruit_ST7735 *tft)
     tft->drawRGBBitmap(pos_x+ofs_x, pos_y+ofs_y, image, img_w, img_h);
 }
 
-void ImageBox::clear(Adafruit_ST7735 *tft)
+void ImageBox::clear(Adafruit_LCD *tft)
 {
     tft->fillRect(pos_x, pos_y, width, height, bgColor); // clear Icon rectangle
 }
@@ -593,7 +593,7 @@ void IconBox::update()
     isUpdated = true;
 }
 
-void IconBox::draw(Adafruit_ST7735 *tft)
+void IconBox::draw(Adafruit_LCD *tft)
 {
     if (!isUpdated) { return; }
     isUpdated = false;
@@ -603,7 +603,7 @@ void IconBox::draw(Adafruit_ST7735 *tft)
     }
 }
 
-void IconBox::clear(Adafruit_ST7735 *tft)
+void IconBox::clear(Adafruit_LCD *tft)
 {
     tft->fillRect(pos_x, pos_y, iconWidth, iconHeight, bgColor); // clear Icon rectangle
 }
@@ -621,7 +621,7 @@ void IconBox::setIcon(uint8_t *icon)
 BatteryIconBox::BatteryIconBox(int16_t pos_x, int16_t pos_y, uint16_t fgColor, uint16_t bgColor)
     : IconBox(pos_x, pos_y, ICON16x16_BATTERY, fgColor, bgColor), level(0) {}
 
-void BatteryIconBox::draw(Adafruit_ST7735 *tft)
+void BatteryIconBox::draw(Adafruit_LCD *tft)
 {
     if (!isUpdated) { return; }
     isUpdated = false;
@@ -683,7 +683,7 @@ void TextBox::update()
     isUpdated = true;
 }
 
-void TextBox::draw(Adafruit_ST7735 *tft)
+void TextBox::draw(Adafruit_LCD *tft)
 {
     if (!isUpdated) { return; }
     int16_t x_ofs;
@@ -699,7 +699,7 @@ void TextBox::draw(Adafruit_ST7735 *tft)
     tft->println(str, encoding);
 }
 
-void TextBox::clear(Adafruit_ST7735 *tft)
+void TextBox::clear(Adafruit_LCD *tft)
 {
     tft->fillRect(x0, y0, w0, h0, bgColor); // clear previous rectangle
 }
@@ -765,7 +765,7 @@ void NFTextBox::initCanvas()
     canvas->getTextBounds(str, 0, 0, &x0, &y0, &w0, &h0, encoding); // idle-run because first time fails somehow
 }
 
-void NFTextBox::draw(Adafruit_ST7735 *tft)
+void NFTextBox::draw(Adafruit_LCD *tft)
 {
     if (!isUpdated && !(blink && draw_count % (BlinkInterval/2) == 0)) { draw_count++; return; }
     int16_t x_ofs;
@@ -818,7 +818,7 @@ void NFTextBox::draw(Adafruit_ST7735 *tft)
     draw_count++;
 }
 
-void NFTextBox::clear(Adafruit_ST7735 *tft)
+void NFTextBox::clear(Adafruit_LCD *tft)
 {
     int16_t x_ofs = (align == Box::AlignRight) ? -w0 : (align == Box::AlignCenter) ? -w0/2 : 0; // previous x_ofs
     tft->fillRect(pos_x+x_ofs, pos_y+y0, w0, h0, bgColor);
@@ -867,7 +867,7 @@ void IconTextBox::update()
     TextBox::update();
 }
 
-void IconTextBox::draw(Adafruit_ST7735 *tft)
+void IconTextBox::draw(Adafruit_LCD *tft)
 {
     // For IconBox: Don't display IconBox if str of TextBox is ""
     if (strlen(str) == 0) {
@@ -879,7 +879,7 @@ void IconTextBox::draw(Adafruit_ST7735 *tft)
     TextBox::draw(tft);
 }
 
-void IconTextBox::clear(Adafruit_ST7735 *tft)
+void IconTextBox::clear(Adafruit_LCD *tft)
 {
     iconBox.clear(tft);
     TextBox::clear(tft);
@@ -935,7 +935,7 @@ void ScrollTextBox::update()
 //  x_ofs is minus value
 //  canvas width: width * 2
 //  canvas update: every ((x_ofs % width) == -(width-1))
-void ScrollTextBox::draw(Adafruit_ST7735 *tft)
+void ScrollTextBox::draw(Adafruit_LCD *tft)
 {
     int16_t under_offset = tft->width()-pos_x-w0; // max minus offset for scroll (width must be tft's width)
     if (!isUpdated && (under_offset >= 0 || !scr_en)) { return; }
@@ -998,7 +998,7 @@ void ScrollTextBox::draw(Adafruit_ST7735 *tft)
     }
 }
 
-void ScrollTextBox::clear(Adafruit_ST7735 *tft)
+void ScrollTextBox::clear(Adafruit_LCD *tft)
 {
     tft->fillRect(pos_x, pos_y, width, FONT_HEIGHT, bgColor);
 }
@@ -1055,7 +1055,7 @@ void IconScrollTextBox::update()
     ScrollTextBox::update();
 }
 
-void IconScrollTextBox::draw(Adafruit_ST7735 *tft)
+void IconScrollTextBox::draw(Adafruit_LCD *tft)
 {
     // For IconBox: Don't display IconBox if str of ScrollTextBox is ""
     if (strlen(str) == 0) {
@@ -1067,7 +1067,7 @@ void IconScrollTextBox::draw(Adafruit_ST7735 *tft)
     ScrollTextBox::draw(tft);
 }
 
-void IconScrollTextBox::clear(Adafruit_ST7735 *tft)
+void IconScrollTextBox::clear(Adafruit_LCD *tft)
 {
     iconBox.clear(tft);
     ScrollTextBox::clear(tft);
@@ -1081,11 +1081,16 @@ void IconScrollTextBox::setIcon(uint8_t *icon)
 //=================================
 // Implementation of LcdCanvas class
 //=================================
-LcdCanvas::LcdCanvas(int8_t cs, int8_t dc, int8_t rst) : Adafruit_ST7735(cs, dc, rst), mode(FileView), play_count(0)
+LcdCanvas::LcdCanvas(int8_t cs, int8_t dc, int8_t rst) : Adafruit_LCD(cs, dc, rst), mode(FileView), play_count(0)
 {
+    #ifdef USE_ST7735
     initR(INITR_BLACKTAB);      // Init ST7735S chip, black tab
+    #endif
+    #ifdef USE_ILI9341
+    Adafruit_LCD::begin(0);
+    #endif
     setTextWrap(false);
-    fillScreen(ST77XX_BLACK);
+    fillScreen(LCD_BLACK);
     setFont(CUSTOM_FONT, CUSTOM_FONT_OFS_Y);
     setTextSize(1);
 
@@ -1135,7 +1140,7 @@ void LcdCanvas::switchToPowerOff(const char *msg)
 
 void LcdCanvas::clear()
 {
-    fillScreen(ST77XX_BLACK);
+    fillScreen(LCD_BLACK);
 }
 
 void LcdCanvas::draw()
@@ -1185,7 +1190,7 @@ void LcdCanvas::draw()
 void LcdCanvas::setFileItem(int column, const char *str, bool isDir, bool isFocused, encoding_t encoding)
 {
     uint8_t *icon[2] = {ICON16x16_FILE, ICON16x16_FOLDER};
-    uint16_t color[2] = {ST77XX_GRAY, ST77XX_GBLUE};
+    uint16_t color[2] = {LCD_GRAY, LCD_GBLUE};
     fileItem[column].setIcon(icon[isDir]);
     fileItem[column].setFgColor(color[isFocused]);
     fileItem[column].setText(str, encoding);
