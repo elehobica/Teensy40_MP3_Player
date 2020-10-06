@@ -104,7 +104,7 @@ volatile uint32_t button_repeat_count = 0;
 #define CFG_SAMPLES_PLAYED2 (EEPROM_BASE + 43)
 #define CFG_SAMPLES_PLAYED3 (EEPROM_BASE + 44)
 
-#define PIN_BACK_LIGHT_BOOST    (15)
+#define PIN_BACKLIGHT_CONTROL   (15)
 #define PIN_DCDC_SHDN_B         (16)
 #define PIN_BATTERY_CHECK       (18)
 
@@ -115,12 +115,16 @@ uint16_t eprw_count; // EEPROM Write Count (to check for write endurance of 100,
 #define TFT_CS        10
 #define TFT_RST        9 // Or set to -1 and connect to Arduino RESET pin
 #define TFT_DC         8
+#define BACKLIGHT_HIGH 256 // n/256 PWM
+#define BACKLIGHT_LOW  128 // n/256 PWM
 #endif
 #ifdef USE_ILI9341
 // LCD (ILI9341, 2.2", 240x320pix)
 #define TFT_CS        10
 #define TFT_RST       -1 // Connected to VCC
 #define TFT_DC         8
+#define BACKLIGHT_HIGH 64 // n/256 PWM
+#define BACKLIGHT_LOW  32 // n/256 PWM
 #endif
 
 LcdCanvas lcd = LcdCanvas(TFT_CS, TFT_DC, TFT_RST);
@@ -687,8 +691,9 @@ void setup()
 
     // Pin Mode Setting
     pinMode(PIN_DCDC_SHDN_B, OUTPUT);
-    pinMode(PIN_BACK_LIGHT_BOOST, OUTPUT);
+    pinMode(PIN_BACKLIGHT_CONTROL, OUTPUT);
     pinMode(PIN_BATTERY_CHECK, OUTPUT);
+    analogWrite(PIN_BACKLIGHT_CONTROL, BACKLIGHT_HIGH); // PWM
 
     // Keep Power On for SHDN_B of DC/DC
     digitalWrite(PIN_DCDC_SHDN_B, HIGH);
@@ -893,9 +898,9 @@ void loop()
     lcd.draw();
     // Back Light Boost within BackLightBoostTime from last stimulus
     if (idle_count < BackLightBoostCycles) {
-        digitalWrite(PIN_BACK_LIGHT_BOOST, HIGH);
+        analogWrite(PIN_BACKLIGHT_CONTROL, BACKLIGHT_HIGH); // PWM
     } else {
-        digitalWrite(PIN_BACK_LIGHT_BOOST, LOW);
+        analogWrite(PIN_BACKLIGHT_CONTROL, BACKLIGHT_LOW); // PWM
     }
     time = millis() - time;
     if (time < LoopCycleMs) {
