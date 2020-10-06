@@ -1087,7 +1087,7 @@ LcdCanvas::LcdCanvas(int8_t cs, int8_t dc, int8_t rst) : Adafruit_LCD(cs, dc, rs
     initR(INITR_BLACKTAB);      // Init ST7735S chip, black tab
     #endif
     #ifdef USE_ILI9341
-    Adafruit_LCD::begin(0);
+    Adafruit_LCD::begin(80000000); // this could be overclock of SPI clock, but works
     #endif
     setTextWrap(false);
     fillScreen(LCD_BLACK);
