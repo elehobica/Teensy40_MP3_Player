@@ -1,14 +1,14 @@
 #ifndef __LCDCANVAS_H_INCLUDED__
 #define __LCDCANVAS_H_INCLUDED__
 
-//#define USE_ST7735
-#define USE_ILI9341
+//#define USE_ST7735_128x160
+#define USE_ILI9341_240x320
 
-#ifdef USE_ST7735
+#ifdef USE_ST7735_128x160
 #include <Adafruit_ST7735.h> // Hardware-specific library for ST7735
 #define Adafruit_LCD Adafruit_ST7735
 #endif
-#ifdef USE_ILI9341
+#ifdef USE_ILI9341_240x320
 #include <Adafruit_ILI9341.h> // Hardware-specific library for ILI9341
 #define Adafruit_LCD Adafruit_ILI9341
 #endif
@@ -336,6 +336,7 @@ protected:
 	int play_count;
 	const int play_cycle = 150;
 	const int play_change = 100;
+	#ifdef USE_ST7735_128x160
 	IconScrollTextBox fileItem[10] = {
 		IconScrollTextBox(16*0, 16*0, width(), LCD_GRAY),
 		IconScrollTextBox(16*0, 16*1, width(), LCD_GRAY),
@@ -360,12 +361,56 @@ protected:
 	TextBox bye_msg = TextBox(width()/2, height()/2-FONT_HEIGHT, "Bye", Box::AlignCenter);
 	ImageBox albumArt = ImageBox(0, (height() - width())/2, width(), width());
 	Box *groupFileView[10] = {
-		&fileItem[0], &fileItem[1], &fileItem[2], &fileItem[3], &fileItem[4], &fileItem[5], &fileItem[6], &fileItem[7], &fileItem[8],  &fileItem[9]
+		&fileItem[0], &fileItem[1], &fileItem[2], &fileItem[3], &fileItem[4], &fileItem[5], &fileItem[6], &fileItem[7], &fileItem[8], &fileItem[9]
 	};
 	Box *groupPlay[5] = {&battery, &volume, &bitRate, &playTime, &track}; // Common for Play mode 0 and 1
 	Box *groupPlay0[4] = {&title, &artist, &album, &year}; // Play mode 0 only
 	Box *groupPlay1[1] = {&albumArt}; // Play mode 1 only
 	Box *groupPowerOff[1] = {&bye_msg};
+	#endif // USE_ST7735_128x160
+	#ifdef USE_ILI9341_240x320
+	IconScrollTextBox fileItem[20] = {
+		IconScrollTextBox(16*0, 16*0, width(), LCD_GRAY),
+		IconScrollTextBox(16*0, 16*1, width(), LCD_GRAY),
+		IconScrollTextBox(16*0, 16*2, width(), LCD_GRAY),
+		IconScrollTextBox(16*0, 16*3, width(), LCD_GRAY),
+		IconScrollTextBox(16*0, 16*4, width(), LCD_GRAY),
+		IconScrollTextBox(16*0, 16*5, width(), LCD_GRAY),
+		IconScrollTextBox(16*0, 16*6, width(), LCD_GRAY),
+		IconScrollTextBox(16*0, 16*7, width(), LCD_GRAY),
+		IconScrollTextBox(16*0, 16*8, width(), LCD_GRAY),
+		IconScrollTextBox(16*0, 16*9, width(), LCD_GRAY),
+		IconScrollTextBox(16*0, 16*10, width(), LCD_GRAY),
+		IconScrollTextBox(16*0, 16*11, width(), LCD_GRAY),
+		IconScrollTextBox(16*0, 16*12, width(), LCD_GRAY),
+		IconScrollTextBox(16*0, 16*13, width(), LCD_GRAY),
+		IconScrollTextBox(16*0, 16*14, width(), LCD_GRAY),
+		IconScrollTextBox(16*0, 16*15, width(), LCD_GRAY),
+		IconScrollTextBox(16*0, 16*16, width(), LCD_GRAY),
+		IconScrollTextBox(16*0, 16*17, width(), LCD_GRAY),
+		IconScrollTextBox(16*0, 16*18, width(), LCD_GRAY),
+		IconScrollTextBox(16*0, 16*19, width(), LCD_GRAY)
+	};
+	BatteryIconBox battery = BatteryIconBox(width()-16, 16*0, LCD_GRAY);
+	IconTextBox volume = IconTextBox(16*0, 16*0, ICON16x16_VOLUME, LCD_GRAY);
+	TextBox bitRate = TextBox(width()/2, 16*0, Box::AlignCenter, LCD_GRAY);
+	NFTextBox playTime = NFTextBox(width(), height()-16, width(), Box::AlignRight, LCD_GRAY);
+	IconScrollTextBox title = IconScrollTextBox(16*0, 16*16, ICON16x16_TITLE, width());
+	IconScrollTextBox artist = IconScrollTextBox(16*0, 16*17, ICON16x16_ARTIST, width());
+	IconScrollTextBox album = IconScrollTextBox(16*0, 16*18, ICON16x16_ALBUM, width());
+	IconTextBox year = IconTextBox(16*0, 16*19, ICON16x16_YEAR);
+	TextBox track = TextBox(width()/2, height()-16, Box::AlignCenter, LCD_GRAY);
+	TextBox bye_msg = TextBox(width()/2, height()/2-FONT_HEIGHT, "Bye", Box::AlignCenter);
+	ImageBox albumArt = ImageBox(0, 16*1, width(), width());
+	Box *groupFileView[20] = {
+		&fileItem[0],  &fileItem[1],  &fileItem[2],  &fileItem[3],  &fileItem[4],  &fileItem[5],  &fileItem[6],  &fileItem[7],  &fileItem[8],  &fileItem[9],
+		&fileItem[10], &fileItem[11], &fileItem[12], &fileItem[13], &fileItem[14], &fileItem[15], &fileItem[16], &fileItem[17], &fileItem[18], &fileItem[19]
+	};
+	Box *groupPlay[10] = {&battery, &volume, &bitRate, &playTime, &track, &title, &artist, &album, &year, &albumArt}; // Common for Play mode 0 and 1
+	Box *groupPlay0[0] = {}; // Play mode 0 only
+	Box *groupPlay1[0] = {}; // Play mode 1 only
+	Box *groupPowerOff[1] = {&bye_msg};
+	#endif // USE_ILI9341_240x320
 };
 
 #endif // __LCDCANVAS_H_INCLUDED__

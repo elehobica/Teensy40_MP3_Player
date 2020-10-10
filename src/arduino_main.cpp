@@ -110,21 +110,23 @@ volatile uint32_t button_repeat_count = 0;
 
 uint16_t eprw_count; // EEPROM Write Count (to check for write endurance of 100,000 cycles)
 
-#ifdef USE_ST7735
+#ifdef USE_ST7735_128x160
 // LCD (ST7735, 1.8", 128x160pix)
 #define TFT_CS        10
 #define TFT_RST        9 // Or set to -1 and connect to Arduino RESET pin
 #define TFT_DC         8
 #define BACKLIGHT_HIGH 256 // n/256 PWM
 #define BACKLIGHT_LOW  128 // n/256 PWM
+#define NUM_IDX_ITEMS         10
 #endif
-#ifdef USE_ILI9341
+#ifdef USE_ILI9341_240x320
 // LCD (ILI9341, 2.2", 240x320pix)
 #define TFT_CS        10
 #define TFT_RST       -1 // Connected to VCC
 #define TFT_DC         8
 #define BACKLIGHT_HIGH 64 // n/256 PWM
 #define BACKLIGHT_LOW  32 // n/256 PWM
+#define NUM_IDX_ITEMS         20
 #endif
 
 LcdCanvas lcd = LcdCanvas(TFT_CS, TFT_DC, TFT_RST);
@@ -156,7 +158,6 @@ int stack_count;
 volatile LcdCanvas::mode_enm mode = LcdCanvas::FileView;
 volatile LcdCanvas::mode_enm mode_prv = LcdCanvas::FileView;
 
-#define NUM_IDX_ITEMS         10
 volatile int idx_req = 1;
 volatile int idx_req_open = 0;
 volatile int aud_req = 0;
@@ -863,7 +864,7 @@ void loop()
                     while (codec->isPlaying()) { /*delay(1);*/ }
                     codec = next_codec;
                     codec->play(&file);
-                    //lcd.switchToPlay();
+                    lcd.switchToPlay();
                 } else {
                     while (codec->isPlaying()) { delay(1); } // minimize gap between tracks
                     codec->stop();

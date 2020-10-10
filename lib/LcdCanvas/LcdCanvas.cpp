@@ -1083,10 +1083,10 @@ void IconScrollTextBox::setIcon(uint8_t *icon)
 //=================================
 LcdCanvas::LcdCanvas(int8_t cs, int8_t dc, int8_t rst) : Adafruit_LCD(cs, dc, rst), mode(FileView), play_count(0)
 {
-    #ifdef USE_ST7735
+    #ifdef USE_ST7735_128x160
     initR(INITR_BLACKTAB);      // Init ST7735S chip, black tab
     #endif
-    #ifdef USE_ILI9341
+    #ifdef USE_ILI9341_240x320
     Adafruit_LCD::begin(80000000); // this could be overclock of SPI clock, but works
     #endif
     setTextWrap(false);
@@ -1153,20 +1153,25 @@ void LcdCanvas::draw()
         for (int i = 0; i < (int) (sizeof(groupPlay)/sizeof(*groupPlay)); i++) {
             groupPlay[i]->draw(this);
         }
-        if (play_count % play_cycle < play_change || albumArt.getCount() == 0) { // Title/Artist/Album display
+        if (play_count % play_cycle < play_change || albumArt.getCount() == 0) { // Play mode 0 display
             for (int i = 0; i < (int) (sizeof(groupPlay0)/sizeof(*groupPlay0)); i++) {
                 groupPlay0[i]->draw(this);
             }
-            if (play_count % play_cycle == play_change-1 && albumArt.getCount() > 0) {
+            if (play_count == 0 && albumArt.getCount() > 0) {
+                albumArt.loadNext();
+            } else if (play_count % play_cycle == play_change-1 && albumArt.getCount() > 0) {
                 for (int i = 0; i < (int) (sizeof(groupPlay0)/sizeof(*groupPlay0)); i++) {
                     groupPlay0[i]->clear(this);
                 }
                 for (int i = 0; i < (int) (sizeof(groupPlay1)/sizeof(*groupPlay1)); i++) {
                     groupPlay1[i]->update();
                 }
-                albumArt.loadNext();
+                if (albumArt.getCount() > 1) {
+                    albumArt.clear(this);
+                    albumArt.loadNext();
+                }
             }
-        } else { // Album Art display
+        } else { // Play mode 1 display
             for (int i = 0; i < (int) (sizeof(groupPlay1)/sizeof(*groupPlay1)); i++) {
                 groupPlay1[i]->draw(this);
             }
