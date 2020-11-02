@@ -11,6 +11,7 @@
 #include <ff_util.h>
 #include <utf_conv.h>
 #include <TeensyThreads.h>
+#include <SerialCommand.h>
 
 #include <Audio.h>
 #include <play_sd_mp3.h>
@@ -105,6 +106,7 @@ volatile uint32_t button_repeat_count = 0;
 #define CFG_SAMPLES_PLAYED1 (EEPROM_BASE + 42)
 #define CFG_SAMPLES_PLAYED2 (EEPROM_BASE + 43)
 #define CFG_SAMPLES_PLAYED3 (EEPROM_BASE + 44)
+#define CFG_DISP_ROTATION   (EEPROM_BASE + 45)
 
 #define PIN_BACKLIGHT_CONTROL   (15)
 #define PIN_DCDC_SHDN_B         (16)
@@ -114,33 +116,36 @@ uint16_t eprw_count; // EEPROM Write Count (to check for write endurance of 100,
 
 #ifdef USE_ST7735_128x160
 // LCD (ST7735, 1.8", 128x160pix)
-#define TFT_CS        10
-#define TFT_RST        9 // Or set to -1 and connect to Arduino RESET pin
-#define TFT_DC         8
-#define BACKLIGHT_HIGH 256 // n/256 PWM
-#define BACKLIGHT_LOW  128 // n/256 PWM
-#define NUM_IDX_ITEMS         10
+#define TFT_CS              10
+#define TFT_RST             9 // Or set to -1 and connect to Arduino RESET pin
+#define TFT_DC              8
+#define BACKLIGHT_HIGH      256 // n/256 PWM
+#define BACKLIGHT_LOW       128 // n/256 PWM
+#define NUM_IDX_ITEMS       10
 #endif
 #ifdef USE_ST7789_240x240_WOCS
 // LCD (ST7789, 1.3", 240x240pix without CS)
-#define TFT_CS        -1
-#define TFT_RST        9 // Or set to -1 and connect to Arduino RESET pin
-#define TFT_DC         8
-#define BACKLIGHT_HIGH 256 // n/256 PWM
-#define BACKLIGHT_LOW  128 // n/256 PWM
-#define NUM_IDX_ITEMS         15
+#define TFT_CS              -1
+#define TFT_RST             9 // Or set to -1 and connect to Arduino RESET pin
+#define TFT_DC              8
+#define BACKLIGHT_HIGH      256 // n/256 PWM
+#define BACKLIGHT_LOW       128 // n/256 PWM
+#define NUM_IDX_ITEMS       15
 #endif
 #ifdef USE_ILI9341_240x320
 // LCD (ILI9341, 2.2", 240x320pix)
-#define TFT_CS        10
-#define TFT_RST       -1 // Connected to VCC
-#define TFT_DC         8
-#define BACKLIGHT_HIGH 64 // n/256 PWM
-#define BACKLIGHT_LOW  32 // n/256 PWM
-#define NUM_IDX_ITEMS         20
+#define TFT_CS              10
+#define TFT_RST             -1 // Connected to VCC
+#define TFT_DC              8
+#define BACKLIGHT_HIGH      64 // n/256 PWM
+#define BACKLIGHT_LOW       32 // n/256 PWM
+#define NUM_IDX_ITEMS       20
 #endif
 
 LcdCanvas lcd = LcdCanvas(TFT_CS, TFT_DC, TFT_RST);
+
+ // SerialCommand object
+SerialCommand SCmd;
 
 AudioPlaySdMp3      playMp3;
 AudioPlaySdWav      playWav;
@@ -196,6 +201,7 @@ void initEEPROM(void)
         // Zero Clear
         for (int i = CFG_EPRW_COUNT_L; i < CFG_EPRW_COUNT_L + CFG_SIZE; i++) {
             if (i == CFG_VOLUME) { continue; }
+            if (i == CFG_DISP_ROTATION) { continue; }
             EEPROM.write(i, 0);
         }
     } else {
@@ -221,6 +227,7 @@ void loadFromEEPROM(void)
     bool err_flg = false;
     randomSeed(((uint16_t) EEPROM.read(CFG_SEED1) << 8) | ((uint16_t) EEPROM.read(CFG_SEED0)));
     i2s1.set_volume(EEPROM.read(CFG_VOLUME));
+    if (EEPROM.read(CFG_DISP_ROTATION) < 4) { lcd.setRotation(EEPROM.read(CFG_DISP_ROTATION)); }
     // Resume last folder & play
     for (int i = EEPROM.read(CFG_STACK_COUNT) - 1; i >= 0; i--) {
         item.head = ((uint16_t) EEPROM.read(CFG_STACK_HEAD0_H + i*4) << 8) | ((uint16_t) EEPROM.read(CFG_STACK_HEAD0_L + i*4));
@@ -696,6 +703,28 @@ void codec_thread()
     }
 }
 
+void scmd_config_write()
+{
+    char *arg;
+    int addr;
+    int data;
+    char str[64];
+    arg = SCmd.next();
+    if (arg == NULL) { Serial.println("ERROR"); return; }
+    addr = atoi(arg);
+    arg = SCmd.next();
+    if (arg == NULL) { Serial.println("ERROR"); return; }
+    data = atoi(arg);
+    EEPROM.write(addr, data);
+    sprintf(str, "Write Config(%d) = %d", addr, data);
+    Serial.println(str);
+}
+
+void scmd_unrecognized()
+{
+    Serial.println("Unrecognized command");
+}
+
 void setup()
 {
     Serial.begin(115200);
@@ -731,6 +760,10 @@ void setup()
 
     // Restore power off situation
     loadFromEEPROM();
+
+    // Serial Command Definition
+    SCmd.addCommand("CFG_WR", scmd_config_write);
+    SCmd.addDefaultHandler(scmd_unrecognized);
 }
 
 #if 0	
@@ -896,6 +929,7 @@ void loop()
             lcd.setBitRate(codec->bitRate());
             lcd.setPlayTime(codec->positionMillis()/1000, codec->lengthMillis()/1000, codec->isPaused());
             if (codec->isPaused() && idle_count > WaitCyclesForPowerOffWhenPaused) {
+                mode_prv = mode;
                 mode = LcdCanvas::PowerOff;
             }
         } else if (mode == LcdCanvas::FileView) {
@@ -920,6 +954,9 @@ void loop()
     } else {
         analogWrite(PIN_BACKLIGHT_CONTROL, BACKLIGHT_LOW); // PWM
     }
+    // Serial Command Process
+    SCmd.readSerial();
+
     time = millis() - time;
     if (time < LoopCycleMs) {
         delay(LoopCycleMs - time);
