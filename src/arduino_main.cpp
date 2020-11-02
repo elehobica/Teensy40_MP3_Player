@@ -52,6 +52,8 @@ uint32_t samples_played = 0;
 uint8_t button_prv[NUM_BTN_HISTORY] = {}; // initialized as HP_BUTTON_OPEN
 volatile uint32_t button_repeat_count = 0;
 
+//#define BATTERY_VOLTAGE_MSG
+
 //#define EEPROM_INITIALIZE
 #define EEPROM_SIZE 1080
 #define EEPROM_BASE 0
@@ -118,6 +120,15 @@ uint16_t eprw_count; // EEPROM Write Count (to check for write endurance of 100,
 #define BACKLIGHT_HIGH 256 // n/256 PWM
 #define BACKLIGHT_LOW  128 // n/256 PWM
 #define NUM_IDX_ITEMS         10
+#endif
+#ifdef USE_ST7789_240x240_WOCS
+// LCD (ST7789, 1.3", 240x240pix without CS)
+#define TFT_CS        -1
+#define TFT_RST        9 // Or set to -1 and connect to Arduino RESET pin
+#define TFT_DC         8
+#define BACKLIGHT_HIGH 256 // n/256 PWM
+#define BACKLIGHT_LOW  128 // n/256 PWM
+#define NUM_IDX_ITEMS         15
 #endif
 #ifdef USE_ILI9341_240x320
 // LCD (ILI9341, 2.2", 240x320pix)
@@ -210,6 +221,7 @@ void loadFromEEPROM(void)
     bool err_flg = false;
     randomSeed(((uint16_t) EEPROM.read(CFG_SEED1) << 8) | ((uint16_t) EEPROM.read(CFG_SEED0)));
     i2s1.set_volume(EEPROM.read(CFG_VOLUME));
+    // Resume last folder & play
     for (int i = EEPROM.read(CFG_STACK_COUNT) - 1; i >= 0; i--) {
         item.head = ((uint16_t) EEPROM.read(CFG_STACK_HEAD0_H + i*4) << 8) | ((uint16_t) EEPROM.read(CFG_STACK_HEAD0_L + i*4));
         item.column = ((uint16_t) EEPROM.read(CFG_STACK_COLUMN0_H + i*4) << 8) | ((uint16_t) EEPROM.read(CFG_STACK_COLUMN0_L + i*4));
@@ -470,8 +482,13 @@ void tick_100ms(void)
     if (millis() < 5 * 1000) { return; } // no reaction within 5 sec after boot
     if ((tick_100ms_count % (10*5)) == 0) { // Check Battery Voltage at 5 sec each
         digitalWrite(PIN_BATTERY_CHECK, HIGH);
+        delayMicroseconds(100); // waiting for voltage stable
         uint32_t adc0_rdata = analogRead(PIN_A0);
-        battery_x1000 = adc0_rdata * 3300 * (33+10) / 1023 / 33; // voltage divider: 1 Kohm + 3.3 Kohm, ADC ref: 3.3V
+        battery_x1000 = adc0_rdata * 3300 * (33+10) / 1023 / 33; // voltage divider: 1 Kohm + 3.3 Kohm, ADC ref: 3300mV
+        #ifdef BATTERY_VOLTAGE_MSG
+        Serial.print("Battery Voltage = ");
+        Serial.println(battery_x1000);
+        #endif // BATTERY_VOLTAGE_MSG
         digitalWrite(PIN_BATTERY_CHECK, LOW);
     }
     __disable_irq();
@@ -535,7 +552,7 @@ void tick_100ms(void)
                 volume_down();
             }
         }
-    } else if (button_repeat_count == 30) { // long long push
+    } else if (button_repeat_count == 20) { // long long push
         if (button == HP_BUTTON_CENTER) {
             mode_prv = mode;
             mode = LcdCanvas::PowerOff;
