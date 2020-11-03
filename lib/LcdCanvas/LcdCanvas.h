@@ -8,28 +8,35 @@
 #ifdef USE_ST7735_128x160
 #include <Adafruit_ST7735.h> // Hardware-specific library for ST7735
 #define Adafruit_LCD Adafruit_ST7735
+#define CUSTOM_FONT	(&Nimbus_Sans_L_Regular_Condensed_12)
+#define CUSTOM_FONT_OFS_Y	13
 #endif
 #ifdef USE_ST7789_240x240_WOCS
 #include <Adafruit_ST7789.h> // Hardware-specific library for ST7789
 #define Adafruit_LCD Adafruit_ST7789
+#define CUSTOM_FONT	(&Nimbus_Sans_L_Regular_Condensed_16)
+#define CUSTOM_FONT_OFS_Y	13
 #endif
 #ifdef USE_ILI9341_240x320
 #include <Adafruit_ILI9341.h> // Hardware-specific library for ILI9341
 #define Adafruit_LCD Adafruit_ILI9341
+#define CUSTOM_FONT	(&Nimbus_Sans_L_Regular_Condensed_12)
+#define CUSTOM_FONT_OFS_Y	13
 #endif
 
 //#include <Fonts/FreeMono9pt7b.h>
+// Custom Font (gfxFont)
 #include "Nimbus_Sans_L_Regular_Condensed_12.h"
+#include "Nimbus_Sans_L_Regular_Condensed_16.h"
+//#include "Open_Sans_Condensed_Light_12.h"
+//#include "Open_Sans_Condensed_Light_16.h"
+
 #include <SdFat.h>
 
 //#define DEBUG_LCD_CANVAS
 
 // Common for Unicode Font & Custom Font (gfxFont)
 #define FONT_HEIGHT		16
-
-//  Custom Font (gfxFont)
-#define CUSTOM_FONT	(&Nimbus_Sans_L_Regular_Condensed_12)
-#define CUSTOM_FONT_OFS_Y	13
 
 // Colors for LCD
 #define LCD_WHITE         0XFFFF
