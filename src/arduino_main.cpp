@@ -435,8 +435,10 @@ void idx_fast_inc(void)
 {
     if (idx_req == 1) { return; }
     if (idx_head >= file_menu_get_num() - NUM_IDX_ITEMS && idx_column == NUM_IDX_ITEMS-1) { return; }
-    if (idx_head + idx_column + 1 >= file_menu_get_num()) return;
-    if (idx_head + NUM_IDX_ITEMS >= file_menu_get_num() - NUM_IDX_ITEMS) {
+    if (idx_head + idx_column + 1 >= file_menu_get_num()) { return; }
+    if (file_menu_get_num() < NUM_IDX_ITEMS) {
+        idx_inc();
+    } else if (idx_head + NUM_IDX_ITEMS >= file_menu_get_num() - NUM_IDX_ITEMS) {
         idx_head = file_menu_get_num() - NUM_IDX_ITEMS;
         idx_inc();
     } else {
@@ -828,7 +830,7 @@ void loop()
         } else { // Target is File
             file_menu_full_sort();
             if (fpos == 0) { idx_play = idx_head + idx_column; } // fpos == 0: play indicated track,  fpos != 0: use idx_play in EEPROM
-            codec = get_audio_file(&idx_play, 0, &file);
+            codec = get_audio_file(&idx_play, 1, &file);
             if (codec) { // Play Audio File
                 mode = LcdCanvas::Play;
                 loadTag(idx_play);
