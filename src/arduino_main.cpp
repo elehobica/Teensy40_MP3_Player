@@ -32,6 +32,7 @@ const int OneMin = 60 * OneSec; // 1 Min
 const int BackLightBoostCycles = 20 * OneSec;
 const int WaitCyclesForRandomPlay = 1 * OneMin;
 const int WaitCyclesForPowerOffWhenPaused = 3 * OneMin;
+const int WaitCyclesForPowerOffWhenNoOp = 3 * OneMin;
 
 IntervalTimer myTimer;
 volatile uint32_t tick_100ms_count = 0;
@@ -940,6 +941,9 @@ void loop()
             }
             if (is_waiting_next_random && idle_count > WaitCyclesForRandomPlay && stack_get_count(stack) >= 2) {
                 idx_req_open = 2; // Random Play
+            } else if (idle_count > WaitCyclesForPowerOffWhenNoOp) {
+                mode_prv = mode;
+                mode = LcdCanvas::PowerOff;
             }
         } else if (mode == LcdCanvas::PowerOff) {
             power_off();
