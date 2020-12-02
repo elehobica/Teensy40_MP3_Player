@@ -129,8 +129,8 @@ uint16_t eprw_count; // EEPROM Write Count (to check for write endurance of 100,
 #define TFT_CS              -1
 #define TFT_RST             9 // Or set to -1 and connect to Arduino RESET pin
 #define TFT_DC              8
-#define BACKLIGHT_HIGH      256 // n/256 PWM
-#define BACKLIGHT_LOW       128 // n/256 PWM
+#define BACKLIGHT_HIGH      192 // n/256 PWM
+#define BACKLIGHT_LOW       64 // n/256 PWM
 #define NUM_IDX_ITEMS       15
 #endif
 #ifdef USE_ILI9341_240x320
@@ -184,6 +184,7 @@ volatile uint16_t idx_column = 0;
 uint16_t idle_count = 0;
 uint16_t idx_play = 0;
 volatile bool is_waiting_next_random = false;
+uint16_t num_tracks = 0;
 
 TagRead tag;
 
@@ -630,7 +631,17 @@ AudioCodec *get_audio_file(uint16_t *idx, int seq_flg, MutexFsBaseFile *f)
     return next_codec;
 }
 
-void loadTag(uint16_t idx_play)
+uint16_t get_num_audio_files()
+{
+    uint16_t num_audio_files = 0;
+    num_audio_files += file_menu_get_ext_num("mp3", 3);
+    num_audio_files += file_menu_get_ext_num("m4a", 3);
+    num_audio_files += file_menu_get_ext_num("wav", 3);
+    num_audio_files += file_menu_get_ext_num("flac", 4);
+    return num_audio_files;
+}
+
+void loadTag(uint16_t _idx_play, uint16_t _num_tracks)
 {
     char str[256];
     mime_t mime;
@@ -639,14 +650,20 @@ void loadTag(uint16_t idx_play)
     size_t size;
     int img_cnt = 0;
 
-    tag.loadFile(idx_play);
+    tag.loadFile(_idx_play);
 
     // copy TAG text
-    if (tag.getUTF8Track(str, sizeof(str))) lcd.setTrack(str); else lcd.setTrack("");
+    if (tag.getUTF8Track(str, sizeof(str))) {
+        uint16_t track = atoi(str);
+        sprintf(str, "%d / %d", track, _num_tracks);
+    } else {
+        sprintf(str, "%d / %d", _idx_play, _num_tracks);
+    }
+    lcd.setTrack(str);
     if (tag.getUTF8Title(str, sizeof(str))) {
         lcd.setTitle(str, utf8);
     } else { // display filename if no TAG
-        file_menu_get_fname_UTF16(idx_play, (char16_t *) str, sizeof(str)/2);
+        file_menu_get_fname_UTF16(_idx_play, (char16_t *) str, sizeof(str)/2);
         lcd.setTitle(utf16_to_utf8((const char16_t *) str).c_str(), utf8);
     }
     if (tag.getUTF8Album(str, sizeof(str))) lcd.setAlbum(str, utf8); else lcd.setAlbum("");
@@ -657,8 +674,8 @@ void loadTag(uint16_t idx_play)
     lcd.deleteAlbumArt();
     for (int i = 0; i < tag.getPictureCount(); i++) {
         if (tag.getPicturePos(i, &mime, &ptype, &img_pos, &size)) {
-            if (mime == jpeg) { lcd.addAlbumArtJpeg(idx_play, img_pos, size); img_cnt++; }
-            else if (mime == png) { lcd.addAlbumArtPng(idx_play, img_pos, size); img_cnt++; }
+            if (mime == jpeg) { lcd.addAlbumArtJpeg(_idx_play, img_pos, size); img_cnt++; }
+            else if (mime == png) { lcd.addAlbumArtPng(_idx_play, img_pos, size); img_cnt++; }
         }
     }
     // if no AlbumArt in TAG, use JPEG or PNG in current folder
@@ -792,6 +809,7 @@ void loop()
     int i;
     char str[256];
     unsigned long time = millis();
+
     if (aud_req == 1) { // Play / Pause
         codec->pause(!codec->isPaused());
         aud_req = 0;
@@ -802,7 +820,7 @@ void loop()
         lcd.switchToFileView();
         aud_req = 0;
         idx_req = 1;
-    } else if (idx_req_open == 1 && idle_count > 1) { // idle_count for resume play
+    } else if (idx_req_open == 1 && idle_count > 1) { // idle_count is for resume play
         if (file_menu_is_dir(idx_head+idx_column) > 0) { // Target is Directory
             if (idx_head+idx_column > 0) { // normal directory
                 item.head = idx_head;
@@ -832,9 +850,10 @@ void loop()
             file_menu_full_sort();
             if (fpos == 0) { idx_play = idx_head + idx_column; } // fpos == 0: play indicated track,  fpos != 0: use idx_play in EEPROM
             codec = get_audio_file(&idx_play, 1, &file);
+            num_tracks = get_num_audio_files();
             if (codec) { // Play Audio File
                 mode = LcdCanvas::Play;
-                loadTag(idx_play);
+                loadTag(idx_play, num_tracks);
                 codec->play(&file, fpos, samples_played); // with resuming file position and play time
                 fpos = 0;
                 samples_played = 0;
@@ -870,11 +889,7 @@ void loop()
                     stack_push(stack, &item);
                 }
                 // Check if Next Target Dir has Audio track files
-                if (stack_count == stack_get_count(stack) &&
-                    (file_menu_get_ext_num("mp3", 3) > 0 || file_menu_get_ext_num("m4a", 3) > 0 || 
-                     file_menu_get_ext_num("wav", 3) > 0 || file_menu_get_ext_num("flac", 4) > 0)) {
-                    break;
-                }
+                if (stack_count == stack_get_count(stack) && get_num_audio_files() > 0) { break; }
                 // Otherwise, chdir to stack_count-2 and retry again
                 Serial.println("Retry Random Search");
                 while (stack_count - 2 != stack_get_count(stack)) {
@@ -912,7 +927,7 @@ void loop()
                 idx_play++;
                 AudioCodec *next_codec = get_audio_file(&idx_play, 1, &file);
                 if (next_codec) {
-                    loadTag(idx_play);
+                    loadTag(idx_play, num_tracks);
                     //codec->standby_play(&file);
                     while (codec->isPlaying()) { /*delay(1);*/ }
                     codec = next_codec;
