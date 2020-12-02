@@ -658,8 +658,11 @@ bool SdioCard::begin(SdioConfig sdioConfig) {
   uint8_t status[64];
   if (cardCMD6(0X00FFFFFF, status) && (2 & status[13]) &&
       cardCMD6(0X80FFFFF1, status) && (status[16] & 0XF) == 1) {
+  #if defined(SDFAT_DISABLE_SDIO_HIGH_SPEED_MODE)
+    kHzSdClk = 25000; // ignore High Speed mode for stable transfer
+  #else
     kHzSdClk = 50000;
-    //kHzSdClk = 25000; // ignore High Speed mode for stable transfer
+  #endif // #if defined(SDFAT_DISABLE_HIGH_SPEED_MODE)
   } else {
     kHzSdClk = 25000;
   }
