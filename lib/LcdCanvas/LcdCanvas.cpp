@@ -1162,6 +1162,9 @@ void LcdCanvas::draw()
             }
             if (play_count == 0 && albumArt.getCount() > 0) {
                 albumArt.loadNext();
+                #ifdef USE_ALBUM_ART_SMALL
+                albumArtSmall.loadNext();
+                #endif // #ifdef USE_ALBUM_ART_SMALL
             } else if (play_count % play_cycle == play_change-1 && albumArt.getCount() > 0) {
                 for (int i = 0; i < (int) (sizeof(groupPlay0)/sizeof(*groupPlay0)); i++) {
                     groupPlay0[i]->clear(this);
@@ -1260,14 +1263,23 @@ void LcdCanvas::setBatteryVoltage(uint16_t voltage_x1000)
 void LcdCanvas::addAlbumArtJpeg(uint16_t file_idx, uint64_t pos, size_t size)
 {
     albumArt.addJpegFile(file_idx, pos, size);
+    #ifdef USE_ALBUM_ART_SMALL
+    albumArtSmall.addJpegFile(file_idx, pos, size);
+    #endif // #ifdef USE_ALBUM_ART_SMALL
 }
 
 void LcdCanvas::addAlbumArtPng(uint16_t file_idx, uint64_t pos, size_t size)
 {
     albumArt.addPngFile(file_idx, pos, size);
+    #ifdef USE_ALBUM_ART_SMALL
+    albumArtSmall.addPngFile(file_idx, pos, size);
+    #endif // #ifdef USE_ALBUM_ART_SMALL
 }
 
 void LcdCanvas::deleteAlbumArt()
 {
     albumArt.deleteAll();
+    #ifdef USE_ALBUM_ART_SMALL
+    albumArtSmall.deleteAll();
+    #endif // #ifdef USE_ALBUM_ART_SMALL
 }

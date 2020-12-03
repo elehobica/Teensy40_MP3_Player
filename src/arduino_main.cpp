@@ -130,7 +130,7 @@ uint16_t eprw_count; // EEPROM Write Count (to check for write endurance of 100,
 #define TFT_RST             9 // Or set to -1 and connect to Arduino RESET pin
 #define TFT_DC              8
 #define BACKLIGHT_HIGH      192 // n/256 PWM
-#define BACKLIGHT_LOW       64 // n/256 PWM
+#define BACKLIGHT_LOW       80 // n/256 PWM
 #define NUM_IDX_ITEMS       15
 #endif
 #ifdef USE_ILI9341_240x320
@@ -785,24 +785,6 @@ void setup()
     SCmd.addCommand("CFG_WR", scmd_config_write);
     SCmd.addDefaultHandler(scmd_unrecognized);
 }
-
-#if 0	
-Serial.print("Max Usage: ");
-Serial.print(codec->processorUsageMax());
-Serial.print("% Audio, ");
-Serial.print(codec->processorUsageMaxDecoder());
-Serial.print("% Decoding max, ");
-
-Serial.print(codec->processorUsageMaxSD());
-Serial.print("% SD max, ");
-  
-Serial.print(AudioProcessorUsageMax());
-Serial.println("% All");
-
-AudioProcessorUsageMaxReset();
-codec->processorUsageMaxReset();
-codec->processorUsageMaxResetDecoder();
-#endif 
 
 void loop()
 {

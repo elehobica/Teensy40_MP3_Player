@@ -16,6 +16,7 @@
 #define Adafruit_LCD Adafruit_ST7789
 #define CUSTOM_FONT	(&Nimbus_Sans_L_Regular_Condensed_16)
 #define CUSTOM_FONT_OFS_Y	13
+#define USE_ALBUM_ART_SMALL
 #endif
 #ifdef USE_ILI9341_240x320
 #include <Adafruit_ILI9341.h> // Hardware-specific library for ILI9341
@@ -346,8 +347,8 @@ public:
 protected:
 	mode_enm mode;
 	int play_count;
-	const int play_cycle = 150;
-	const int play_change = 100;
+	const int play_cycle = 400;
+	const int play_change = 350;
 	#ifdef USE_ST7735_128x160
 	IconScrollTextBox fileItem[10] = {
 		IconScrollTextBox(16*0, 16*0, width(), LCD_GRAY),
@@ -402,19 +403,20 @@ protected:
 	IconTextBox volume = IconTextBox(16*0, 16*0, ICON16x16_VOLUME, LCD_GRAY);
 	TextBox bitRate = TextBox(width()/2, 16*0, Box::AlignCenter, LCD_GRAY);
 	NFTextBox playTime = NFTextBox(width(), 240-16, width(), Box::AlignRight, LCD_GRAY);
-	IconScrollTextBox title = IconScrollTextBox(16*0, 16*3, ICON16x16_TITLE, width());
-	IconScrollTextBox artist = IconScrollTextBox(16*0, 16*4, ICON16x16_ARTIST, width());
-	IconScrollTextBox album = IconScrollTextBox(16*0, 16*5, ICON16x16_ALBUM, width());
-	IconTextBox year = IconTextBox(16*0, 16*6, ICON16x16_YEAR);
-	TextBox track = TextBox(16*0, 240-16, Box::AlignLeft, LCD_GRAY);
+	IconScrollTextBox title = IconScrollTextBox(16*0, 16*10, ICON16x16_TITLE, width());
+	IconScrollTextBox artist = IconScrollTextBox(16*0, 16*11, ICON16x16_ARTIST, width());
+	IconScrollTextBox album = IconScrollTextBox(16*0, 16*12, ICON16x16_ALBUM, width());
+	IconTextBox year = IconTextBox(16*0, 16*13, ICON16x16_YEAR);
+	TextBox track = TextBox(0, 240-16, Box::AlignLeft, LCD_GRAY);
 	TextBox bye_msg = TextBox(width()/2, 240/2-FONT_HEIGHT, "Bye", Box::AlignCenter);
+	ImageBox albumArtSmall = ImageBox((240-16*9)/2, 16*1, 16*9, 16*9);
 	ImageBox albumArt = ImageBox(0, (240 - width())/2, width(), width());
 	Box *groupFileView[15] = {
 		&fileItem[0],  &fileItem[1],  &fileItem[2],  &fileItem[3],  &fileItem[4], &fileItem[5], &fileItem[6], &fileItem[7], &fileItem[8], &fileItem[9],
 		&fileItem[10], &fileItem[11], &fileItem[12], &fileItem[13], &fileItem[14]
 	};
 	Box *groupPlay[0] = {}; // Common for Play mode 0 and 1
-	Box *groupPlay0[9] = {&battery, &volume, &bitRate, &playTime, &track, &title, &artist, &album, &year}; // Play mode 0 only
+	Box *groupPlay0[10] = {&battery, &volume, &bitRate, &playTime, &track, &title, &artist, &album, &year, &albumArtSmall}; // Play mode 0 only
 	Box *groupPlay1[1] = {&albumArt}; // Play mode 1 only
 	Box *groupPowerOff[1] = {&bye_msg};
 	#endif // USE_ST7789_240x240_WOCS
