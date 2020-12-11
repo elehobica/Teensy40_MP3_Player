@@ -497,16 +497,30 @@ uint16_t file_menu_get_dir_num(void)
 	return count;
 }
 
-uint16_t file_menu_get_ext_num(const char *ext, size_t ext_size)
+int file_menu_match_ext(uint16_t order, const char *ext, size_t ext_size)
 {
 	char name[FF_LFN_BUF];
+	file_menu_get_fname(order, name, sizeof(name));
+	char* ext_pos = strrchr(name, '.');
+	if (ext_pos) {
+		if (strncmp(ext_pos+1, ext, ext_size) == 0) { return 1; }
+	}
+	return 0;
+
+}
+
+uint16_t file_menu_get_ext_num(const char *ext, size_t ext_size)
+{
 	uint16_t count = 0;
 	for (int i = 1; i < max_entry_cnt; i++) {
+		if (file_menu_match_ext(i, ext, ext_size)) { count++; }
+		/*
 		file_menu_get_fname(i, name, sizeof(name));
 		char* ext_pos = strrchr(name, '.');
         if (ext_pos) {
             if (strncmp(ext_pos+1, ext, ext_size) == 0) { count++; }
         }
+		*/
 	}
 	return count;
 }

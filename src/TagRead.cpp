@@ -1,5 +1,6 @@
 #include "TagRead.h"
 #include <Arduino.h>
+#include <ff_util.h>
 #include <utf_conv.h>
 
 TagRead::TagRead()

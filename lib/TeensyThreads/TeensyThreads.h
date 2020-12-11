@@ -333,10 +333,10 @@ public:
   private:
     volatile bool flag = 0;
   public:
-    void trigger(); // get the lock state; 1=locked; 0=unlocked
-    void clear(); // get the lock state; 1=locked; 0=unlocked
-    int wait(unsigned int timeout_ms = 0); // lock, optionally waiting up to timeout_ms milliseconds
-    bool getState(); // if lock available, get it and return 1; otherwise return 0
+    void trigger(); // trigger Event
+    void clear(); // clear Event
+    int wait(unsigned int timeout_ms = 0); // wait for Event triggered
+    bool getState(); // if Event triggered return 1; otherwise return 0
   };
 
   template <class C> class GrabTemp {

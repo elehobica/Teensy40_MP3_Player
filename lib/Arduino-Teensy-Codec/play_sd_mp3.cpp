@@ -222,7 +222,7 @@ int AudioPlaySdMp3::play(size_t position, unsigned samples_played)
 	*/
 
 	//Read-ahead 10 Bytes to detect ID3
-	sd_left =  fread(sd_buf, 10);
+	sd_left = fread(sd_buf, 10);
 
 	//Skip ID3, if existent
 	int skip = skipID3(sd_buf);

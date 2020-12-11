@@ -311,11 +311,13 @@ protected:
 class LcdCanvas : public Adafruit_LCD
 {
 public:
+	/*
 	typedef enum _mode_enm {
 		FileView = 0,
 		Play,
 		PowerOff
 	} mode_enm;
+	*/
 
 	//LcdCanvas(int8_t cs, int8_t dc, int8_t mosi, int8_t sclk, int8_t rst) : Adaruit_LCD(cs, dc, mosi, sclk, rst) {}
 	LcdCanvas(int8_t cs, int8_t dc, int8_t rst);
@@ -342,10 +344,12 @@ public:
 	void switchToFileView();
 	void switchToPlay();
 	void switchToPowerOff(const char *msg = NULL);
-	void draw();
+	void drawFileView();
+	void drawPlay();
+	void drawPowerOff();
 
 protected:
-	mode_enm mode;
+	//mode_enm mode;
 	int play_count;
 	const int play_cycle = 400;
 	const int play_change = 350;

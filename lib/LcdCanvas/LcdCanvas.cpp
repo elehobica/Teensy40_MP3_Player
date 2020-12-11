@@ -1081,7 +1081,7 @@ void IconScrollTextBox::setIcon(uint8_t *icon)
 //=================================
 // Implementation of LcdCanvas class
 //=================================
-LcdCanvas::LcdCanvas(int8_t cs, int8_t dc, int8_t rst) : Adafruit_LCD(cs, dc, rst), mode(FileView), play_count(0)
+LcdCanvas::LcdCanvas(int8_t cs, int8_t dc, int8_t rst) : Adafruit_LCD(cs, dc, rst), /*mode(FileView), */play_count(0)
 {
     #ifdef USE_ST7735_128x160
     initR(INITR_BLACKTAB);      // Init ST7735S chip, black tab
@@ -1108,7 +1108,7 @@ LcdCanvas::~LcdCanvas()
 
 void LcdCanvas::switchToFileView()
 {
-    mode = FileView;
+    //mode = FileView;
     clear();
     for (int i = 0; i < (int) (sizeof(groupFileView)/sizeof(*groupFileView)); i++) {
         groupFileView[i]->update();
@@ -1117,7 +1117,7 @@ void LcdCanvas::switchToFileView()
 
 void LcdCanvas::switchToPlay()
 {
-    mode = Play;
+    //mode = Play;
     clear();
     for (int i = 0; i < (int) (sizeof(groupPlay)/sizeof(*groupPlay)); i++) {
         groupPlay[i]->update();
@@ -1133,7 +1133,7 @@ void LcdCanvas::switchToPlay()
 
 void LcdCanvas::switchToPowerOff(const char *msg)
 {
-    mode = PowerOff;
+    //mode = PowerOff;
     clear();
     if (msg != NULL) { bye_msg.setText(msg); }
     for (int i = 0; i < (int) (sizeof(groupPowerOff)/sizeof(*groupPowerOff)); i++) {
@@ -1146,55 +1146,59 @@ void LcdCanvas::clear()
     fillScreen(LCD_BLACK);
 }
 
-void LcdCanvas::draw()
+void LcdCanvas::drawFileView()
 {
-    if (mode == FileView) {
-        for (int i = 0; i < (int) (sizeof(groupFileView)/sizeof(*groupFileView)); i++) {
-            groupFileView[i]->draw(this);
+    for (int i = 0; i < (int) (sizeof(groupFileView)/sizeof(*groupFileView)); i++) {
+        groupFileView[i]->draw(this);
+    }
+}
+
+void LcdCanvas::drawPlay()
+{
+    for (int i = 0; i < (int) (sizeof(groupPlay)/sizeof(*groupPlay)); i++) {
+        groupPlay[i]->draw(this);
+    }
+    if (play_count % play_cycle < play_change || albumArt.getCount() == 0) { // Play mode 0 display
+        for (int i = 0; i < (int) (sizeof(groupPlay0)/sizeof(*groupPlay0)); i++) {
+            groupPlay0[i]->draw(this);
         }
-    } else if (mode == Play) {
-        for (int i = 0; i < (int) (sizeof(groupPlay)/sizeof(*groupPlay)); i++) {
-            groupPlay[i]->draw(this);
-        }
-        if (play_count % play_cycle < play_change || albumArt.getCount() == 0) { // Play mode 0 display
+        if (play_count == 0 && albumArt.getCount() > 0) {
+            albumArt.loadNext();
+            #ifdef USE_ALBUM_ART_SMALL
+            albumArtSmall.loadNext();
+            #endif // #ifdef USE_ALBUM_ART_SMALL
+        } else if (play_count % play_cycle == play_change-1 && albumArt.getCount() > 0) {
             for (int i = 0; i < (int) (sizeof(groupPlay0)/sizeof(*groupPlay0)); i++) {
-                groupPlay0[i]->draw(this);
+                groupPlay0[i]->clear(this);
             }
-            if (play_count == 0 && albumArt.getCount() > 0) {
-                albumArt.loadNext();
-                #ifdef USE_ALBUM_ART_SMALL
-                albumArtSmall.loadNext();
-                #endif // #ifdef USE_ALBUM_ART_SMALL
-            } else if (play_count % play_cycle == play_change-1 && albumArt.getCount() > 0) {
-                for (int i = 0; i < (int) (sizeof(groupPlay0)/sizeof(*groupPlay0)); i++) {
-                    groupPlay0[i]->clear(this);
-                }
-                for (int i = 0; i < (int) (sizeof(groupPlay1)/sizeof(*groupPlay1)); i++) {
-                    groupPlay1[i]->update();
-                }
-                if (albumArt.getCount() > 1) {
-                    albumArt.clear(this);
-                    albumArt.loadNext();
-                }
-            }
-        } else { // Play mode 1 display
             for (int i = 0; i < (int) (sizeof(groupPlay1)/sizeof(*groupPlay1)); i++) {
-                groupPlay1[i]->draw(this);
+                groupPlay1[i]->update();
             }
-            if (play_count % play_cycle == play_cycle-1) {
-                for (int i = 0; i < (int) (sizeof(groupPlay1)/sizeof(*groupPlay1)); i++) {
-                    groupPlay1[i]->clear(this);
-                }
-                for (int i = 0; i < (int) (sizeof(groupPlay0)/sizeof(*groupPlay0)); i++) {
-                    groupPlay0[i]->update();
-                }
+            if (albumArt.getCount() > 1) {
+                albumArt.clear(this);
+                albumArt.loadNext();
             }
         }
-        play_count++;
-    } else if (mode == PowerOff) {
-        for (int i = 0; i < (int) (sizeof(groupPowerOff)/sizeof(*groupPowerOff)); i++) {
-            groupPowerOff[i]->draw(this);
+    } else { // Play mode 1 display
+        for (int i = 0; i < (int) (sizeof(groupPlay1)/sizeof(*groupPlay1)); i++) {
+            groupPlay1[i]->draw(this);
         }
+        if (play_count % play_cycle == play_cycle-1) {
+            for (int i = 0; i < (int) (sizeof(groupPlay1)/sizeof(*groupPlay1)); i++) {
+                groupPlay1[i]->clear(this);
+            }
+            for (int i = 0; i < (int) (sizeof(groupPlay0)/sizeof(*groupPlay0)); i++) {
+                groupPlay0[i]->update();
+            }
+        }
+    }
+    play_count++;
+}
+
+void LcdCanvas::drawPowerOff()
+{
+    for (int i = 0; i < (int) (sizeof(groupPowerOff)/sizeof(*groupPowerOff)); i++) {
+        groupPowerOff[i]->draw(this);
     }
 }
 
