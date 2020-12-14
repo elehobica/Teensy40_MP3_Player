@@ -300,6 +300,8 @@ static void enableGPIO(bool enable) {
   const uint32_t CLOCK_MASK = IOMUXC_SW_PAD_CTL_PAD_PKE |
 #if defined(ARDUINO_TEENSY41)  
                               IOMUXC_SW_PAD_CTL_PAD_DSE(1) |
+#elif defined(SDIO_CTL_PAD_DSE_VAL)
+                              IOMUXC_SW_PAD_CTL_PAD_DSE(SDIO_CTL_PAD_DSE_VAL) |  ///// WHG
 #else  // defined(ARDUINO_TEENSY41)                            
                               IOMUXC_SW_PAD_CTL_PAD_DSE(4) |  ///// WHG
 #endif  // defined(ARDUINO_TEENSY41)
@@ -658,11 +660,7 @@ bool SdioCard::begin(SdioConfig sdioConfig) {
   uint8_t status[64];
   if (cardCMD6(0X00FFFFFF, status) && (2 & status[13]) &&
       cardCMD6(0X80FFFFF1, status) && (status[16] & 0XF) == 1) {
-  #if defined(SDFAT_DISABLE_SDIO_HIGH_SPEED_MODE)
-    kHzSdClk = 25000; // ignore High Speed mode for stable transfer
-  #else
     kHzSdClk = 50000;
-  #endif // #if defined(SDFAT_DISABLE_HIGH_SPEED_MODE)
   } else {
     kHzSdClk = 25000;
   }
