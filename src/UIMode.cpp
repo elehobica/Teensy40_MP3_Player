@@ -255,7 +255,9 @@ void UIFileViewMode::idxFastDec(void)
 
 UIMode *UIFileViewMode::getUIPlayMode()
 {
-    vars->idx_play = vars->idx_head + vars->idx_column;
+    if (vars->idx_play == 0) {
+        vars->idx_play = vars->idx_head + vars->idx_column;
+    }
     vars->num_tracks = getNumAudioFiles();
     return getUIMode(PlayMode);
 }
@@ -370,6 +372,7 @@ UIMode* UIPlayMode::update()
                 codec->pause(!codec->isPaused());
                 break;
             case ButtonCenterDouble:
+                vars->idx_play = 0;
                 codec->stop();
                 vars->next_play_action = None;
                 return getUIMode(FileViewMode);
