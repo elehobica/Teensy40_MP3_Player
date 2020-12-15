@@ -10,7 +10,6 @@
 #include <EEPROM.h>
 #include <LcdCanvas.h>
 #include <file_menu_SdFat.h>
-#include <SerialCommand.h>
 
 #include "ui_control.h"
 #include "stack.h"
@@ -66,9 +65,6 @@ LcdCanvas lcd = LcdCanvas(TFT_CS, TFT_DC, TFT_RST);
 // Directory History
 stack_t *dir_stack;
 
- // SerialCommand object
-SerialCommand SCmd;
-
 void monitor_battery_voltage()
 {
     digitalWrite(PIN_BATTERY_CHECK, HIGH);
@@ -92,28 +88,6 @@ void tick_50ms(void)
     update_button_action(PIN_A8);
     tick_50ms_count++;
     __enable_irq();
-}
-
-void scmd_config_write()
-{
-    char *arg;
-    int addr;
-    int data;
-    char str[64];
-    arg = SCmd.next();
-    if (arg == NULL) { Serial.println("ERROR"); return; }
-    addr = atoi(arg);
-    arg = SCmd.next();
-    if (arg == NULL) { Serial.println("ERROR"); return; }
-    data = atoi(arg);
-    writeEEPROM(addr, data);
-    sprintf(str, "Write Config(%d) = %d", addr, data);
-    Serial.println(str);
-}
-
-void scmd_unrecognized()
-{
-    Serial.println("Unrecognized command");
 }
 
 // terminate() is called from UIPowerOffMode::entry()
@@ -170,10 +144,6 @@ void setup()
     // Restore previous power off situation
     ui_mode_enm_t init_dest_ui_mode = loadFromEEPROM(&lcd, dir_stack);
 
-    // Serial Command Definition
-    SCmd.addCommand("CFG_WR", scmd_config_write);
-    SCmd.addDefaultHandler(scmd_unrecognized);
-
     // ADC Average Setting
     analogReadAveraging(1);
 
@@ -195,8 +165,6 @@ void loop()
     } else {
         ui_update();
     }
-    // Serial Command Process
-    SCmd.readSerial();
 
     // Back Light Boost within BackLightBoostTime from last stimulus
     if (ui_get_idle_count() < BackLightDimCycles) {
