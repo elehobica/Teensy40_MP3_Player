@@ -10,7 +10,7 @@
 #include "iconfont.h"
 #include <JPEGDecoder.h>
 #include <PNGDecoder.h>
-#include <ff_util.h>
+#include <file_menu_SdFat.h>
 
 //=================================
 // Implementation of ImageBox class

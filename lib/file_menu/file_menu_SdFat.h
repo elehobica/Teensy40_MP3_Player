@@ -6,8 +6,8 @@
 / refer to https://opensource.org/licenses/BSD-2-Clause
 /-----------------------------------------------------------*/
 
-#ifndef _FF_UTIL_H_
-#define _FF_UTIL_H_
+#ifndef _FILE_MENU_H_
+#define _FILE_MENU_H_
 
 #include <SdFat.h>
 

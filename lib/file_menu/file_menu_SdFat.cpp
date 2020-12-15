@@ -6,7 +6,7 @@
 / refer to https://opensource.org/licenses/BSD-2-Clause
 /-----------------------------------------------------------*/
 
-#include "ff_util.h"
+#include "file_menu_SdFat.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -46,12 +46,12 @@ const uint8_t SD_CS_PIN = SDCARD_SS_PIN;
 
 static int path_depth = 0;					// preserve path depth because SdFat doesn't support relative directory
 
-//#define DEBUG_FF_UTIL
-//#define DEBUG_FF_UTIL_LVL2
+//#define DEBUG_FILE_MENU
+//#define DEBUG_FILE_MENU_LVL2
 
-#if defined(DEBUG_FF_UTIL) || defined(DEBUG_FF_UTIL_LVL2)
+#if defined(DEBUG_FILE_MENU) || defined(DEBUG_FILE_MENU_LVL2)
 static char _str[256];	// for debug print
-#endif // DEBUG_FF_UTIL
+#endif // DEBUG_FILE_MENU
 
 static int target = TGT_DIRS | TGT_FILES; // TGT_DIRS, TGT_FILES
 static int16_t f_stat_cnt;
@@ -209,23 +209,23 @@ static void idx_qsort_entry_list_by_range(uint16_t r_start, uint16_t r_end_1, ui
 		while (!get_sorted(end_1_next) && end_1_next < end_1) {
 			end_1_next++;
 		}
-		#ifdef DEBUG_FF_UTIL
+		#ifdef DEBUG_FILE_MENU
 		sprintf(_str, "partial %d %d %d", start_next, end_1_next, end_1); Serial.println(_str);
-		#endif // DEBUG_FF_UTIL
+		#endif // DEBUG_FILE_MENU
 		idx_qsort_entry_list_by_range(r_start, r_end_1, start_next, end_1_next);
 		if (end_1_next < end_1) {
 			idx_qsort_entry_list_by_range(r_start, r_end_1, end_1_next, end_1);
 		}
 		return;
 	}
-	#ifdef DEBUG_FF_UTIL_LVL2
+	#ifdef DEBUG_FILE_MENU_LVL2
 	sprintf(_str, "r_start %d r_end_1 %d start %d end_1 %d", r_start, r_end_1, start, end_1); Serial.println(_str);
 	Serial.println();
 	for (int k = start; k < end_1; k++) {
 		idx_f_stat_get_name(entry_list[k], &file, name, sizeof(name));
 		sprintf(_str, "before[%d] %d %s", k, entry_list[k], name); Serial.println(_str);
 	}
-	#endif // DEBUG_FF_UTIL_LVL2
+	#endif // DEBUG_FILE_MENU_LVL2
 	if (end_1 - start <= 1) {
 		set_sorted(start);
 	} else if (end_1 - start <= 2) {
@@ -256,9 +256,9 @@ static void idx_qsort_entry_list_by_range(uint16_t r_start, uint16_t r_end_1, ui
 		int bottom = end_1 - 1;
 		uint16_t key_idx = entry_list[start+(end_1-start)/2];
 		idx_f_stat_get_name(key_idx, &file_temp, name_temp, sizeof(name_temp));
-		#ifdef DEBUG_FF_UTIL_LVL2
+		#ifdef DEBUG_FILE_MENU_LVL2
 		sprintf(_str, "key %s", name_temp); Serial.println(_str); // DEBUG
-		#endif // DEBUG_FF_UTIL_LVL2
+		#endif // DEBUG_FILE_MENU_LVL2
 		while (1) {
 			// try fast_fname_list compare
 			result = get_is_file(entry_list[top]) - get_is_file(key_idx);
@@ -285,7 +285,7 @@ static void idx_qsort_entry_list_by_range(uint16_t r_start, uint16_t r_end_1, ui
 			}
 			if (top > bottom) break;
 		}
-		#ifdef DEBUG_FF_UTIL_LVL2
+		#ifdef DEBUG_FILE_MENU_LVL2
 		for (int k = 0; k < top; k++) {
 			idx_f_stat_get_name(entry_list[k], &file, name, sizeof(name));
 			sprintf(_str, "top[%d] %d %s", k, entry_list[k], name); Serial.println(_str);
@@ -294,7 +294,7 @@ static void idx_qsort_entry_list_by_range(uint16_t r_start, uint16_t r_end_1, ui
 			idx_f_stat_get_name(entry_list[k], &file, name, sizeof(name));
 			sprintf(_str, "bottom[%d] %d %s", k, entry_list[k], name); Serial.println(_str);
 		}
-		#endif // DEBUG_FF_UTIL_LVL2
+		#endif // DEBUG_FILE_MENU_LVL2
 		if ((r_start < top && r_end_1 > start) && !get_range_full_sorted(start, top)) {
 			if (top - start > 1) {
 				idx_qsort_entry_list_by_range(r_start, r_end_1, start, top);
@@ -360,11 +360,11 @@ static void idx_sort_new(void)
 				fast_fname_list[i][k] = name[k];
 			}
 		}
-		#ifdef DEBUG_FF_UTIL_LVL2
+		#ifdef DEBUG_FILE_MENU_LVL2
 		char temp_str[5] = {};
 		strncpy(temp_str, fast_fname_list[i], 4);
 		sprintf(_str, "fast_fname_list[%d] = %4s, is_file = %d", i, temp_str, get_is_file(i)); Serial.println(_str);
-		#endif // DEBUG_FF_UTIL_LVL2
+		#endif // DEBUG_FILE_MENU_LVL2
 	}
 }
 
@@ -418,9 +418,9 @@ void file_menu_idle(void)
 		break;
 	}
 	
-	#ifdef DEBUG_FF_UTIL
+	#ifdef DEBUG_FILE_MENU
 	sprintf(_str, "implicit sort %d %d", r_start, r_end_1); Serial.println(_str);
-	#endif // DEBUG_FF_UTIL
+	#endif // DEBUG_FILE_MENU
 	idx_qsort_entry_list_by_range(r_start, r_end_1, 0, max_entry_cnt);
 }
 
