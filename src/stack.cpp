@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include "stack.h"
 
-// https://it-ojisan.tokyo/stack/
+// Modified from https://it-ojisan.tokyo/stack/
 
 stack_t* stack_init()
 {

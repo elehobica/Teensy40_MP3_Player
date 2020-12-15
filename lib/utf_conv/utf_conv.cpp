@@ -1,3 +1,11 @@
+/*------------------------------------------------------/
+/ utf_conv                                              /
+/-------------------------------------------------------/
+/ Copyright (c) 2020, Elehobica
+/ Released under the BSD-2-Clause
+/ refer to https://opensource.org/licenses/BSD-2-Clause
+/------------------------------------------------------*/
+
 #include "utf_conv.h"
 #include <codecvt>
 #include <cassert>

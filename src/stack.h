@@ -1,6 +1,8 @@
 #ifndef _STACK_H_
 #define _STACK_H_
 
+// Modified from https://it-ojisan.tokyo/stack/
+
 #include <stdint.h>
 #define STACK_SIZE 8
 

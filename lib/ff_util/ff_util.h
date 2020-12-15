@@ -1,3 +1,11 @@
+/*-----------------------------------------------------------/
+/ file_menu_SdFat: File Menu sorting utility for SdFat v0.90
+/------------------------------------------------------------/
+/ Copyright (c) 2020, Elehobica
+/ Released under the BSD-2-Clause
+/ refer to https://opensource.org/licenses/BSD-2-Clause
+/-----------------------------------------------------------*/
+
 #ifndef _FF_UTIL_H_
 #define _FF_UTIL_H_
 

@@ -1,3 +1,11 @@
+/*-----------------------------------------------------------/
+/ LcdCanvas: Lcd Canvas API for Adafruit_SPITFT v0.90
+/------------------------------------------------------------/
+/ Copyright (c) 2020, Elehobica
+/ Released under the BSD-2-Clause
+/ refer to https://opensource.org/licenses/BSD-2-Clause
+/-----------------------------------------------------------*/
+
 #include "LcdCanvas.h"
 #include "iconfont.h"
 #include <JPEGDecoder.h>

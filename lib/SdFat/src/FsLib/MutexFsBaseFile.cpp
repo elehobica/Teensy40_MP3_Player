@@ -1,3 +1,11 @@
+/*-----------------------------------------------------------/
+/ MutexFsBaseFile: FsBaseFile Wrapper with Mutex
+/------------------------------------------------------------/
+/ Copyright (c) 2020, Elehobica
+/ Released under the BSD-2-Clause
+/ refer to https://opensource.org/licenses/BSD-2-Clause
+/-----------------------------------------------------------*/
+
 #include "MutexFsBaseFile.h"
 
 Threads::Mutex mylock;

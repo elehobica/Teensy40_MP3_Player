@@ -1,3 +1,11 @@
+/*-----------------------------------------------------------/
+/ PNGDecoder for pngle
+/------------------------------------------------------------/
+/ Copyright (c) 2020, Elehobica
+/ Released under the BSD-2-Clause
+/ refer to https://opensource.org/licenses/BSD-2-Clause
+/-----------------------------------------------------------*/
+
 #include "PNGDecoder.h"
 
 PNGDecoder PngDec;

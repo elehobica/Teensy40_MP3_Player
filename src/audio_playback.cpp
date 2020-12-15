@@ -1,3 +1,16 @@
+/*------------------------------------------------------/
+/ audio_playback
+/-------------------------------------------------------/
+/ Copyright (c) 2020, Elehobica
+/ Released under the BSD-2-Clause
+/ refer to https://opensource.org/licenses/BSD-2-Clause
+/------------------------------------------------------*/
+
+// Modified from following sample code
+//   https://github.com/FrankBoesing/Arduino-Teensy-Codec-lib
+//
+// This example code is in the public domain.
+
 #include "audio_playback.h"
 #include <Audio.h>
 #include <play_sd_mp3.h>

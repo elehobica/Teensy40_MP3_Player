@@ -1,6 +1,10 @@
-/**
- * Wrapper with Mutex for FsBaseFile class 
- */
+/*-----------------------------------------------------------/
+/ MutexFsBaseFile: FsBaseFile Wrapper with Mutex
+/------------------------------------------------------------/
+/ Copyright (c) 2020, Elehobica
+/ Released under the BSD-2-Clause
+/ refer to https://opensource.org/licenses/BSD-2-Clause
+/-----------------------------------------------------------*/
 
 #ifndef MutexFsBaseFile_h
 #define MutexFsBaseFile_h

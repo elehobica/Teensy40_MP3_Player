@@ -1,3 +1,11 @@
+/*------------------------------------------------------/
+/ EEPROM_util
+/-------------------------------------------------------/
+/ Copyright (c) 2020, Elehobica
+/ Released under the BSD-2-Clause
+/ refer to https://opensource.org/licenses/BSD-2-Clause
+/------------------------------------------------------*/
+
 #ifndef __EEPROM_UTIL_H__
 #define __EEPROM_UTIL_H__
 

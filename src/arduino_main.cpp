@@ -1,9 +1,10 @@
-// MP3 File Player
-//
-// Based on following sample code
-//   http://www.pjrc.com/store/teensy3_audio.html
-//
-// This example code is in the public domain.
+/*------------------------------------------------------/
+/ MP3 File Player for Teensy4.0 v0.93
+/-------------------------------------------------------/
+/ Copyright (c) 2020, Elehobica
+/ Released under the BSD-2-Clause
+/ refer to https://opensource.org/licenses/BSD-2-Clause
+/------------------------------------------------------*/
 
 #include <Wire.h>
 #include <EEPROM.h>

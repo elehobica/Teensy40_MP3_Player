@@ -1,3 +1,11 @@
+/*------------------------------------------------------/
+/ UIMode
+/-------------------------------------------------------/
+/ Copyright (c) 2020, Elehobica
+/ Released under the BSD-2-Clause
+/ refer to https://opensource.org/licenses/BSD-2-Clause
+/------------------------------------------------------*/
+
 #ifndef _UIMODE_H_
 #define _UIMODE_H_
 

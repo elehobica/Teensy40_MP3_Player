@@ -1,3 +1,11 @@
+/*------------------------------------------------------/
+/ ui_control
+/-------------------------------------------------------/
+/ Copyright (c) 2020, Elehobica
+/ Released under the BSD-2-Clause
+/ refer to https://opensource.org/licenses/BSD-2-Clause
+/------------------------------------------------------*/
+
 #ifndef __UI_CONTROL_H__
 #define __UI_CONTROL_H__
 
