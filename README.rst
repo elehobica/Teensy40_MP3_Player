@@ -29,10 +29,10 @@ How to build PlatformIO based project
     > platformio run --target upload
 
     # Build specific environment
-    > platformio run -e teensy31
+    > platformio run -e teensy40
 
     # Upload firmware for the specific environment
-    > platformio run -e teensy31 --target upload
+    > platformio run -e teensy40 --target upload
 
     # Clean build files
     > platformio run --target clean
