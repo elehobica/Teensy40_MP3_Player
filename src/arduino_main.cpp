@@ -1,10 +1,24 @@
-/*------------------------------------------------------/
+/*-------------------------------------------------------------------------/
 / MP3 File Player for Teensy4.0 v0.93
-/-------------------------------------------------------/
+/--------------------------------------------------------------------------/
 / Copyright (c) 2020, Elehobica
-/ Released under the BSD-2-Clause
-/ refer to https://opensource.org/licenses/BSD-2-Clause
-/------------------------------------------------------*/
+/
+/ This software is free software: you can redistribute it and/or modify
+/ it under the terms of the GNU General Public License as published by
+/ the Free Software Foundation, either version 3 of the License, or
+/ (at your option) any later version.
+/
+/ This software is distributed in the hope that it will be useful,
+/ but WITHOUT ANY WARRANTY; without even the implied warranty of
+/ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/ GNU General Public License for more details.
+/
+/ You should have received a copy of the GNU General Public License
+/ along with this software.  If not, see <http://www.gnu.org/licenses/>.
+/
+/ As for the libraries which are used in this software, they can have
+/ different license policies, look at the subdirectories of lib directory.
+/-------------------------------------------------------------------------*/
 
 #include <Wire.h>
 #include <EEPROM.h>
