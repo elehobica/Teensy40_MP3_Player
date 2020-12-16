@@ -221,9 +221,23 @@ int AudioPlaySdMp3::play(size_t position, unsigned samples_played)
 	Serial.println(millis());
 	*/
 
-	//Read-ahead 10 Bytes to detect ID3
-	sd_left = fread(sd_buf, 10);
+	//Skip Multiple ID3v2 tags, if existent
+	size_id3 = 0;
+	while (1) {
+		//Read-ahead 10 Bytes to detect ID3
+		sd_left = fread(sd_buf, 10);
+		int skip = skipID3(sd_buf);
+		if (skip == 0) break;
+		size_id3 += skip + 10;
+		fseek(size_id3);
+	}
+	/* // DEBUG
+	Serial.print("ID3 skip: ");
+	Serial.println(size_id3);
+	*/
 
+	/*
+	//This skips only one ID3v2 tag
 	//Skip ID3, if existent
 	int skip = skipID3(sd_buf);
 	int b = 0;
@@ -233,7 +247,7 @@ int AudioPlaySdMp3::play(size_t position, unsigned samples_played)
 		fseek(b);
 		sd_left = 0;
 	} else size_id3 = 0;
-	/* // DEBUG
+	// DEBUG
 	Serial.print("ID3 skip: ");
 	Serial.println(b);
 	*/
@@ -278,7 +292,9 @@ int AudioPlaySdMp3::play(size_t position, unsigned samples_played)
 	}
 
 	if((mp3FrameInfo.samprate != AUDIOCODECS_SAMPLE_RATE ) || (mp3FrameInfo.bitsPerSample != 16) || (mp3FrameInfo.nChans > 2)) {
-		Serial.println("incompatible MP3 file.");
+		char str[256];
+		sprintf(str, "incompatible MP3 file. samprate: %d, bitsPerSample: %d, nChans: %d", mp3FrameInfo.samprate, mp3FrameInfo.bitsPerSample, mp3FrameInfo.nChans);
+		Serial.println(str);
 		lastError = ERR_CODEC_FORMAT;
 		stop();
 		return lastError;
