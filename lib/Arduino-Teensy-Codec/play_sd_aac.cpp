@@ -290,6 +290,7 @@ int AudioPlaySdAac::play(size_t position, unsigned samples_played)
 	buf[1] = (short *) malloc(AAC_BUF_SIZE * sizeof(int16_t));
 
 	hAACDecoder = AACInitDecoder();
+	AACGetLastFrameInfo(hAACDecoder, &aacFrameInfo);
 
 	if (!buf[0] || !buf[1] || !hAACDecoder)
 	{

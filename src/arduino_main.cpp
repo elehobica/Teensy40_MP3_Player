@@ -63,7 +63,7 @@
 //#define NUM_LIST_LINES      20
 #endif
 
-const int Version = 93;
+const int Version = 85;
 
 const int LoopCycleMs = 50; // loop cycle (ms)
 const int OneSec = 1000 / LoopCycleMs; // 1 Sec

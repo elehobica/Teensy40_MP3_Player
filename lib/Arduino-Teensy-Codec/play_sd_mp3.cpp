@@ -169,7 +169,9 @@ int AudioPlaySdMp3::standby_play(MutexFsBaseFile *file)
 	}
 
 	if((mp3FrameInfo.samprate != AUDIOCODECS_SAMPLE_RATE ) || (mp3FrameInfo.bitsPerSample != 16) || (mp3FrameInfo.nChans > 2)) {
-		Serial.println("incompatible MP3 file.");
+		char str[256];
+		sprintf(str, "incompatible MP3 file. samprate: %d, bitsPerSample: %d, nChans: %d", mp3FrameInfo.samprate, mp3FrameInfo.bitsPerSample, mp3FrameInfo.nChans);
+		Serial.println(str);
 		lastError = ERR_CODEC_FORMAT;
 		stop();
 		return lastError;
@@ -208,6 +210,7 @@ int AudioPlaySdMp3::play(size_t position, unsigned samples_played)
 	buf[1] = (short *) malloc(MP3_BUF_SIZE * sizeof(int16_t));
 
 	hMP3Decoder = MP3InitDecoder();
+	MP3GetLastFrameInfo(hMP3Decoder, &mp3FrameInfo);
 
 	if (!buf[0] || !buf[1] || !hMP3Decoder)
 	{
