@@ -9,6 +9,7 @@
 #ifndef __LCDCANVAS_H_INCLUDED__
 #define __LCDCANVAS_H_INCLUDED__
 
+// Select LCD device
 //#define USE_ST7735_128x160
 #define USE_ST7789_240x240_WOCS
 //#define USE_ILI9341_240x320
@@ -125,13 +126,14 @@ public:
 	int addPngFile(uint16_t file_idx, uint64_t pos, size_t size);
 	int getCount();
 	void deleteAll();
-	void loadNext();
+	bool loadNext();
 	friend void cb_pngdec_draw_with_resize(void *cb_obj, uint32_t x, uint32_t y, uint16_t rgb565);
 protected:
 	bool isUpdated;
 	int16_t pos_x, pos_y;
 	uint16_t width, height; // ImageBox dimension
 	uint16_t bgColor;
+	bool decode_ok;
 	uint16_t *image;
 	uint16_t img_w, img_h; // dimention of image stored
 	uint16_t src_w, src_h; // dimention of source image (JPEG/PNG)
@@ -146,11 +148,11 @@ protected:
 	image_t image_array[MaxImgCnt];
 	MutexFsBaseFile file;
 	void jpegMcu2sAccum(int count, uint16_t mcu_w, uint16_t mcu_h, uint16_t *pImage);
-	void loadJpegBin(char *ptr, size_t size);
-	void loadJpegFile(uint16_t file_idx, uint64_t pos, size_t size);
+	bool loadJpegBin(char *ptr, size_t size);
+	bool loadJpegFile(uint16_t file_idx, uint64_t pos, size_t size);
 	void loadJpeg(bool reduce);
-	void loadPngBin(char *ptr, size_t size);
-	void loadPngFile(uint16_t file_idx, uint64_t pos, size_t size);
+	bool loadPngBin(char *ptr, size_t size);
+	bool loadPngFile(uint16_t file_idx, uint64_t pos, size_t size);
 	void loadPng(uint8_t reduce);
 	void unload();
 };
@@ -351,7 +353,7 @@ public:
 	void deleteAlbumArt();
 	void switchToFileView();
 	void switchToPlay();
-	void switchToPowerOff(const char *msg = NULL);
+	void switchToPowerOff(const char *msg_str = NULL);
 	void drawFileView();
 	void drawPlay();
 	void drawPowerOff();
@@ -383,15 +385,15 @@ protected:
 	IconScrollTextBox album = IconScrollTextBox(16*0, 16*5, ICON16x16_ALBUM, width());
 	IconTextBox year = IconTextBox(16*0, 16*6, ICON16x16_YEAR);
 	TextBox track = TextBox(16*0, height()-16, Box::AlignLeft, LCD_GRAY);
-	TextBox bye_msg = TextBox(width()/2, height()/2-FONT_HEIGHT, "Bye", Box::AlignCenter);
+	TextBox msg = TextBox(width()/2, height()/2-FONT_HEIGHT, Box::AlignCenter);
 	ImageBox albumArt = ImageBox(0, (height() - width())/2, width(), width());
 	Box *groupFileView[10] = {
 		&fileItem[0], &fileItem[1], &fileItem[2], &fileItem[3], &fileItem[4], &fileItem[5], &fileItem[6], &fileItem[7], &fileItem[8], &fileItem[9]
 	};
 	Box *groupPlay[5] = {&battery, &volume, &bitRate, &playTime, &track}; // Common for Play mode 0 and 1
 	Box *groupPlay0[4] = {&title, &artist, &album, &year}; // Play mode 0 only
-	Box *groupPlay1[1] = {&albumArt}; // Play mode 1 only
-	Box *groupPowerOff[1] = {&bye_msg};
+	Box *groupPlay1[2] = {&albumArt, &msg}; // Play mode 1 only
+	Box *groupPowerOff[1] = {&msg};
 	#endif // USE_ST7735_128x160
 	#ifdef USE_ST7789_240x240_WOCS
 	IconScrollTextBox fileItem[15] = {
@@ -420,17 +422,17 @@ protected:
 	IconScrollTextBox album = IconScrollTextBox(16*0, 16*12, ICON16x16_ALBUM, width());
 	IconTextBox year = IconTextBox(16*0, 16*13, ICON16x16_YEAR);
 	TextBox track = TextBox(0, 240-16, Box::AlignLeft, LCD_GRAY);
-	TextBox bye_msg = TextBox(width()/2, 240/2-FONT_HEIGHT, "Bye", Box::AlignCenter);
+	TextBox msg = TextBox(width()/2, 240/2-FONT_HEIGHT, Box::AlignCenter);
 	ImageBox albumArtSmall = ImageBox((240-16*9)/2, 16*1, 16*9, 16*9);
 	ImageBox albumArt = ImageBox(0, (240 - width())/2, width(), width());
 	Box *groupFileView[15] = {
 		&fileItem[0],  &fileItem[1],  &fileItem[2],  &fileItem[3],  &fileItem[4], &fileItem[5], &fileItem[6], &fileItem[7], &fileItem[8], &fileItem[9],
 		&fileItem[10], &fileItem[11], &fileItem[12], &fileItem[13], &fileItem[14]
 	};
-	Box *groupPlay[0] = {}; // Common for Play mode 0 and 1
+	Box *groupPlay[1] = {&msg}; // Common for Play mode 0 and 1
 	Box *groupPlay0[10] = {&battery, &volume, &bitRate, &playTime, &track, &title, &artist, &album, &year, &albumArtSmall}; // Play mode 0 only
 	Box *groupPlay1[1] = {&albumArt}; // Play mode 1 only
-	Box *groupPowerOff[1] = {&bye_msg};
+	Box *groupPowerOff[1] = {&msg};
 	#endif // USE_ST7789_240x240_WOCS
 	#ifdef USE_ILI9341_240x320
 	IconScrollTextBox fileItem[20] = {
@@ -464,16 +466,16 @@ protected:
 	IconScrollTextBox album = IconScrollTextBox(16*0, 16*18, ICON16x16_ALBUM, width());
 	IconTextBox year = IconTextBox(16*0, 16*19, ICON16x16_YEAR);
 	TextBox track = TextBox(width()/2, height()-16, Box::AlignCenter, LCD_GRAY);
-	TextBox bye_msg = TextBox(width()/2, height()/2-FONT_HEIGHT, "Bye", Box::AlignCenter);
+	TextBox msg = TextBox(width()/2, height()/2-FONT_HEIGHT, Box::AlignCenter);
 	ImageBox albumArt = ImageBox(0, 16*1, width(), width());
 	Box *groupFileView[20] = {
 		&fileItem[0],  &fileItem[1],  &fileItem[2],  &fileItem[3],  &fileItem[4],  &fileItem[5],  &fileItem[6],  &fileItem[7],  &fileItem[8],  &fileItem[9],
 		&fileItem[10], &fileItem[11], &fileItem[12], &fileItem[13], &fileItem[14], &fileItem[15], &fileItem[16], &fileItem[17], &fileItem[18], &fileItem[19]
 	};
-	Box *groupPlay[10] = {&battery, &volume, &bitRate, &playTime, &track, &title, &artist, &album, &year, &albumArt}; // Common for Play mode 0 and 1
+	Box *groupPlay[11] = {&battery, &volume, &bitRate, &playTime, &track, &title, &artist, &album, &year, &albumArt, &msg}; // Common for Play mode 0 and 1
 	Box *groupPlay0[0] = {}; // Play mode 0 only
 	Box *groupPlay1[0] = {}; // Play mode 1 only
-	Box *groupPowerOff[1] = {&bye_msg};
+	Box *groupPowerOff[1] = {&msg};
 	#endif // USE_ILI9341_240x320
 };
 

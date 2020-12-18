@@ -561,7 +561,7 @@ UIMode* UIPowerOffMode::update()
 void UIPowerOffMode::entry(UIMode *prevMode)
 {
     UIMode::entry(prevMode);
-    lcd->switchToPowerOff(msg);
+    lcd->switchToPowerOff(vars->power_off_msg);
     lcd->drawPowerOff();
     audio_terminate();
     ui_terminate(prevMode->getUIModeEnm());
@@ -569,9 +569,4 @@ void UIPowerOffMode::entry(UIMode *prevMode)
 
 void UIPowerOffMode::draw()
 {
-}
-
-void UIPowerOffMode::setMsg(const char *msg)
-{
-    this->msg = msg;
 }

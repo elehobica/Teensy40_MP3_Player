@@ -57,7 +57,7 @@ public:
     uint16_t num_tracks = 0;
     next_play_action_t next_play_action = None;
     next_play_type_t next_play_type = RandomPlay;
-    const char *power_off_msg = NULL;
+    const char *power_off_msg = "Bye";
 };
 
 //===========================
@@ -153,9 +153,7 @@ public:
     UIMode* update();
     void entry(UIMode *prevMode);
     void draw();
-    void setMsg(const char *msg);
 protected:
-    const char *msg = NULL;
 };
 
 #endif //_UIMODE_H_

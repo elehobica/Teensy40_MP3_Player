@@ -17,7 +17,7 @@
 //=================================
 ImageBox::ImageBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t height, uint16_t bgColor)
     : isUpdated(true), pos_x(pos_x), pos_y(pos_y), width(width), height(height), bgColor(bgColor),
-        image(NULL), img_w(0), img_h(0), src_w(0), src_h(0), ratio256_w(256), ratio256_h(256),
+        decode_ok(true), image(NULL), img_w(0), img_h(0), src_w(0), src_h(0), ratio256_w(256), ratio256_h(256),
         isLoaded(false), changeNext(true), resizeFit(true), keepAspectRatio(true), align(center),
         image_count(0), image_idx(0)
 {
@@ -130,24 +130,24 @@ int ImageBox::addPngFile(uint16_t file_idx, uint64_t pos, size_t size)
     return 1;
 }
 
-void ImageBox::loadNext()
+bool ImageBox::loadNext()
 {
-    // If a single image, no need to reload
-    if (image_count <= 0 || !changeNext) { return; }
+    // In a single image case, no need to reload
+    if (image_count <= 0 || !changeNext) { return decode_ok; }
 
     int image_idx_next;
     unload();
     if (image_array[image_idx].img_fmt == jpeg) {
         if (image_array[image_idx].media_src == char_ptr) {
-            loadJpegBin(image_array[image_idx].ptr, image_array[image_idx].size);
+            decode_ok = !loadJpegBin(image_array[image_idx].ptr, image_array[image_idx].size);
         } else if (image_array[image_idx].media_src == sdcard) {
-            loadJpegFile(image_array[image_idx].file_idx, image_array[image_idx].file_pos, image_array[image_idx].size);
+            decode_ok = loadJpegFile(image_array[image_idx].file_idx, image_array[image_idx].file_pos, image_array[image_idx].size);
         }
     } else if (image_array[image_idx].img_fmt == png) {
         if (image_array[image_idx].media_src == char_ptr) {
-            loadPngBin(image_array[image_idx].ptr, image_array[image_idx].size);
+            decode_ok = loadPngBin(image_array[image_idx].ptr, image_array[image_idx].size);
         } else if (image_array[image_idx].media_src == sdcard) {
-            loadPngFile(image_array[image_idx].file_idx, image_array[image_idx].file_pos, image_array[image_idx].size);
+            decode_ok = loadPngFile(image_array[image_idx].file_idx, image_array[image_idx].file_pos, image_array[image_idx].size);
         }
     }
     image_idx_next = (image_idx + 1) % image_count;
@@ -155,6 +155,7 @@ void ImageBox::loadNext()
         changeNext = false;
     }
     image_idx = image_idx_next;
+    return decode_ok;
 }
 
 // ==================================================================================
@@ -165,13 +166,13 @@ void ImageBox::loadNext()
 // ==================================================================================
 
 // load from JPEG binary
-void ImageBox::loadJpegBin(char *ptr, size_t size)
+bool ImageBox::loadJpegBin(char *ptr, size_t size)
 {
     int decoded;
     bool reduce = false;
     JpegDec.abort();
     decoded = JpegDec.decodeArray((const uint8_t *) ptr, (uint32_t) size, 0); // reduce == 0
-    if (decoded <= 0) { return; }
+    if (decoded <= 0) { return false; }
     src_w = JpegDec.width;
     src_h = JpegDec.height;
     if (resizeFit && (
@@ -181,20 +182,21 @@ void ImageBox::loadJpegBin(char *ptr, size_t size)
         reduce = true;
         JpegDec.abort();
         decoded = JpegDec.decodeArray((const uint8_t *) ptr, (uint32_t) size, 1); // reduce == 1
-        if (decoded <= 0) { return; }
+        if (decoded <= 0) { return false; }
     }
     loadJpeg(reduce);
+    return true;
 }
 
 // load from JPEG File
-void ImageBox::loadJpegFile(uint16_t file_idx, uint64_t pos, size_t size)
+bool ImageBox::loadJpegFile(uint16_t file_idx, uint64_t pos, size_t size)
 {
     int decoded;
     bool reduce = false;
     JpegDec.abort();
     file_menu_get_obj(file_idx, &file);
     decoded = JpegDec.decodeSdFile(&file, pos, size, 0); // reduce == 0
-    if (decoded <= 0) { return; }
+    if (decoded <= 0) { return false; }
     src_w = JpegDec.width;
     src_h = JpegDec.height;
     if (resizeFit && (
@@ -205,9 +207,10 @@ void ImageBox::loadJpegFile(uint16_t file_idx, uint64_t pos, size_t size)
         JpegDec.abort();
         file_menu_get_obj(file_idx, &file);
         decoded = JpegDec.decodeSdFile(&file, pos, size, 1); // reduce == 1
-        if (decoded <= 0) { return; }
+        if (decoded <= 0) { return false; }
     }
     loadJpeg(reduce);
+    return true;
 }
 
 // MCU block 1/2 Accumulation (Shrink) x count times
@@ -453,13 +456,13 @@ void cb_pngdec_draw_with_resize(void *cb_obj, uint32_t x, uint32_t y, uint16_t r
 }
 
 // load from PNG binary (Not verified yet)
-void ImageBox::loadPngBin(char *ptr, size_t size)
+bool ImageBox::loadPngBin(char *ptr, size_t size)
 {
     int decoded;
     uint8_t reduce = 0;
     PngDec.abort();
     decoded = PngDec.loadArray((const uint8_t *) ptr, (uint32_t) size);
-    if (decoded <= 0) { return; }
+    if (decoded <= 0) { return false; }
     src_w = PngDec.width;
     src_h = PngDec.height;
     while (resizeFit && (
@@ -471,17 +474,18 @@ void ImageBox::loadPngBin(char *ptr, size_t size)
         reduce++;
     }
     loadPng(reduce);
+    return true;
 }
 
 // load from PNG File
-void ImageBox::loadPngFile(uint16_t file_idx, uint64_t pos, size_t size)
+bool ImageBox::loadPngFile(uint16_t file_idx, uint64_t pos, size_t size)
 {
     int decoded;
     uint8_t reduce = 0;
     PngDec.abort();
     file_menu_get_obj(file_idx, &file);
     decoded = PngDec.loadSdFile(&file, pos, size);
-    if (decoded <= 0) { return; }
+    if (decoded <= 0) { return false; }
     src_w = PngDec.width;
     src_h = PngDec.height;
     while (resizeFit && (
@@ -493,6 +497,7 @@ void ImageBox::loadPngFile(uint16_t file_idx, uint64_t pos, size_t size)
         reduce++;
     }
     loadPng(reduce);
+    return true;
 }
 
 void ImageBox::loadPng(uint8_t reduce)
@@ -561,6 +566,7 @@ void ImageBox::unload()
 void ImageBox::deleteAll()
 {
     isUpdated = true;
+    decode_ok = true;
     isLoaded = false;
     changeNext = true;
     image_count = 0;
@@ -1089,7 +1095,7 @@ void IconScrollTextBox::setIcon(uint8_t *icon)
 //=================================
 // Implementation of LcdCanvas class
 //=================================
-LcdCanvas::LcdCanvas(int8_t cs, int8_t dc, int8_t rst) : Adafruit_LCD(cs, dc, rst), /*mode(FileView), */play_count(0)
+LcdCanvas::LcdCanvas(int8_t cs, int8_t dc, int8_t rst) : Adafruit_LCD(cs, dc, rst), play_count(0)
 {
     #ifdef USE_ST7735_128x160
     initR(INITR_BLACKTAB);      // Init ST7735S chip, black tab
@@ -1116,8 +1122,8 @@ LcdCanvas::~LcdCanvas()
 
 void LcdCanvas::switchToFileView()
 {
-    //mode = FileView;
     clear();
+    msg.setText("");
     for (int i = 0; i < (int) (sizeof(groupFileView)/sizeof(*groupFileView)); i++) {
         groupFileView[i]->update();
     }
@@ -1125,8 +1131,8 @@ void LcdCanvas::switchToFileView()
 
 void LcdCanvas::switchToPlay()
 {
-    //mode = Play;
     clear();
+    msg.setText("");
     for (int i = 0; i < (int) (sizeof(groupPlay)/sizeof(*groupPlay)); i++) {
         groupPlay[i]->update();
     }
@@ -1139,11 +1145,11 @@ void LcdCanvas::switchToPlay()
     play_count = 0;
 }
 
-void LcdCanvas::switchToPowerOff(const char *msg)
+void LcdCanvas::switchToPowerOff(const char *msg_str)
 {
-    //mode = PowerOff;
     clear();
-    if (msg != NULL) { bye_msg.setText(msg); }
+    msg.setText("");
+    if (msg_str != NULL) { msg.setText(msg_str); }
     for (int i = 0; i < (int) (sizeof(groupPowerOff)/sizeof(*groupPowerOff)); i++) {
         groupPowerOff[i]->update();
     }
@@ -1170,12 +1176,25 @@ void LcdCanvas::drawPlay()
         for (int i = 0; i < (int) (sizeof(groupPlay0)/sizeof(*groupPlay0)); i++) {
             groupPlay0[i]->draw(this);
         }
-        if (play_count == 0 && albumArt.getCount() > 0) {
-            albumArt.loadNext();
+        if (albumArt.getCount() == 0) {
+            msg.setText("No Image");
+        } else if (play_count == 0 && albumArt.getCount() > 0) {
+            if (albumArt.loadNext()) {
+                msg.setText("");
+            } else {
+                msg.setText("Not Supported Image");
+            }
             #ifdef USE_ALBUM_ART_SMALL
-            albumArtSmall.loadNext();
+            if (albumArtSmall.loadNext()) {
+                msg.setText("");
+            } else {
+                msg.setText("Not Supported Image");
+            }
             #endif // #ifdef USE_ALBUM_ART_SMALL
-        } else if (play_count % play_cycle == play_change-1 && albumArt.getCount() > 0) {
+        } else if (play_count % play_cycle == play_change-1 && albumArt.getCount() > 0) { // Play mode 0 -> 1
+            for (int i = 0; i < (int) (sizeof(groupPlay)/sizeof(*groupPlay)); i++) {
+                groupPlay[i]->update();
+            }
             for (int i = 0; i < (int) (sizeof(groupPlay0)/sizeof(*groupPlay0)); i++) {
                 groupPlay0[i]->clear(this);
             }
@@ -1184,14 +1203,21 @@ void LcdCanvas::drawPlay()
             }
             if (albumArt.getCount() > 1) {
                 albumArt.clear(this);
-                albumArt.loadNext();
+                if (!albumArt.loadNext()) {
+                    msg.setText("");
+                } else {
+                    msg.setText("Not Supported Image");
+                }
             }
         }
     } else { // Play mode 1 display
         for (int i = 0; i < (int) (sizeof(groupPlay1)/sizeof(*groupPlay1)); i++) {
             groupPlay1[i]->draw(this);
         }
-        if (play_count % play_cycle == play_cycle-1) {
+        if (play_count % play_cycle == play_cycle-1) { // Play mode 1 -> 0
+            for (int i = 0; i < (int) (sizeof(groupPlay)/sizeof(*groupPlay)); i++) {
+                groupPlay[i]->update();
+            }
             for (int i = 0; i < (int) (sizeof(groupPlay1)/sizeof(*groupPlay1)); i++) {
                 groupPlay1[i]->clear(this);
             }
