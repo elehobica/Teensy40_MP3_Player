@@ -40,6 +40,8 @@
 
 // Total RAM Usage: ??? KB
 
+// Written by Elehobica for Teensy 4.0 MP3 Player based on play_sd_mp3 / play_sd_aac scheme
+
 #include "play_sd_wav.h"
 #include <TeensyThreads.h>
 

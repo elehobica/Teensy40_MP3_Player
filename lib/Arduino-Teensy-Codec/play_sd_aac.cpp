@@ -40,6 +40,8 @@
 
  // Total RAM Usage: 31 KB
 
+// Modified by Elehobica for Teensy 4.0 MP3 Player
+
 #include "play_sd_aac.h"
 #include "common/assembly.h"
 #include <TeensyThreads.h>
@@ -503,18 +505,23 @@ void decodeAac_core(void)
 	case 1:
 		{
 			if (o->isRAW) {
-
-				// find start of next AAC frame - assume EOF if no sync found
-				int offset = AACFindSyncWord(o->sd_p, o->sd_left);
-
-				if (offset < 0) {
-					//Serial.println("No sync"); //no error at end of file
-					eof = true;
-					goto aacend;
+				// find start of next AAC frame until EOF
+				int offset = 0;
+				while (1) {
+					if (!o->sd_left) {
+						//Serial.println("No sync"); //no error at end of file
+						eof = true;
+						goto aacend;
+					}
+					offset = AACFindSyncWord(o->sd_p, o->sd_left);
+					if (offset >= 0) {
+						o->sd_p += offset;
+						o->sd_left -= offset;
+						break;
+					}
+					o->sd_left = o->fillReadBuffer(o->sd_buf, o->sd_p, 0, AAC_SD_BUF_SIZE);
+					o->sd_p = o->sd_buf;
 				}
-
-				o->sd_p += offset;
-				o->sd_left -= offset;
 			}
 
 			int decode_res = AACDecode(o->hAACDecoder, &o->sd_p, (int*)&o->sd_left, o->buf[db]);

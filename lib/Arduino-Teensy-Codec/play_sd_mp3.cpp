@@ -40,6 +40,7 @@
 
 // Total RAM Usage: 35 KB
 
+// Modified by Elehobica for Teensy 4.0 MP3 Player
 
 #include "play_sd_mp3.h"
 #include <TeensyThreads.h>
@@ -437,17 +438,23 @@ void decodeMp3_core(void)
 
 	case 1:
 		{
-			// find start of next MP3 frame - assume EOF if no sync found
-			int offset = MP3FindSyncWord(o->sd_p, o->sd_left);
-
-			if (offset < 0) {
-				//Serial.println("No sync"); //no error at end of file
-				eof = true;
-				goto mp3end;
+			// find start of next MP3 frame until EOF
+			int offset = 0;
+			while (1) {
+				if (!o->sd_left) {
+					//Serial.println("No sync"); //no error at end of file
+					eof = true;
+					goto mp3end;
+				}
+				offset = MP3FindSyncWord(o->sd_p, o->sd_left);
+				if (offset >= 0) {
+					o->sd_p += offset;
+					o->sd_left -= offset;
+					break;
+				}
+				o->sd_left = o->fillReadBuffer(o->sd_buf, o->sd_p, 0, MP3_SD_BUF_SIZE);
+				o->sd_p = o->sd_buf;
 			}
-
-			o->sd_p += offset;
-			o->sd_left -= offset;
 
 			int decode_res = MP3Decode(o->hMP3Decoder, &o->sd_p, (int*)&o->sd_left,o->buf[db], 0);
 
