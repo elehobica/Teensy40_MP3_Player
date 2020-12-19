@@ -96,7 +96,8 @@ const uint8_t Open_Sans_Condensed_Light_16Bitmaps[] PROGMEM = {
 	0x71,0x08,0x44,0x21,0x08,0xF0, // 'z'
 	0x31,0x10,0x84,0x21,0x10,0x42,0x10,0x84,0x10,0x40, // '{'
 	0x49,0x24,0x92,0x49,0x24,0x92,0x40, // '|'
-	0x82,0x08,0x42,0x10,0x82,0x21,0x08,0x42,0x22,0x00 // '}'
+	0x82,0x08,0x42,0x10,0x82,0x21,0x08,0x42,0x22,0x00, // '}'
+	0x41,0x42,0x80,0xA1,0x41,0x00 // '~'
 };
 const GFXglyph Open_Sans_Condensed_Light_16Glyphs[] PROGMEM = {
 // bitmapOffset, width, height, xAdvance, xOffset, yOffset
@@ -193,7 +194,8 @@ const GFXglyph Open_Sans_Condensed_Light_16Glyphs[] PROGMEM = {
 	  {   723,   5,   9,   5,    0,   -9 }, // 'z'
 	  {   729,   5,  15,   7,    1,  -12 }, // '{'
 	  {   739,   3,  17,   7,    2,  -13 }, // '|'
-	  {   746,   5,  15,   7,    1,  -12 } // '}'
+	  {   746,   5,  15,   7,    1,  -12 }, // '}'
+	  {   756,   7,   6,   7,    0,  -11 } // '~'
 };
 const GFXfont Open_Sans_Condensed_Light_16 PROGMEM = {
-(uint8_t  *)Open_Sans_Condensed_Light_16Bitmaps,(GFXglyph *)Open_Sans_Condensed_Light_16Glyphs,0x20, 0x7E, 23};
+(uint8_t  *)Open_Sans_Condensed_Light_16Bitmaps,(GFXglyph *)Open_Sans_Condensed_Light_16Glyphs,0x20, 0x7F, 23};

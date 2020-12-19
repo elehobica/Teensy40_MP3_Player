@@ -96,7 +96,8 @@ const uint8_t Nimbus_Sans_L_Regular_Condensed_16Bitmaps[] PROGMEM = {
 	0x7C,0x18,0x60,0x83,0x0C,0x10,0x7E, // 'z'
 	0x64,0x44,0x44,0x88,0x44,0x44,0x46, // '{'
 	0xAA,0xAA,0xA8, // '|'
-	0xC4,0x44,0x44,0x22,0x44,0x44,0x4C // '}'
+	0xC4,0x44,0x44,0x22,0x44,0x44,0x4C, // '}'
+	0x41,0x42,0x80,0xA1,0x41,0x00 // '~'
 };
 const GFXglyph Nimbus_Sans_L_Regular_Condensed_16Glyphs[] PROGMEM = {
 // bitmapOffset, width, height, xAdvance, xOffset, yOffset
@@ -193,7 +194,8 @@ const GFXglyph Nimbus_Sans_L_Regular_Condensed_16Glyphs[] PROGMEM = {
 	  {   747,   7,   8,   8,    0,   -8 }, // 'z'
 	  {   754,   4,  14,   5,    1,  -11 }, // '{'
 	  {   761,   2,  11,   4,    1,  -11 }, // '|'
-	  {   764,   4,  14,   5,    1,  -11 } // '}'
+	  {   764,   4,  14,   5,    1,  -11 }, // '}'
+	  {   771,   7,   6,   7,    0,  -11 } // '~'
 };
 const GFXfont Nimbus_Sans_L_Regular_Condensed_16 PROGMEM = {
-(uint8_t  *)Nimbus_Sans_L_Regular_Condensed_16Bitmaps,(GFXglyph *)Nimbus_Sans_L_Regular_Condensed_16Glyphs,0x20, 0x7E, 21};
+(uint8_t  *)Nimbus_Sans_L_Regular_Condensed_16Bitmaps,(GFXglyph *)Nimbus_Sans_L_Regular_Condensed_16Glyphs,0x20, 0x7F, 21};

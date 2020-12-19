@@ -96,7 +96,8 @@ const uint8_t Open_Sans_Condensed_Light_12Bitmaps[] PROGMEM = {
 	0xE2,0x44,0x8E, // 'z'
 	0x4A,0x49,0x24,0x89,0x00, // '{'
 	0xAA,0xAA,0xAA, // '|'
-	0x91,0x24,0x92,0x52,0x00 // '}'
+	0x91,0x24,0x92,0x52,0x00, // '}'
+	0x42,0x8A,0x8A,0x10 // '~'
 };
 const GFXglyph Open_Sans_Condensed_Light_12Glyphs[] PROGMEM = {
 // bitmapOffset, width, height, xAdvance, xOffset, yOffset
@@ -193,7 +194,8 @@ const GFXglyph Open_Sans_Condensed_Light_12Glyphs[] PROGMEM = {
 	  {   436,   4,   6,   4,    0,   -6 }, // 'z'
 	  {   439,   3,  11,   5,    1,   -9 }, // '{'
 	  {   444,   2,  12,   6,    2,   -9 }, // '|'
-	  {   447,   3,  11,   5,    1,   -9 } // '}'
+	  {   447,   3,  11,   5,    1,   -9 }, // '}'
+	  {   452,   6,   5,   6,    0,   -8 } // '~'
 };
 const GFXfont Open_Sans_Condensed_Light_12 PROGMEM = {
-(uint8_t  *)Open_Sans_Condensed_Light_12Bitmaps,(GFXglyph *)Open_Sans_Condensed_Light_12Glyphs,0x20, 0x7E, 17};
+(uint8_t  *)Open_Sans_Condensed_Light_12Bitmaps,(GFXglyph *)Open_Sans_Condensed_Light_12Glyphs,0x20, 0x7F, 17};
