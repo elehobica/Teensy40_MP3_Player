@@ -9,16 +9,16 @@
 
 ## Features
 ### Supported
-* exFAT MicroSD by SDIO (confirmed up to 1TB UHS-I Speed Class 3 card)
-* Sampling Frequency / Bit Resolution / Channel: 44.1KHz 16bit Stereo
-* MP3 with ID3 Tag
+* exFAT format microSD by SDIO (confirmed up to 1TB UHS-I Speed Class 3 card)
+* Sampling Frequency: 44.1KHz, Bit Resolution 16bit, Channel: Stereo
+* MP3 with ID3/ID3v2 Tag
 * WAV with Tag information by LIST chunk
 * AAC (m4a) with MP4 Tag
 * FLAC with FLAC Tag (Vorbis comment)
 * JPEG, PNG Cover Art embedded in Tag (multiple image supported)
 * Folder/File navigation by UTF16 with unicode font
-* Control by Android Headphone button (3 buttons)
-* Volume by utilizing DAC 24bit/32bit range for playing 16bit Audio data
+* User Interface by Android Headphone button (3 buttons)
+* Volume Control by utilizing DAC 24bit/32bit range for playing 16bit Audio data
 * Album unit random play by time out after play finish (Assuming [Artist Folder]/[Album Folder] structure)
 * Resume playback
 * Battery voltage check (Optional: external circuit needed)
@@ -28,14 +28,12 @@
 * Fast Forward / Fast Rewind
 * Gapless playback
 
-## Board Configuration
-* Edit [board_conf.h](include/board_conf.h) to choose your board
-
 ## Pin Assignment
 In addition to original connection
 
 | Teensy4.0 Pin | Function | Connection |
 ----|----|----
+| 6 | GPIO | to ES9023 MUTE_B (15) / to PCM5102 XSMT (17) |
 | 7 | OUT1A | to ES9023 SDI (3) / to PCM5102 DIN (14) |
 | 8 | GPIO | to LCD DC |
 | 9 | GPIO | to LCD RST |
@@ -57,23 +55,38 @@ In addition to original connection
 | 38 | DAT3 | from/to microSD DAT3 |
 | 39 | DAT2 | from/to microSD DAT2 |
 
+tie PCM5102 SCK (12) to low
 
 ## I2S DAC
-Both ES9023 and PCM5102 are supported without selection.
+Both ES9023 and PCM5102 are supported without code definition change.
 ### PCM5102 Board Setting
-tie PCM5102 SCK (12) to low 
+tie PCM5102 SCK (12) to low
 open H3L
 ![Setting of PM5102 Board](doc/PCM5102A_Board_setting.png)
 
-## LCD
+## LCD Module
+* Edit [lib/LcdCanvas/LcdCanvas.h](lib/LcdCanvas/LcdCanvas.h) to choose your LCD module
 
 ## microSD
-Several ways to mount microSD connector.
-Please set SDIO_CTL_PAD_DSE_VAL in platformio.ini depending by connection situation.
+### Drive strength configuration for SDIO
+Several ways to mount microSD connector phisically.
+Please set SDIO_CTL_PAD_DSE_VAL in platformio.ini depending by connection condition.
 * Hinged type microSD connector (isEasy: B, IO-Timing: A, isSmart: B, SDIO_CTL_PAD_DSE_VAL: 1)
 * Flexible cable (isEasy: C, IO-Timing: B, isSmart: A, SDIO_CTL_PAD_DSE_VAL: 1~2)
 * SD Card connector (isEasy: A, IO-Timing: C, isSmart: C, SDIO_CTL_PAD_DSE_VAL: 2~4)
+
 It is recommended to check if stable access is achievable in advance at SdInfo and bench projects in SdFat library folder at Arduino environment.
+
+### Confirmed microSD card
+* SanDisk microSDXC Ultra A1 64GB (UHS-I Speed-class 1)
+* SanDisk microSDXC Ultra A1 512GB (UHS-I Speed-class 1)
+* SanDisk microSDXC Extreme A2 1TB (UHS-I Speed-class 3)
+
+## Unicode Font File
+Place resouce/unifont.bin on microSD root folder
+
+## Schematic
+[Teensy40_MP3_Player_schematic.pdf](doc/Teensy40_MP3_Player_schematic.pdf)
 
 ## Button Control Guide
 Connect MIC pin of Android headphone remote control with 3 buttons to A8 pin of Teensy 4.0
@@ -94,11 +107,5 @@ PA0 also needs to be pulled-up by 2.2Kohm from 3.3V. See schematic for detail.
 
 ### Power On/Off (Optional: external circuit needed)
 * Long push Center button
-
-## Unicode Font
-Place resouce/unifont.bin on microSD root folder
-
-## Schematic
-[xxxx.pdf](xxxx.pdf)
 
 ## Prototype Example
