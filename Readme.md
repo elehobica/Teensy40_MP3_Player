@@ -3,9 +3,9 @@
 * Teensy 4.0
 * ES9023 24bit I2S Audio DAC
 * PCM5102 32bit I2S Audio DAC
-* ST7735 1.8" LCD (128x160 pix)
 * ST7789 1.3" LCD (240x240 pix) without CS type
 * IL9341 2.2" LCD (240x320 pix)
+* ST7735 1.8" LCD (128x160 pix)
 
 ## Features
 ### Supported
@@ -75,7 +75,7 @@ Please set SDIO_CTL_PAD_DSE_VAL in platformio.ini depending by connection condit
 * Flexible cable (isEasy: C, IO-Timing: B, isSmart: A, SDIO_CTL_PAD_DSE_VAL: 1~2)
 * SD Card connector (isEasy: A, IO-Timing: C, isSmart: C, SDIO_CTL_PAD_DSE_VAL: 2~4)
 
-It is recommended to check if stable access is achievable in advance at SdInfo and bench projects in SdFat library folder at Arduino environment.
+It is recommended to check microSD access stability in advance by [SdInfo](lib/SdFat/examples/SdInfo) and [bench](lib/SdFat/examples/bench) projects with Arduino environment.
 
 ### Confirmed microSD card
 * SanDisk microSDXC Ultra A1 64GB (UHS-I Speed-class 1)
@@ -83,14 +83,14 @@ It is recommended to check if stable access is achievable in advance at SdInfo a
 * SanDisk microSDXC Extreme A2 1TB (UHS-I Speed-class 3)
 
 ## Unicode Font File
-Place resouce/unifont.bin on microSD root folder
+Place [resource/unifont.bin](resource/unifont.bin) on microSD root folder
 
 ## Schematic
 [Teensy40_MP3_Player_schematic.pdf](doc/Teensy40_MP3_Player_schematic.pdf)
 
 ## Button Control Guide
-Connect MIC pin of Android headphone remote control with 3 buttons to A8 pin of Teensy 4.0
-PA0 also needs to be pulled-up by 2.2Kohm from 3.3V. See schematic for detail.
+Connect MIC pin of Android headphone remote control with 3 buttons to A8 pin of Teensy 4.0.
+A8 also needs to be pulled-up by 2.2Kohm from 3.3V. See schematic for detail.
 
 ### FileView Mode
 * Up/Down button to go up/down for file selection
@@ -109,3 +109,21 @@ PA0 also needs to be pulled-up by 2.2Kohm from 3.3V. See schematic for detail.
 * Long push Center button
 
 ## Prototype Example
+![Prototype Example](doc/Teensy40_MP3_Player_prototype.jpg)
+
+* with ST7789_240x240_WOCS and ES9023
+
+[Scene1](doc/Teensy40_MP3_Player_ST7789_240x240_WOCS_0.jpg)
+[Scene2](doc/Teensy40_MP3_Player_ST7789_240x240_WOCS_1.jpg)
+[Scene3](doc/Teensy40_MP3_Player_ST7789_240x240_WOCS_2.jpg)
+
+* with ILI9341_240x320 and ES9023
+
+[Scene4](doc/Teensy40_MP3_Player_ILI9341_240x320_0.jpg)
+[Scene5](doc/Teensy40_MP3_Player_ILI9341_240x320_1.jpg)
+
+* with ST7735_128x160 and ES9023
+
+[Scene6](doc/Teensy40_MP3_Player_ST7735_128x160_0.jpg)
+[Scene7](doc/Teensy40_MP3_Player_ST7735_128x160_1.jpg)
+[Scene8](doc/Teensy40_MP3_Player_ST7735_128x160_2.jpg)
