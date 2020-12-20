@@ -30,6 +30,7 @@
 #include "EEPROM_util.h"
 
 // Pin Definitions
+#define PIN_DAC_MUTE_B          (6)
 #define PIN_DCDC_SHDN_B         (16)
 #define PIN_BATTERY_CHECK       (18)
 #define PIN_BACKLIGHT_CONTROL   (15)
@@ -107,6 +108,8 @@ void tick_50ms(void)
 // terminate() is called from UIPowerOffMode::entry()
 void terminate(ui_mode_enm_t last_ui_mode)
 {
+    // Audio Mute
+    digitalWrite(PIN_DAC_MUTE_B, LOW);
     storeToEEPROM(&lcd, dir_stack, last_ui_mode);
     delay(500);
     // Self Power Off
@@ -136,11 +139,14 @@ void setup()
     }
 
     // Pin Mode Setting
+    pinMode(PIN_DAC_MUTE_B, OUTPUT);
     pinMode(PIN_DCDC_SHDN_B, OUTPUT);
     pinMode(PIN_BATTERY_CHECK, OUTPUT);
     pinMode(PIN_BACKLIGHT_CONTROL, OUTPUT);
     analogWrite(PIN_BACKLIGHT_CONTROL, BACKLIGHT_HIGH); // PWM
 
+    // Audio Mute
+    digitalWrite(PIN_DAC_MUTE_B, LOW);
     // Keep Power On for SHDN_B of DC/DC
     digitalWrite(PIN_DCDC_SHDN_B, HIGH);
 
@@ -154,6 +160,8 @@ void setup()
     Adafruit_GFX::loadUnifontFile("/", "unifont.bin");
 
     audio_init();
+    // Audio Release Mute
+    digitalWrite(PIN_DAC_MUTE_B, HIGH);
 
     // Restore previous power off situation
     ui_mode_enm_t init_dest_ui_mode = loadFromEEPROM(&lcd, dir_stack);
