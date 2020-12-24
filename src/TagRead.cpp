@@ -663,6 +663,20 @@ int TagRead::getID32Picture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos
                             }
                             *isUnsynced = thisframe->isUnsynced;
                             hasFullData = thisframe->hasFullData;
+                        } else if (!strncmp("image/jpg", &thisframe->data[1], 9)) {
+                            *mime = jpeg;
+                            *ptype = static_cast<ptype_t>(thisframe->data[1+10]);
+                            if (thisframe->data[1+10+1] == 0) { // normally 'desc' is needed, but ... (see below case)
+                                // *ptr = &thisframe->data[1+10+1+1];
+                                *size = thisframe->size - (1+10+1+1);
+                                *pos = thisframe->pos + (1+10+1+1);
+                            } else if (thisframe->data[1+10+1+0] == 0xFF && thisframe->data[1+10+1+1] == 0xFE) { // found some illegal files have no 'desc'
+                                // *ptr = &thisframe->data[1+10+1];
+                                *size = thisframe->size - (1+10+1);
+                                *pos = thisframe->pos + (1+10+1);
+                            }
+                            *isUnsynced = thisframe->isUnsynced;
+                            hasFullData = thisframe->hasFullData;
                         } else if (!strncmp("image/png", &thisframe->data[1], 9)) {
                             *mime = png;
                             *ptype = static_cast<ptype_t>(thisframe->data[1+10]);
@@ -709,6 +723,20 @@ int TagRead::getID32Picture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos
                                 // *ptr = &thisframe->data[ofs+1+11+1];
                                 *size = frame_size - (1+11+1);
                                 *pos = thisframe->pos + (ofs+1+11+1);
+                            }
+                            *isUnsynced = thisframe->isUnsynced;
+                            hasFullData = thisframe->hasFullData;
+                        } else if (!strncmp("image/jpg", &thisframe->data[ofs+1], 9)) {
+                            *mime = jpeg;
+                            *ptype = static_cast<ptype_t>(thisframe->data[ofs+1+10]);
+                            if (thisframe->data[ofs+1+10+1] == 0) { // normally 'desc' is needed, but ... (see below case)
+                                // *ptr = &thisframe->data[ofs+1+10+1+1];
+                                *size = frame_size - (1+10+1+1);
+                                *pos = thisframe->pos + (ofs+1+10+1+1);
+                            } else if (thisframe->data[ofs+1+10+1+0] == 0xFF && thisframe->data[ofs+1+10+1+1] == 0xFE) { // found some illegal files have no 'desc'
+                                // *ptr = &thisframe->data[ofs+1+10+1];
+                                *size = frame_size - (1+10+1);
+                                *pos = thisframe->pos + (ofs+1+10+1);
                             }
                             *isUnsynced = thisframe->isUnsynced;
                             hasFullData = thisframe->hasFullData;
@@ -1262,6 +1290,8 @@ int TagRead::getFlacPicture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos
     if (idx >= flac_pics_count) { return 0; }
     if (flac_pics[idx] == NULL) { return 0; }
     if (strncmp(flac_pics[idx]->data.picture.mime_type, "image/jpeg", 10) == 0) {
+        *mime = jpeg;
+    } else if (strncmp(flac_pics[idx]->data.picture.mime_type, "image/jpg", 9) == 0) {
         *mime = jpeg;
     } else if (strncmp(flac_pics[idx]->data.picture.mime_type, "image/png", 9) == 0) {
         *mime = png;
