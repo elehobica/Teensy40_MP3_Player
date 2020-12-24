@@ -1203,7 +1203,7 @@ void LcdCanvas::drawPlay()
             }
             if (albumArt.getCount() > 1) {
                 albumArt.clear(this);
-                if (!albumArt.loadNext()) {
+                if (albumArt.loadNext()) {
                     msg.setText("");
                 } else {
                     msg.setText("Not Supported Image");

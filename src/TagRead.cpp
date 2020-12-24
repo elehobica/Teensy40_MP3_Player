@@ -51,6 +51,7 @@ int TagRead::loadFile(uint16_t file_idx)
     // If all failed, try to read LIST chunk (for WAV file)
     if (getListChunk(&file)) { file.close(); return 1; }
 
+    // No available tags found
     file.close();
     return 0;
 }
@@ -63,7 +64,6 @@ int TagRead::GetID3HeadersFull(MutexFsBaseFile *infile, int testfail, id31** id3
     id32* id32header;
     int fail = 0;
     // seek to start of header
-    //result = fseek(infile, 0 - sizeof(id31), SEEK_END);
     infile->seekSet(infile->size() - sizeof(id31)); // seekEnd doesn't work. if return value, seekSet fails anyhow
     /*
     if (result) {
@@ -74,7 +74,6 @@ int TagRead::GetID3HeadersFull(MutexFsBaseFile *infile, int testfail, id31** id3
   
     // read in to buffer
     input = (char *) malloc(sizeof(id31));
-    //result = fread(input, 1, sizeof(id31), infile);
     result = infile->read(input, sizeof(id31));
     if (result != sizeof(id31)) {
         char str[256];
@@ -130,12 +129,10 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
     id32frame* lastframe = NULL;
     id322frame* lastframev2 = NULL;
     // seek to start
-    //fseek(infile, 0, SEEK_SET);
     infile->seekSet(0);
     // read in first 10 bytes
     buffer = (unsigned char *) calloc(1, 11);
     id32header = (id32 *) calloc(1, sizeof(id32));
-    //result = fread(buffer, 1, 10, infile);
     result = infile->read(buffer, 10);
     filepos += result;
     // make sure we have 10 bytes
@@ -182,12 +179,15 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
 
     // test for flags - die on all for the time being
 
-    if (id32header->flags) {
+    if ((id32header->flags & 0x7f) != 0) {
         //Serial.println("Flags set, can't handle :(");
         return NULL;
     }
-    // make sure its version 3
-    if (id32header->version[0] != 3) { // not ID3v2.3
+    if ((id32header->flags & (1<<7)) != 0) {
+        Serial.println("Unsync Flags set");
+    }
+    // depend upon its version
+    if (id32header->version[0] == 2) { // ID3v2.2
         //char str[256];
         //sprintf(str, "Want version 3, have version %d", id32header->version[0]);
         //Serial.println(str);
@@ -199,7 +199,6 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
             id322frame* frame = (id322frame *) calloc(1, sizeof(id322frame));
             frame->next = NULL;
             // populate from file
-            //result = fread(frame, 1, 6, infile);
             result = infile->read(frame, 6);
             if (result != 6) {
                 char str[256];
@@ -217,23 +216,24 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
             // convert size to little endian
             frame->size = 0;
             for (i = 0; i < 3; i++) {
-                frame->size = frame->size<<8;
+                frame->size <<= 8;
                 frame->size += frame->sizebytes[i];
             }
+            /*
             // debug
             buffer = (unsigned char *) calloc(1,4);
             memcpy(buffer, frame->ID, 3);
-            //{
-            //    char str[256];
-            //    sprintf(str, "Processing frame %s, size %d filepos %d", buffer, frame->size, filepos);
-            //    Serial.println(str);
-            //}
+            {
+                char str[256];
+                sprintf(str, "Processing frame %s, size %d filepos %d", buffer, frame->size, filepos);
+                Serial.println(str);
+            }
             free(buffer);
+            */
             frame->pos = infile->position();
             if (frame->size < frame_size_limit) {
                 // read in the data
                 frame->data = (char *) calloc(1, frame->size);
-                //result = fread(frame->data, 1, frame->size, infile);
                 result = infile->read(frame->data, frame->size);
                 frame->hasFullData = true;
             } else { // give up to get full contents due to size over
@@ -267,7 +267,7 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
             lastframev2=frame;
             // then loop until we've filled the struct
         }
-    } else { // ID3v2.3
+    } else if (id32header->version[0] == 3) { // ID3v2.3
         // start reading frames
         while (filepos-10 < (int) id32header->size) {
             // make space for new frame
@@ -275,7 +275,6 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
             id32frame* frame = (id32frame *) calloc(1, sizeof(id32frame));
             frame->next = NULL;
             // populate from file
-            //result = fread(frame, 1, 10, infile);
             result = infile->read(frame, 10);
             if (result != 10) {
                 char str[256];
@@ -300,7 +299,6 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
                 // kill the frame
                 free(frame);
                 // break the file - this is a trigger for later :P
-                //fclose(infile);
                 infile->close();
                 break;
                 }
@@ -311,25 +309,24 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
             // convert size to little endian
             frame->size = 0;
             for (i = 0; i < 4; i++) {
-                frame->size = frame->size << 8;
+                frame->size <<= 8;
                 frame->size += frame->sizebytes[i];
             }
+            /*
             // debug
             buffer = (unsigned char *) calloc(1,5);
             memcpy(buffer, frame->ID, 4);
-            //{
-            //    char str[256];
-            //    sprintf(str, "Processing size %d filepos %d frame %s", frame->size, filepos, buffer);
-            //    Serial.println(str);
-            //}
+            {
+                char str[256];
+                sprintf(str, "Processing frame %s size %d filepos %d", buffer, frame->size, filepos);
+                Serial.println(str);
+            }
             free(buffer);
-
-
+            */
             frame->pos = infile->position();
             if (frame->size < frame_size_limit) {
                 // read in the data
                 frame->data = (char *) calloc(1, frame->size);
-                //result = fread(frame->data, 1, frame->size, infile);
                 result = infile->read(frame->data, frame->size);
                 frame->hasFullData = true;
             } else { // give up to get full contents due to size over
@@ -341,6 +338,96 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
                 frame->data = (char *) calloc(1, frame_start_bytes); // for frame parsing
                 infile->read(frame->data, frame_start_bytes);
                 if (infile->seekCur(frame->size - frame_start_bytes)) {
+                    result = frame->size;
+                } else {
+                    result = 0;
+                }
+                frame->hasFullData = false;
+            }
+            filepos += result;
+            if (result != (int) frame->size) {
+                char str[256];
+                sprintf(str, "Expected to read %d bytes, only got %d", frame->size, result);
+                Serial.println(str);
+                return NULL;
+            }
+            // add to end of queue
+            if (id32header->firstframe == NULL) {
+                // read in to buffer
+                id32header->firstframe=frame;
+            } else {
+                lastframe->next=frame;
+            }
+            lastframe=frame;
+            // then loop until we've filled the struct
+        }
+    } else if (id32header->version[0] == 4) { // ID3v2.4
+        // start reading frames
+        while (filepos-10 < (int) id32header->size) {
+            // make space for new frame
+            int i;
+            id32frame* frame = (id32frame *) calloc(1, sizeof(id32frame));
+            frame->next = NULL;
+            // populate from file
+            result = infile->read(frame, 10);
+            if (result != 10) {
+                char str[256];
+                sprintf(str, "Expected to read 10 bytes, only got %d, from point %d in the file", result, filepos);
+                Serial.println(str);
+                // not freeing this time, but we should deconstruct in future
+                return NULL;
+            }
+            // make sure we haven't got a blank tag
+            if (frame->ID[0] == 0) {
+                free(frame);
+                break;
+            }
+            if((frame->ID[0] & 0xff) == 0xff) {
+                Serial.println("Size is wrong :(");
+
+                // fix size
+                /*
+                Serial.print("fix size?");
+                char c = getchar();
+                while(getchar()!= '\n');
+                if(c=='y' || c=='Y'){
+                // kill the frame
+                free(frame);
+                // break the file - this is a trigger for later :P
+                infile->close();
+                break;
+                }
+                */
+            }
+            // update file cursor
+            filepos += result;
+            // convert size to little endian
+            frame->size = 0;
+            for (i = 0; i < 4; i++) {
+                frame->size <<= 7;
+                frame->size += frame->sizebytes[i];
+            }
+            /*
+            // debug
+            buffer = (unsigned char *) calloc(1,5);
+            memcpy(buffer, frame->ID, 4);
+            {
+                char str[256];
+                sprintf(str, "Processing frame %s size %d filepos %d", buffer, frame->size, filepos);
+                Serial.println(str);
+            }
+            free(buffer);
+            */
+            frame->pos = infile->position();
+            if (frame->size < frame_size_limit) {
+                // read in the data
+                frame->data = (char *) calloc(1, frame->size);
+                result = infile->read(frame->data, frame->size);
+                frame->hasFullData = true;
+            } else { // give up to get full contents due to size over
+                frame->data = (char *) calloc(1, frame_start_bytes); // for frame parsing
+                result = infile->read(frame->data, frame_start_bytes);
+                if (infile->seekCur(frame->size - result)) {
                     result = frame->size;
                 } else {
                     result = 0;
@@ -435,6 +522,7 @@ int TagRead::getUTF8Year(char* str, size_t size)
 
 int TagRead::getPictureCount()
 {
+    return 0;
     return GetMP4TypeCount("covr") + GetID3IDCount("PIC", "APIC") + GetFlacPictureCount();
 }
 
@@ -478,7 +566,9 @@ int TagRead::getID3Picture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos,
     // loop through tags and process
     thisframe = id3v2->firstframe;
     while (thisframe != NULL) {
-        if (id3v2->version[0] == 3) {
+        if (id3v2->version[0] == 4) {
+            Serial.println("getID3Picture ID3v2.4");
+        } else if (id3v2->version[0] == 3) {
             if (!strncmp("APIC", thisframe->ID, 4) && thisframe->data != NULL) {
                 if (idx == count) {
                     // encoding(1) + mime(\0) + ptype(1) + desc(1) + binary
@@ -561,32 +651,7 @@ int TagRead::GetID32UTF8(const char *id3v22, const char *id3v23, char *str, size
     // loop through tags and process
     thisframe = id3v2->firstframe;
     while (thisframe != NULL) {
-        if (id3v2->version[0] == 3) {
-            if (!strncmp(id3v23, thisframe->ID, 4)) {
-                size_t max_size;
-                switch (thisframe->data[0]) { // data has no '\0' termination
-                    case 0: // ISO-8859-1
-                        max_size = (thisframe->size - 1 <= size - 1) ? thisframe->size - 1 : size - 1;
-                        strncpy(str, &thisframe->data[1], max_size);
-                        str[max_size] = '\0';
-                        break;
-                    case 1: { // UTF-16 (w/BOM)
-                        char _str[256*2] = {};
-                        max_size = (thisframe->size - 3 <= 256*2-2) ? thisframe->size - 3 : 256*2-2;
-                        memcpy(_str, &thisframe->data[3], max_size);
-                        std::string utf8_str = utf16_to_utf8((const char16_t *) _str);
-                        max_size = (utf8_str.length() <= size - 1) ? utf8_str.length() : size - 1;
-                        memcpy(str, utf8_str.c_str(), max_size);
-                        str[max_size] = '\0';
-                        break;
-                    }
-                    default:
-                        break;
-                }
-                flg = 1;
-                break;
-            }
-        } else if (id3v2->version[0] == 2) {
+        if (id3v2->version[0] == 2) { // ID3v2.2
             id322frame* tframe = (id322frame*) thisframe;
             if (!strncmp(id3v22, tframe->ID, 3)) {
                 size_t max_size;
@@ -612,8 +677,36 @@ int TagRead::GetID32UTF8(const char *id3v22, const char *id3v23, char *str, size
                 flg = 1;
                 break;
             }
+        } else { // if (id3v2->version[0] == 3 || id3v2->version[0] == 4) { // ID3v2.3, ID3v2.4
+            if (!strncmp(id3v23, thisframe->ID, 4)) {
+                size_t max_size;
+                switch (thisframe->data[0]) { // data has no '\0' termination
+                    case 0: // ISO-8859-1
+                    case 3: // UTF-8 (ID3v2.4 or later only)
+                        max_size = (thisframe->size - 1 <= size - 1) ? thisframe->size - 1 : size - 1;
+                        strncpy(str, &thisframe->data[1], max_size);
+                        str[max_size] = '\0';
+                        break;
+                    case 1: // UTF-16 (w/ BOM)
+                    case 2: // UTF-16 (w/o BOM) (ID3v2.4 or later only)
+                    {
+                        char _str[256*2] = {};
+                        max_size = (thisframe->size - 3 <= 256*2-2) ? thisframe->size - 3 : 256*2-2;
+                        memcpy(_str, &thisframe->data[3], max_size);
+                        std::string utf8_str = utf16_to_utf8((const char16_t *) _str);
+                        max_size = (utf8_str.length() <= size - 1) ? utf8_str.length() : size - 1;
+                        memcpy(str, utf8_str.c_str(), max_size);
+                        str[max_size] = '\0';
+                        break;
+                    }
+                    default:
+                        break;
+                }
+                flg = 1;
+                break;
+            }
         }
-        thisframe = (ver == 3) ? thisframe->next : (id32frame*) ((id322frame*) thisframe)->next;
+        thisframe = (ver == 2) ? (id32frame*) ((id322frame*) thisframe)->next : thisframe->next;
     }
     return flg;
 }
@@ -718,6 +811,7 @@ void TagRead::ID32Free(id32* id32header)
     free(id32header);
 }
 
+#if 0
 id32flat* TagRead::ID32Create()
 {
     id32flat* gary = (id32flat *) calloc(1, sizeof(id32flat));
@@ -726,7 +820,9 @@ id32flat* TagRead::ID32Create()
     gary->size = 10;
     return gary;
 }
+#endif
 
+#if 0
 void TagRead::ID32AddTag(id32flat* gary, const char* ID, char* data, char* flags, size_t size)
 {
     // resize the buffer
@@ -756,7 +852,9 @@ void TagRead::ID32AddTag(id32flat* gary, const char* ID, char* data, char* flags
     gary->size+= size + 10;
     // done :D
 }
+#endif
 
+#if 0
 void TagRead::ID32Finalise(id32flat* gary)
 {
     int killsize;
@@ -779,6 +877,7 @@ void TagRead::ID32Finalise(id32flat* gary)
     }
     // done :D
 }
+#endif
 
 int TagRead::ID32Append(id32flat* gary, char* filename)
 {
@@ -787,40 +886,29 @@ int TagRead::ID32Append(id32flat* gary, char* filename)
     MutexFsBaseFile infile;
     char str[256];
     // then read in, and write to file :D
-    //infile = fopen(filename, "r");
     infile.open(filename, O_RDONLY);
-    //fseek(infile, 0, SEEK_END);
     infile.seekEnd(0);
-    //size = ftell(infile);
     size = infile.curPosition();
     sprintf(str, "File size: %ld", size);
     Serial.println(str);
     // this can only read in 2gb of file
-    //fseek(infile, 0, SEEK_SET);
     infile.seekSet(0);
     mp3 = (char *) calloc(1, size);
-    //fread(mp3, 1, size, infile);
     infile.read(mp3, size);
     // then close, reopen for reading
-    //fclose(infile);
     infile.close();
-    //infile = fopen(filename, "w");
     infile.open(filename, O_WRONLY);
-    //infile=NULL;
-    //if (!infile) {
     if (!infile.available()) {
         Serial.println("Can't open file for writing :(");
         return -1;
     }
-    //fwrite(gary->buffer, 1, gary->size, infile);
     infile.write(gary->buffer, gary->size);
-    //fwrite(mp3, 1, size, infile);
     infile.write(mp3, size);
-    //fclose(infile);
     infile.close();
     return 0;
 }
 
+#if 0
 id32flat* TagRead::ID3Copy1to2(id31* bonar)
 {
     // todo: get rid of spaces on the end of padded ID3v1 :/
@@ -855,6 +943,7 @@ id32flat* TagRead::ID3Copy1to2(id31* bonar)
     // all done :D
     return final;
 }
+#endif
 
 int TagRead::ID31Detect(char* header, id31 **id31header)
 {

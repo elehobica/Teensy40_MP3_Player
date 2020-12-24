@@ -138,11 +138,11 @@ private:
     int GetID3IDCount(const char *id3v22, const char *id3v23);
     void ID32Print(id32* id32header);
     void ID32Free(id32* id32header);
-    id32flat* ID32Create();
-    void ID32AddTag(id32flat* gary, const char* ID, char* data, char* flags, size_t size);
+    //id32flat* ID32Create();
+    //void ID32AddTag(id32flat* gary, const char* ID, char* data, char* flags, size_t size);
     void ID32Finalise(id32flat* gary);
     int ID32Append(id32flat* gary, char* filename);
-    id32flat* ID3Copy1to2(id31* bonar);
+    //id32flat* ID3Copy1to2(id31* bonar);
     int ID31Detect(char* header, id31 **id31header);
     void ID31Print(id31* id31header);
     void ID31Free(id31* id31header);
