@@ -11,10 +11,10 @@
 ### Supported
 * exFAT format microSD by SDIO (confirmed up to 1TB UHS-I Speed Class 3 card)
 * Sampling Frequency: 44.1KHz, Bit Resolution 16bit, Channel: Stereo
-* MP3 with ID3/ID3v2 Tag
-* WAV with Tag information by LIST chunk
-* AAC (m4a) with MP4 Tag
-* FLAC with FLAC Tag (Vorbis comment)
+* MP3 with ID3/ID3v2.2/ID3v2.3/ID3v2.4 Tag (partial support)
+* WAV with Tag information by LIST chunk (partial support)
+* AAC (m4a) with MP4 Tag (partial support)
+* FLAC with FLAC Tag (Vorbis comment) (partial support)
 * JPEG, PNG Cover Art embedded in Tag (multiple image supported)
 * Folder/File navigation by UTF16 with unicode font
 * User Interface by Android Headphone button (3 buttons)

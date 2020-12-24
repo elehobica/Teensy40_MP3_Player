@@ -6,6 +6,9 @@
 / refer to https://opensource.org/licenses/BSD-2-Clause
 /------------------------------------------------------*/
 
+// ID3 Part was started from id3read:
+// http://www.rohitab.com/discuss/topic/34514-id3-tag-checkerupdater/
+
 #include "TagRead.h"
 #include <Arduino.h>
 #include <file_menu_SdFat.h>
@@ -26,6 +29,36 @@ TagRead::~TagRead()
     if (id3v1) ID31Free(id3v1);
     if (id3v2) ID32Free(id3v2);
     flacFree();
+}
+
+size_t TagRead::getBESize3(unsigned char *buf)
+{
+    size_t size = 0;
+    for (int i = 0; i < 3; i++) {
+        size <<= 8;
+        size += buf[i];
+    }
+    return size;
+}
+
+size_t TagRead::getBESize4(unsigned char *buf)
+{
+    size_t size = 0;
+    for (int i = 0; i < 4; i++) {
+        size <<= 8;
+        size += buf[i];
+    }
+    return size;
+}
+
+size_t TagRead::getBESize4SyncSafe(unsigned char *buf)
+{
+    size_t size = 0;
+    for (int i = 0; i < 4; i++) {
+        size <<= 7;
+        size += buf[i];
+    }
+    return size;
 }
 
 int TagRead::loadFile(uint16_t file_idx)
@@ -63,6 +96,10 @@ int TagRead::GetID3HeadersFull(MutexFsBaseFile *infile, int testfail, id31** id3
     id31* id31header;
     id32* id32header;
     int fail = 0;
+
+    //=============
+    // For ID3(v1)
+    //=============
     // seek to start of header
     infile->seekSet(infile->size() - sizeof(id31)); // seekEnd doesn't work. if return value, seekSet fails anyhow
     /*
@@ -99,6 +136,10 @@ int TagRead::GetID3HeadersFull(MutexFsBaseFile *infile, int testfail, id31** id3
         }
     }
     free(input);
+
+    //=============
+    // For ID3v2.x
+    //=============
     id32header=ID32Detect(infile);
     if (id32header) {
         if (!testfail) {
@@ -128,13 +169,16 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
     int size = 0;
     id32frame* lastframe = NULL;
     id322frame* lastframev2 = NULL;
+    bool unsync = false;
+
     // seek to start
     infile->seekSet(0);
     // read in first 10 bytes
     buffer = (unsigned char *) calloc(1, 11);
     id32header = (id32 *) calloc(1, sizeof(id32));
     result = infile->read(buffer, 10);
-    filepos += result;
+    //filepos += result;
+    filepos = infile->position();
     // make sure we have 10 bytes
     if (result != 10) {
         char str[256];
@@ -154,10 +198,7 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
     }
     if (buffer[0] == 0x49 && buffer[1] == 0x44 && buffer[2] == 0x33 && buffer[3] < 0xff && buffer[4] < 0xff && result) {
         // its ID3v2 :D
-        for (i = 6; i < 10; i++) {
-            size = size<<7;
-            size += buffer[i];
-        }
+        size = getBESize4SyncSafe(&buffer[6]);
         //char str[256];
         //sprintf(str, "Header size: %d");
         //Serial.println(str);
@@ -184,7 +225,10 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
         return NULL;
     }
     if ((id32header->flags & (1<<7)) != 0) {
-        Serial.println("Unsync Flags set");
+        //Serial.println("Unsynchronization in flags is set");
+        unsync = true;
+    } else {
+        unsync = false;
     }
     // depend upon its version
     if (id32header->version[0] == 2) { // ID3v2.2
@@ -199,7 +243,7 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
             id322frame* frame = (id322frame *) calloc(1, sizeof(id322frame));
             frame->next = NULL;
             // populate from file
-            result = infile->read(frame, 6);
+            result = infile->readUnsync(frame, 6, unsync);
             if (result != 6) {
                 char str[256];
                 sprintf(str, "Expected to read 6 bytes, only got %d, from point %d in the file", result, filepos);
@@ -212,13 +256,10 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
                 break;
             }
             // update file cursor
-            filepos += result;
+            //filepos += result;
+            filepos = infile->position();
             // convert size to little endian
-            frame->size = 0;
-            for (i = 0; i < 3; i++) {
-                frame->size <<= 8;
-                frame->size += frame->sizebytes[i];
-            }
+            frame->size = getBESize3(frame->sizebytes);
             /*
             // debug
             buffer = (unsigned char *) calloc(1,4);
@@ -234,7 +275,8 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
             if (frame->size < frame_size_limit) {
                 // read in the data
                 frame->data = (char *) calloc(1, frame->size);
-                result = infile->read(frame->data, frame->size);
+                result = infile->readUnsync(frame->data, frame->size, unsync);
+                frame->isUnsynced = unsync;
                 frame->hasFullData = true;
             } else { // give up to get full contents due to size over
                 /*
@@ -243,15 +285,17 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
                 Serial.println(str);
                 */
                 frame->data = (char *) calloc(1, frame_start_bytes); // for frame parsing
-                infile->read(frame->data, frame_start_bytes);
+                infile->readUnsync(frame->data, frame_start_bytes, unsync);
                 if (infile->seekCur(frame->size - frame_start_bytes)) {
                     result = frame->size;
                 } else {
                     result = 0;
                 }
+                frame->isUnsynced = unsync;
                 frame->hasFullData = false;
             }
-            filepos += result;
+            //filepos += result;
+            filepos = infile->position();
             if (result != (int) frame->size) {
                 char str[256];
                 sprintf(str, "Expected to read %d bytes, only got %d", frame->size, result);
@@ -275,7 +319,7 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
             id32frame* frame = (id32frame *) calloc(1, sizeof(id32frame));
             frame->next = NULL;
             // populate from file
-            result = infile->read(frame, 10);
+            result = infile->readUnsync(frame, 10, unsync);
             if (result != 10) {
                 char str[256];
                 sprintf(str, "Expected to read 10 bytes, only got %d, from point %d in the file", result, filepos);
@@ -305,13 +349,10 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
                 */
             }
             // update file cursor
-            filepos += result;
+            //filepos += result;
+            filepos = infile->position();
             // convert size to little endian
-            frame->size = 0;
-            for (i = 0; i < 4; i++) {
-                frame->size <<= 8;
-                frame->size += frame->sizebytes[i];
-            }
+            frame->size = getBESize4(frame->sizebytes);
             /*
             // debug
             buffer = (unsigned char *) calloc(1,5);
@@ -327,7 +368,8 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
             if (frame->size < frame_size_limit) {
                 // read in the data
                 frame->data = (char *) calloc(1, frame->size);
-                result = infile->read(frame->data, frame->size);
+                result = infile->readUnsync(frame->data, frame->size, unsync);
+                frame->isUnsynced = unsync;
                 frame->hasFullData = true;
             } else { // give up to get full contents due to size over
                 /*
@@ -336,15 +378,17 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
                 Serial.println(str);
                 */
                 frame->data = (char *) calloc(1, frame_start_bytes); // for frame parsing
-                infile->read(frame->data, frame_start_bytes);
+                infile->readUnsync(frame->data, frame_start_bytes, unsync);
                 if (infile->seekCur(frame->size - frame_start_bytes)) {
                     result = frame->size;
                 } else {
                     result = 0;
                 }
+                frame->isUnsynced = unsync;
                 frame->hasFullData = false;
             }
-            filepos += result;
+            //filepos += result;
+            filepos = infile->position();
             if (result != (int) frame->size) {
                 char str[256];
                 sprintf(str, "Expected to read %d bytes, only got %d", frame->size, result);
@@ -369,7 +413,7 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
             id32frame* frame = (id32frame *) calloc(1, sizeof(id32frame));
             frame->next = NULL;
             // populate from file
-            result = infile->read(frame, 10);
+            result = infile->readUnsync(frame, 10, unsync);
             if (result != 10) {
                 char str[256];
                 sprintf(str, "Expected to read 10 bytes, only got %d, from point %d in the file", result, filepos);
@@ -400,13 +444,10 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
                 */
             }
             // update file cursor
-            filepos += result;
+            //filepos += result;
+            filepos = infile->position();
             // convert size to little endian
-            frame->size = 0;
-            for (i = 0; i < 4; i++) {
-                frame->size <<= 7;
-                frame->size += frame->sizebytes[i];
-            }
+            frame->size = getBESize4SyncSafe(frame->sizebytes);
             /*
             // debug
             buffer = (unsigned char *) calloc(1,5);
@@ -422,19 +463,22 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
             if (frame->size < frame_size_limit) {
                 // read in the data
                 frame->data = (char *) calloc(1, frame->size);
-                result = infile->read(frame->data, frame->size);
+                result = infile->readUnsync(frame->data, frame->size, unsync);
+                frame->isUnsynced = unsync;
                 frame->hasFullData = true;
             } else { // give up to get full contents due to size over
                 frame->data = (char *) calloc(1, frame_start_bytes); // for frame parsing
-                result = infile->read(frame->data, frame_start_bytes);
+                result = infile->readUnsync(frame->data, frame_start_bytes, unsync);
                 if (infile->seekCur(frame->size - result)) {
                     result = frame->size;
                 } else {
                     result = 0;
                 }
+                frame->isUnsynced = unsync;
                 frame->hasFullData = false;
             }
-            filepos += result;
+            //filepos += result;
+            filepos = infile->position();
             if (result != (int) frame->size) {
                 char str[256];
                 sprintf(str, "Expected to read %d bytes, only got %d", frame->size, result);
@@ -522,24 +566,24 @@ int TagRead::getUTF8Year(char* str, size_t size)
 
 int TagRead::getPictureCount()
 {
-    return 0;
     return GetMP4TypeCount("covr") + GetID3IDCount("PIC", "APIC") + GetFlacPictureCount();
 }
 
-int TagRead::getPicturePos(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size)
+int TagRead::getPicturePos(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size, bool *isUnsynced)
 {
     int i = idx;
-    // for MP4 Picture
 
+    // for MP4 Picture
     if (i < GetMP4TypeCount("covr")) {
         getMP4Picture(i, mime, ptype, pos, size);
+        *isUnsynced = false;
         return (*size != 0);
     }
     i -= GetMP4TypeCount("covr");
 
-    // for MP4 Picture
+    // for ID3 Picture
     if (i >= 0 && i < GetID3IDCount("PIC", "APIC")) {
-        getID3Picture(i, mime, ptype, pos, size);
+        getID32Picture(i, mime, ptype, pos, size, isUnsynced);
         return (*size != 0);
     }
     i -= GetID3IDCount("PIC", "APIC");
@@ -547,13 +591,14 @@ int TagRead::getPicturePos(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos,
     // for FLAC Picture
     if (i >= 0 && i < GetFlacPictureCount()) {
         getFlacPicture(i, mime, ptype, pos, size);
+        *isUnsynced = false;
         return (*size != 0);
     }
 
     return 0;
 }
 
-int TagRead::getID3Picture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size)
+int TagRead::getID32Picture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size, bool *isUnsynced)
 {
     int count = 0;
     *mime = non;
@@ -566,9 +611,39 @@ int TagRead::getID3Picture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos,
     // loop through tags and process
     thisframe = id3v2->firstframe;
     while (thisframe != NULL) {
-        if (id3v2->version[0] == 4) {
-            Serial.println("getID3Picture ID3v2.4");
-        } else if (id3v2->version[0] == 3) {
+        if (id3v2->version[0] == 2) { // ID3v2.2
+            id322frame* tframe = (id322frame*) thisframe;
+            if (!strncmp("PIC", tframe->ID, 3) && tframe->data != NULL) {
+                if (idx == count) {
+                    // encoding(1) + mime(3) + ptype(1) + desc(1) + binary
+                    if (tframe->data[0] == 0) { // ISO-8859-1
+                        if (!strncmp("JPG", &tframe->data[1], 3)) {
+                            *mime = jpeg;
+                            *ptype = static_cast<ptype_t>(tframe->data[1+3]);
+                            if (tframe->data[1+3+1] == 0) {
+                                //*ptr = &tframe->data[1+3+1+1];
+                                *size = tframe->size - (1+3+1+1);
+                                *pos = tframe->pos + (1+3+1+1);
+                            }
+                            *isUnsynced = tframe->isUnsynced;
+                            hasFullData = tframe->hasFullData;
+                        } else if (!strncmp("PNG", &tframe->data[1], 3)) {
+                            *mime = png;
+                            *ptype = static_cast<ptype_t>(tframe->data[1+3]);
+                            if (tframe->data[1+3+1] == 0) {
+                                //*ptr = &tframe->data[1+3+1+1];
+                                *size = tframe->size - (1+3+1+1);
+                                *pos = tframe->pos + (1+3+1+1);
+                            }
+                            *isUnsynced = tframe->isUnsynced;
+                            hasFullData = tframe->hasFullData;
+                        }
+                    }
+                    break;
+                }
+                count++;
+            }
+        } else if (id3v2->version[0] == 3) { // ID3v2.3
             if (!strncmp("APIC", thisframe->ID, 4) && thisframe->data != NULL) {
                 if (idx == count) {
                     // encoding(1) + mime(\0) + ptype(1) + desc(1) + binary
@@ -586,6 +661,7 @@ int TagRead::getID3Picture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos,
                                 *size = thisframe->size - (1+11+1);
                                 *pos = thisframe->pos + (1+11+1);
                             }
+                            *isUnsynced = thisframe->isUnsynced;
                             hasFullData = thisframe->hasFullData;
                         } else if (!strncmp("image/png", &thisframe->data[1], 9)) {
                             *mime = png;
@@ -599,6 +675,7 @@ int TagRead::getID3Picture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos,
                                 *size = thisframe->size - (1+10+1);
                                 *pos = thisframe->pos + (1+10+1);
                             }
+                            *isUnsynced = thisframe->isUnsynced;
                             hasFullData = thisframe->hasFullData;
                         }
                     }
@@ -606,30 +683,49 @@ int TagRead::getID3Picture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos,
                 }
                 count++;
             }
-        } else if (id3v2->version[0] == 2) {
-            id322frame* tframe = (id322frame*) thisframe;
-            if (!strncmp("PIC", tframe->ID, 3) && tframe->data != NULL) {
+        } else if (id3v2->version[0] == 4) { // ID3v2.4
+            if (!strncmp("APIC", thisframe->ID, 4) && thisframe->data != NULL) {
+                size_t frame_size;
+                int ofs;
+                if ((thisframe->flags[1] & 0x1) != 0x00) { // Data length indicator (ID3v2.4)
+                    frame_size = getBESize4SyncSafe(&thisframe->data[0]); // This is the actual size deducted Unsynchronization 0xFF 0x00 -> 0xFF
+                    ofs = 4;
+                } else {
+                    frame_size = thisframe->size;
+                    ofs = 0;
+                }
                 if (idx == count) {
-                    // encoding(1) + mime(3) + ptype(1) + desc(1) + binary
-                    if (tframe->data[0] == 0) { // ISO-8859-1
-                        if (!strncmp("JPG", &tframe->data[1], 3)) {
+                    // encoding(1) + mime(\0) + ptype(1) + desc(1) + binary
+                    //if (thisframe->data[0] == 0) {
+                    if (thisframe->data[ofs+0] == 0 || thisframe->data[ofs+0] == 1) { // normally 'encoding' must be ISO-8859-1 (00h), but found some (01h) examples
+                        if (!strncmp("image/jpeg", &thisframe->data[ofs+1], 10)) {
                             *mime = jpeg;
-                            *ptype = static_cast<ptype_t>(tframe->data[1+3]);
-                            if (tframe->data[1+3+1] == 0) {
-                                //*ptr = &tframe->data[1+3+1+1];
-                                *size = tframe->size - (1+3+1+1);
-                                *pos = tframe->pos + (1+3+1+1);
+                            *ptype = static_cast<ptype_t>(thisframe->data[ofs+1+11]);
+                            if (thisframe->data[ofs+1+11+1] == 0) { // normally 'desc' is needed, but ... (see below case)
+                                // *ptr = &thisframe->data[ofs+1+11+1+1];
+                                *size = frame_size - (1+11+1+1);
+                                *pos = thisframe->pos + (ofs+1+11+1+1);
+                            } else if (thisframe->data[ofs+1+11+1+0] == 0xFF && thisframe->data[ofs+1+11+1+1] == 0xFE) { // found some illegal files have no 'desc'
+                                // *ptr = &thisframe->data[ofs+1+11+1];
+                                *size = frame_size - (1+11+1);
+                                *pos = thisframe->pos + (ofs+1+11+1);
                             }
-                            hasFullData = tframe->hasFullData;
-                        } else if (!strncmp("PNG", &tframe->data[1], 3)) {
+                            *isUnsynced = thisframe->isUnsynced;
+                            hasFullData = thisframe->hasFullData;
+                        } else if (!strncmp("image/png", &thisframe->data[ofs+1], 9)) {
                             *mime = png;
-                            *ptype = static_cast<ptype_t>(tframe->data[1+3]);
-                            if (tframe->data[1+3+1] == 0) {
-                                //*ptr = &tframe->data[1+3+1+1];
-                                *size = tframe->size - (1+3+1+1);
-                                *pos = tframe->pos + (1+3+1+1);
+                            *ptype = static_cast<ptype_t>(thisframe->data[ofs+1+10]);
+                            if (thisframe->data[ofs+1+10+1] == 0) { // normally 'desc' is needed, but ... (see below case)
+                                // *ptr = &thisframe->data[ofs+1+10+1+1];
+                                *size = frame_size - (1+10+1+1);
+                                *pos = thisframe->pos + (ofs+1+10+1+1);
+                            } else if (thisframe->data[ofs+1+10+1+0] == 0x89 && thisframe->data[ofs+1+10+1+1] == 0x50) { // found some illegal files have no 'desc'
+                                //*ptr = &thisframe->data[ofs+1+10+1];
+                                *size = frame_size - (1+10+1);
+                                *pos = thisframe->pos + (ofs+1+10+1);
                             }
-                            hasFullData = tframe->hasFullData;
+                            *isUnsynced = thisframe->isUnsynced;
+                            hasFullData = thisframe->hasFullData;
                         }
                     }
                     break;
@@ -637,7 +733,7 @@ int TagRead::getID3Picture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos,
                 count++;
             }
         }
-        thisframe = (ver == 3) ? thisframe->next : (id32frame*) ((id322frame*) thisframe)->next;
+        thisframe = (ver == 2) ? (id32frame*) ((id322frame*) thisframe)->next : thisframe->next;
     }
     return (hasFullData == true);
 }
@@ -720,17 +816,21 @@ int TagRead::GetID3IDCount(const char *id3v22, const char *id3v23)
     // loop through tags and process
     thisframe = id3v2->firstframe;
     while (thisframe != NULL) {
-        if (id3v2->version[0] == 3) {
-            if (!strncmp(id3v23, thisframe->ID, 4)) {
-                count++;
-            }
-        } else if (id3v2->version[0] == 2) {
+        if (id3v2->version[0] == 2) { // ID3v2.2
             id322frame* tframe = (id322frame*) thisframe;
             if (!strncmp(id3v22, tframe->ID, 3)) {
                 count++;
             }
+        } else if (id3v2->version[0] == 3) { // ID3v2.3
+            if (!strncmp(id3v23, thisframe->ID, 4)) {
+                count++;
+            }
+        } else if (id3v2->version[0] == 4) { // ID3v2.4
+            if (!strncmp(id3v23, thisframe->ID, 4)) {
+                count++;
+            }
         }
-        thisframe = (ver == 3) ? thisframe->next : (id32frame*) ((id322frame*) thisframe)->next;
+        thisframe = (ver == 2) ? (id32frame*) ((id322frame*) thisframe)->next : thisframe->next;
     }
     return count;
 }
@@ -785,7 +885,7 @@ void TagRead::ID32Print(id32* id32header)
             }
             free(buffer);
         }
-        thisframe = (ver == 3) ? thisframe->next : (id32frame*) ((id322frame*) thisframe)->next;
+        thisframe = (ver == 2) ? (id32frame*) ((id322frame*) thisframe)->next : thisframe->next;
     }
 }
 
@@ -810,140 +910,6 @@ void TagRead::ID32Free(id32* id32header)
     }
     free(id32header);
 }
-
-#if 0
-id32flat* TagRead::ID32Create()
-{
-    id32flat* gary = (id32flat *) calloc(1, sizeof(id32flat));
-    // allocate 10 bytes for the main header
-    gary->buffer = (char *) calloc(1, 10);
-    gary->size = 10;
-    return gary;
-}
-#endif
-
-#if 0
-void TagRead::ID32AddTag(id32flat* gary, const char* ID, char* data, char* flags, size_t size)
-{
-    // resize the buffer
-    int i;
-    int killsize;
-    //Serial.println("Resizing the buffer");
-    gary->buffer = (char *) realloc(gary->buffer, gary->size + size + 10);
-    // copy header in
-    //Serial.println("Copying the ID");
-    for (i = 0; i < 4; i++) {
-        gary->buffer[gary->size+i] = ID[i];
-    }
-    killsize = size;
-    // convert to sizebytes - endian independent
-    //Serial.println("Copying size");
-    for (i = 7; i > 3; i--) {
-        gary->buffer[gary->size+i] = killsize & 0xff;
-        killsize = killsize>>8;
-    }
-    // copy flags
-    //Serial.println("Setting flags");
-    gary->buffer[gary->size+8] = flags[0];
-    gary->buffer[gary->size+9] = flags[1];
-    // then the data comes through
-    memcpy(gary->buffer+gary->size+10, data, size);
-    // then update size
-    gary->size+= size + 10;
-    // done :D
-}
-#endif
-
-#if 0
-void TagRead::ID32Finalise(id32flat* gary)
-{
-    int killsize;
-    int i;
-    // set tag
-    gary->buffer[0] = 'I';
-    gary->buffer[1] = 'D';
-    gary->buffer[2] = '3';
-    // set version
-    gary->buffer[3] = 3;
-    gary->buffer[4] = 0;
-    // set flags
-    gary->buffer[5] = 0;
-    // get size
-    killsize = gary->size-10;
-    // convert to bytes for header
-    for (i = 9; i > 5; i--) {
-        gary->buffer[i] = killsize & 0x7f;
-        killsize = killsize>>7;
-    }
-    // done :D
-}
-#endif
-
-int TagRead::ID32Append(id32flat* gary, char* filename)
-{
-    char* mp3;
-    unsigned long size;
-    MutexFsBaseFile infile;
-    char str[256];
-    // then read in, and write to file :D
-    infile.open(filename, O_RDONLY);
-    infile.seekEnd(0);
-    size = infile.curPosition();
-    sprintf(str, "File size: %ld", size);
-    Serial.println(str);
-    // this can only read in 2gb of file
-    infile.seekSet(0);
-    mp3 = (char *) calloc(1, size);
-    infile.read(mp3, size);
-    // then close, reopen for reading
-    infile.close();
-    infile.open(filename, O_WRONLY);
-    if (!infile.available()) {
-        Serial.println("Can't open file for writing :(");
-        return -1;
-    }
-    infile.write(gary->buffer, gary->size);
-    infile.write(mp3, size);
-    infile.close();
-    return 0;
-}
-
-#if 0
-id32flat* TagRead::ID3Copy1to2(id31* bonar)
-{
-    // todo: get rid of spaces on the end of padded ID3v1 :/
-    Serial.println("Creating new ID3v2 header");
-    id32flat* final = ID32Create();
-    char* buffer;
-    char flags[2];
-    flags[0] = 0;
-    flags[1] = 0;
-    // copy title
-    buffer = (char *) calloc(1, 31);
-    memcpy(buffer+1, bonar->title, 30);
-    Serial.println("Adding title");
-    ID32AddTag(final, "TIT2", buffer, flags, strlen(buffer+1)+1);
-    free(buffer);
-    // copy artist
-    buffer = (char *) calloc(1, 31);
-    memcpy(buffer+1, bonar->artist, 30);
-    Serial.println("Adding artist");
-    ID32AddTag(final, "TPE1", buffer, flags, strlen(buffer+1)+1);
-    free(buffer);
-    // copy album
-    buffer = (char *) calloc(1, 31);
-    memcpy(buffer+1, bonar->album, 30);
-    Serial.println("Adding album");
-    ID32AddTag(final, "TALB", buffer, flags, strlen(buffer+1)+1);
-    free(buffer);
-    // then finalise
-    Serial.println("Finalising...");
-    ID32Finalise(final);
-    Serial.println("done :D");
-    // all done :D
-    return final;
-}
-#endif
 
 int TagRead::ID31Detect(char* header, id31 **id31header)
 {
@@ -1068,24 +1034,13 @@ void TagRead::clearMP4_ilst()
     mp4_ilst.last = NULL;
 }
 
-// Big Endian read for char[4]
-uint32_t TagRead::getMP4BoxBE32(unsigned char c[4])
-{
-    uint32_t be32 = 0;
-    be32 = 0;
-    for (int i = 0; i < 4; i++) {
-        be32 += (uint32_t) c[i] << ((3-i)*8);
-    }
-    return be32;
-}
-
 int TagRead::findNextMP4Box(MutexFsBaseFile *file, uint32_t end_pos, char type[4], uint32_t *pos, uint32_t *size)
 {
     unsigned char c[8]; // size(4) + type(4)
     if (end_pos <= *pos + 8) { return 0; }
     file->seekSet(*pos);
     file->read(c, sizeof(c));
-    *size = getMP4BoxBE32(c);
+    *size = getBESize4(c);
     memcpy(type, &c[4], 4);
     if (*size < 8) { return 0; } // size is out of 32bit range
     *pos += *size;
@@ -1127,7 +1082,7 @@ int TagRead::findNextMP4Box(MutexFsBaseFile *file, uint32_t end_pos, char type[4
         unsigned char data[8];
         file->seekSet(*pos - *size + 8);
         file->read(data, sizeof(data));
-        uint32_t data_size = getMP4BoxBE32(data) - 8 - 8; // - 8 - 8: - (size(4) + 'data'(4)) - (data_type(4) + data_locale(4))
+        uint32_t data_size = getBESize4(data) - 8 - 8; // - 8 - 8: - (size(4) + 'data'(4)) - (data_type(4) + data_locale(4))
         if (data[4] == 'd' && data[5] == 'a' && data[6] == 't' && data[7] == 'a') {
             unsigned char data_type[4];
             unsigned char data_locale[4];
@@ -1142,7 +1097,7 @@ int TagRead::findNextMP4Box(MutexFsBaseFile *file, uint32_t end_pos, char type[4
             }
             mp4_ilst.last = mp4_ilst_item;
             memcpy(mp4_ilst.last->type, type, 4);
-            mp4_ilst.last->data_type = static_cast<mp4_data_t>(getMP4BoxBE32(data_type));
+            mp4_ilst.last->data_type = static_cast<mp4_data_t>(getBESize4(data_type));
             mp4_ilst.last->data_size = data_size;
             mp4_ilst.last->pos = file->position();
             if (data_size < frame_size_limit) {
@@ -1189,7 +1144,7 @@ int TagRead::GetMP4BoxUTF8(const char *mp4_type, char *str, size_t size)
             if (mp4_ilst_item->data_type == reserved) { // for track number
                 unsigned char c[4];
                 memcpy(c, mp4_ilst_item->data_buf, 4);
-                sprintf(str, "%lu", getMP4BoxBE32(c));
+                sprintf(str, "%lu", getBESize4(c));
                 return 1;
             } else if (mp4_ilst_item->data_type == UTF8) {
                 max_size = (mp4_ilst_item->data_size <= size - 1) ? mp4_ilst_item->data_size : size - 1;

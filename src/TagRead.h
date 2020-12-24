@@ -6,6 +6,9 @@
 / refer to https://opensource.org/licenses/BSD-2-Clause
 /------------------------------------------------------*/
 
+// ID3 Part was started from id3read:
+// http://www.rohitab.com/discuss/topic/34514-id3-tag-checkerupdater/
+
 #ifndef _TAGREAD_H_
 #define _TAGREAD_H_
 
@@ -32,6 +35,7 @@ typedef struct _id32frame {
     size_t size;
     char* data;
     bool hasFullData;
+    bool isUnsynced;
     struct _id32frame* next;
 } id32frame;
 
@@ -42,6 +46,7 @@ typedef struct _id322frame {
     size_t size;
     char* data;
     bool hasFullData;
+    bool isUnsynced;
     struct _id322frame* next;
 } id322frame;
 
@@ -125,28 +130,29 @@ public:
     int getUTF8Artist(char *str, size_t size);
     int getUTF8Year(char *str, size_t size);
     int getPictureCount();
-    int getPicturePos(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size);
+    int getPicturePos(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size, bool *isUnsynced);
 
 private:
     MutexFsBaseFile file;
 
     id31 *id3v1;
     id32 *id3v2;
+
+    size_t getBESize3(unsigned char *buf);
+    size_t getBESize4(unsigned char *buf);
+    size_t getBESize4SyncSafe(unsigned char *buf);
+
     int GetID3HeadersFull(MutexFsBaseFile *infile, int testfail, id31** id31save, id32** id32save);
     id32* ID32Detect(MutexFsBaseFile *infile);
     int GetID32UTF8(const char *id3v22, const char *id3v23, char *str, size_t size);
     int GetID3IDCount(const char *id3v22, const char *id3v23);
     void ID32Print(id32* id32header);
     void ID32Free(id32* id32header);
-    //id32flat* ID32Create();
-    //void ID32AddTag(id32flat* gary, const char* ID, char* data, char* flags, size_t size);
-    void ID32Finalise(id32flat* gary);
-    int ID32Append(id32flat* gary, char* filename);
-    //id32flat* ID3Copy1to2(id31* bonar);
+    int getID32Picture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size, bool *isUnsynced);
+
     int ID31Detect(char* header, id31 **id31header);
     void ID31Print(id31* id31header);
     void ID31Free(id31* id31header);
-    int getID3Picture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size);
 
     int getListChunk(MutexFsBaseFile *file);
     int findNextChunk(MutexFsBaseFile *file, uint32_t end_pos, char chunk_id[4], uint32_t *pos, uint32_t *size);
@@ -155,7 +161,6 @@ private:
     void clearMP4_ilst();
     int getMP4Box(MutexFsBaseFile *file);
     int findNextMP4Box(MutexFsBaseFile *file, uint32_t end_pos, char chunk_id[4], uint32_t *pos, uint32_t *size);
-    uint32_t getMP4BoxBE32(unsigned char c[4]);
     int GetMP4BoxUTF8(const char *mp4_type, char *str, size_t size);
     int GetMP4TypeCount(const char *mp4_type);
     int getMP4Picture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos, size_t *size);

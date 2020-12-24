@@ -84,12 +84,13 @@ int ImageBox::addJpegBin(char *ptr, size_t size)
     image_array[image_count].file_idx = 0;
     image_array[image_count].file_pos = 0;
     image_array[image_count].size = size;
+    image_array[image_count].is_unsync = false;
     image_count++;
     return 1;
 }
 
 // add JPEG SdFat File
-int ImageBox::addJpegFile(uint16_t file_idx, uint64_t pos, size_t size)
+int ImageBox::addJpegFile(uint16_t file_idx, uint64_t pos, size_t size, bool is_unsync)
 {
     if (image_count >= MaxImgCnt) { return 0; }
     image_array[image_count].media_src = sdcard;
@@ -98,6 +99,7 @@ int ImageBox::addJpegFile(uint16_t file_idx, uint64_t pos, size_t size)
     image_array[image_count].file_idx = file_idx;
     image_array[image_count].file_pos = pos;
     image_array[image_count].size = size;
+    image_array[image_count].is_unsync = is_unsync;
     image_count++;
     return 1;
 }
@@ -112,12 +114,13 @@ int ImageBox::addPngBin(char *ptr, size_t size)
     image_array[image_count].file_idx = 0;
     image_array[image_count].file_pos = 0;
     image_array[image_count].size = size;
+    image_array[image_count].is_unsync = false;
     image_count++;
     return 1;
 }
 
 // add PNG SdFat File
-int ImageBox::addPngFile(uint16_t file_idx, uint64_t pos, size_t size)
+int ImageBox::addPngFile(uint16_t file_idx, uint64_t pos, size_t size, bool is_unsync)
 {
     if (image_count >= MaxImgCnt) { return 0; }
     image_array[image_count].media_src = sdcard;
@@ -126,6 +129,7 @@ int ImageBox::addPngFile(uint16_t file_idx, uint64_t pos, size_t size)
     image_array[image_count].file_idx = file_idx;
     image_array[image_count].file_pos = pos;
     image_array[image_count].size = size;
+    image_array[image_count].is_unsync = is_unsync;
     image_count++;
     return 1;
 }
@@ -141,13 +145,13 @@ bool ImageBox::loadNext()
         if (image_array[image_idx].media_src == char_ptr) {
             decode_ok = !loadJpegBin(image_array[image_idx].ptr, image_array[image_idx].size);
         } else if (image_array[image_idx].media_src == sdcard) {
-            decode_ok = loadJpegFile(image_array[image_idx].file_idx, image_array[image_idx].file_pos, image_array[image_idx].size);
+            decode_ok = loadJpegFile(image_array[image_idx].file_idx, image_array[image_idx].file_pos, image_array[image_idx].size, image_array[image_idx].is_unsync);
         }
     } else if (image_array[image_idx].img_fmt == png) {
         if (image_array[image_idx].media_src == char_ptr) {
             decode_ok = loadPngBin(image_array[image_idx].ptr, image_array[image_idx].size);
         } else if (image_array[image_idx].media_src == sdcard) {
-            decode_ok = loadPngFile(image_array[image_idx].file_idx, image_array[image_idx].file_pos, image_array[image_idx].size);
+            decode_ok = loadPngFile(image_array[image_idx].file_idx, image_array[image_idx].file_pos, image_array[image_idx].size, image_array[image_idx].is_unsync);
         }
     }
     image_idx_next = (image_idx + 1) % image_count;
@@ -189,13 +193,13 @@ bool ImageBox::loadJpegBin(char *ptr, size_t size)
 }
 
 // load from JPEG File
-bool ImageBox::loadJpegFile(uint16_t file_idx, uint64_t pos, size_t size)
+bool ImageBox::loadJpegFile(uint16_t file_idx, uint64_t pos, size_t size, bool is_unsync)
 {
     int decoded;
     bool reduce = false;
     JpegDec.abort();
     file_menu_get_obj(file_idx, &file);
-    decoded = JpegDec.decodeSdFile(&file, pos, size, 0); // reduce == 0
+    decoded = JpegDec.decodeSdFile(&file, pos, size, 0, is_unsync); // reduce == 0
     if (decoded <= 0) { return false; }
     src_w = JpegDec.width;
     src_h = JpegDec.height;
@@ -206,7 +210,7 @@ bool ImageBox::loadJpegFile(uint16_t file_idx, uint64_t pos, size_t size)
         reduce = true;
         JpegDec.abort();
         file_menu_get_obj(file_idx, &file);
-        decoded = JpegDec.decodeSdFile(&file, pos, size, 1); // reduce == 1
+        decoded = JpegDec.decodeSdFile(&file, pos, size, 1, is_unsync); // reduce == 1
         if (decoded <= 0) { return false; }
     }
     loadJpeg(reduce);
@@ -478,13 +482,13 @@ bool ImageBox::loadPngBin(char *ptr, size_t size)
 }
 
 // load from PNG File
-bool ImageBox::loadPngFile(uint16_t file_idx, uint64_t pos, size_t size)
+bool ImageBox::loadPngFile(uint16_t file_idx, uint64_t pos, size_t size, bool is_unsync)
 {
     int decoded;
     uint8_t reduce = 0;
     PngDec.abort();
     file_menu_get_obj(file_idx, &file);
-    decoded = PngDec.loadSdFile(&file, pos, size);
+    decoded = PngDec.loadSdFile(&file, pos, size, is_unsync);
     if (decoded <= 0) { return false; }
     src_w = PngDec.width;
     src_h = PngDec.height;
@@ -1298,19 +1302,19 @@ void LcdCanvas::setBatteryVoltage(uint16_t voltage_x1000)
     battery.setLevel(((voltage_x1000 - lvl0) * 100) / (lvl100 - lvl0));
 }
 
-void LcdCanvas::addAlbumArtJpeg(uint16_t file_idx, uint64_t pos, size_t size)
+void LcdCanvas::addAlbumArtJpeg(uint16_t file_idx, uint64_t pos, size_t size, bool is_unsync)
 {
-    albumArt.addJpegFile(file_idx, pos, size);
+    albumArt.addJpegFile(file_idx, pos, size, is_unsync);
     #ifdef USE_ALBUM_ART_SMALL
-    albumArtSmall.addJpegFile(file_idx, pos, size);
+    albumArtSmall.addJpegFile(file_idx, pos, size, is_unsync);
     #endif // #ifdef USE_ALBUM_ART_SMALL
 }
 
-void LcdCanvas::addAlbumArtPng(uint16_t file_idx, uint64_t pos, size_t size)
+void LcdCanvas::addAlbumArtPng(uint16_t file_idx, uint64_t pos, size_t size, bool is_unsync)
 {
-    albumArt.addPngFile(file_idx, pos, size);
+    albumArt.addPngFile(file_idx, pos, size, is_unsync);
     #ifdef USE_ALBUM_ART_SMALL
-    albumArtSmall.addPngFile(file_idx, pos, size);
+    albumArtSmall.addPngFile(file_idx, pos, size, is_unsync);
     #endif // #ifdef USE_ALBUM_ART_SMALL
 }
 

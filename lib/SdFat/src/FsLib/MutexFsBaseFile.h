@@ -362,6 +362,23 @@ class MutexFsBaseFile : public FsBaseFile {
    * or an I/O error occurred.
    */
   int read(void* buf, size_t count);
+  /** Read data from a file starting at the current position.with Unsynchronization
+   *
+   * \param[out] buf Pointer to the location that will receive the data.
+   *
+   * \param[in] count Maximum number of bytes to read.
+   *
+   * \return For success read() returns the number of bytes read.
+   * A value less than \a count, including zero, will be returned
+   * if end of file is reached.
+   * If an error occurs, read() returns -1.  Possible errors include
+   * read() called before a file has been opened, corrupt file system
+   * or an I/O error occurred.
+   *
+   * Caution: return value is actual byte which 0x00 is deducted. (0xFF 0x00 -> 0xFF)
+   *  Therefore, don't use return value for calculating next file reading position
+   */
+  int readUnsync(void* buf, size_t count, bool unsync = false);
   /** Remove a file.
    *
    * The directory entry and all data for the file are deleted.

@@ -83,7 +83,7 @@ uint8_t JPEGDecoder::pjpeg_need_bytes_callback(uint8_t* pBuf, uint8_t buf_size, 
 #endif
 
 #if defined (LOAD_SD_LIBRARY) || defined (LOAD_SDFAT_LIBRARY)
-	if (jpg_source == JPEG_SD_FILE) g_pInFileSd->read(pBuf,n); // else we are handling a file
+	if (jpg_source == JPEG_SD_FILE) n = g_pInFileSd->readUnsync(pBuf,n,g_unsync); // else we are handling a file
 #endif
 
 	*pBytes_actually_read = (uint8_t)(n);
@@ -338,9 +338,10 @@ int JPEGDecoder::decodeSdFile(File jpgFile) { // This is for the SD library
 #endif
 
 #ifdef LOAD_SDFAT_LIBRARY
-int JPEGDecoder::decodeSdFile (MutexFsBaseFile *jpgFile, uint64_t pos, size_t size, uint8_t reduce) { // This is for the SdFat library
+int JPEGDecoder::decodeSdFile(MutexFsBaseFile *jpgFile, uint64_t pos, size_t size, uint8_t reduce, bool is_unsync) { // This is for the SdFat library
 
 	g_pInFileSd = jpgFile;
+	g_unsync = is_unsync;
 
 	jpg_source = JPEG_SD_FILE; // Flag to indicate a SD file
 

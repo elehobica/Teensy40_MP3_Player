@@ -106,6 +106,7 @@ private:
   uint64_t g_nInFileSize;
   uint64_t g_nInFileOfs;
   uint8_t g_reduce = 0;
+  bool g_unsync = false;
   uint row_pitch;
   uint decoded_width, decoded_height;
   uint row_blocks_per_mcu, col_blocks_per_mcu;
@@ -154,7 +155,7 @@ public:
 //  0: normal MCU size
 //  1: 1/8 MCU size for x, y
 #ifdef LOAD_SDFAT_LIBRARY
-  int decodeSdFile (MutexFsBaseFile *jpgFile, uint64_t pos = 0, size_t size = 0, uint8_t reduce = 0);
+  int decodeSdFile (MutexFsBaseFile *jpgFile, uint64_t pos = 0, size_t size = 0, uint8_t reduce = 0, bool is_unsync = false);
 #endif
 
 #ifdef LOAD_SPIFFS

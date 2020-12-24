@@ -335,6 +335,33 @@ int MutexFsBaseFile::read(void* buf, size_t count) {
   return FsBaseFile::read(buf, count);
 }
 //------------------------------------------------------------------------------
+int MutexFsBaseFile::readUnsync(void* buf, size_t count, bool unsync) {
+  if (!unsync) return read(buf, count);
+  uint8_t *bufb = (uint8_t *) buf;
+  uint8_t *temp_buf = (uint8_t *) malloc(count);
+  count = read(temp_buf, count);
+  uint8_t b;
+  uint8_t b0 = 0x00;
+  int j = 0;
+  // for 0 ~ count-2
+  for (int i = 0; i < (int) count-1; i++) {
+    b = temp_buf[i];
+    if (b0 != 0xff || b != 0x00) {
+      bufb[j++] = b;
+    }
+    b0 = b;
+  }
+  // for count-1
+  b = temp_buf[count-1];
+  if (b == 0xff) { // don't take last 0xff for detection of next unsync
+    seekSet(position() - 1);
+  } else if (b0 != 0xff || b != 0x00) {
+    bufb[j++] = b;
+  }
+  free(temp_buf);
+  return j;
+}
+//------------------------------------------------------------------------------
 bool MutexFsBaseFile::remove() {
   Threads::Scope scope(mylock);
   return FsBaseFile::remove();

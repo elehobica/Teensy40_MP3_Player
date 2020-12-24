@@ -48,7 +48,7 @@ void PNGDecoder::abort()
 	pngDecoder_draw_rgb565_callback = NULL;
 }
 
-int PNGDecoder::loadSdFile(MutexFsBaseFile *pngFile, uint64_t file_pos, size_t file_size)
+int PNGDecoder::loadSdFile(MutexFsBaseFile *pngFile, uint64_t file_pos, size_t file_size, bool is_unsync)
 {
 	png_src_type = png_sd_file;
 	file = pngFile;
@@ -68,6 +68,7 @@ int PNGDecoder::loadSdFile(MutexFsBaseFile *pngFile, uint64_t file_pos, size_t f
 		}
 		size = file_size;
 	}
+	this->is_unsync = is_unsync;
 	return preDecode();
 }
 
@@ -77,6 +78,7 @@ int PNGDecoder::loadArray(const uint8_t array[], uint32_t  array_size)
 	png_ofs = 0;
 	png_ptr = (uint8_t *) array;
 	size = array_size;
+	this->is_unsync = false;
 	return preDecode();
 }
 
@@ -122,7 +124,7 @@ int PNGDecoder::preDecode()
 	while (1) {
 		int len;
 		if (png_src_type == png_sd_file) {
-			len = file->read(buf + unfed, sizeof(buf) - unfed);
+			len = file->readUnsync(buf + unfed, sizeof(buf) - unfed, is_unsync);
 		} else { // png_src_type == png_array
 			len = (remain <= (int) sizeof(buf)) ? sizeof(buf) : remain;
 			memmove(buf, png_ptr + size - remain, len);
@@ -156,7 +158,7 @@ int PNGDecoder::decode(uint8_t reduce)
 	while (1) {
 		int len;
 		if (png_src_type == png_sd_file) {
-			len = file->read(buf + unfed, sizeof(buf) - unfed);
+			len = file->readUnsync(buf + unfed, sizeof(buf) - unfed, is_unsync);
 		} else { // png_src_type == png_array
 			len = (remain <= (int) sizeof(buf)) ? sizeof(buf) : remain;
 			memmove(buf, png_ptr + size - remain, len);

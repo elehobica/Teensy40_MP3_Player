@@ -111,6 +111,7 @@ public:
 		uint16_t file_idx;
 		uint64_t file_pos;
 		size_t size;
+		bool is_unsync;
 	} image_t;
 	ImageBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t height, uint16_t bgColor = LCD_BLACK);
 	void setBgColor(uint16_t bgColor);
@@ -121,9 +122,9 @@ public:
 	void setKeepAspectRatio(bool flg);
 	void setImageBuf(int16_t x, int16_t y, uint16_t rgb565);
 	int addJpegBin(char *ptr, size_t size);
-	int addJpegFile(uint16_t file_idx, uint64_t pos, size_t size);
+	int addJpegFile(uint16_t file_idx, uint64_t pos, size_t size, bool is_unsync = false);
 	int addPngBin(char *ptr, size_t size);
-	int addPngFile(uint16_t file_idx, uint64_t pos, size_t size);
+	int addPngFile(uint16_t file_idx, uint64_t pos, size_t size, bool is_unsync = false);
 	int getCount();
 	void deleteAll();
 	bool loadNext();
@@ -149,10 +150,10 @@ protected:
 	MutexFsBaseFile file;
 	void jpegMcu2sAccum(int count, uint16_t mcu_w, uint16_t mcu_h, uint16_t *pImage);
 	bool loadJpegBin(char *ptr, size_t size);
-	bool loadJpegFile(uint16_t file_idx, uint64_t pos, size_t size);
+	bool loadJpegFile(uint16_t file_idx, uint64_t pos, size_t size, bool is_unsync = false);
 	void loadJpeg(bool reduce);
 	bool loadPngBin(char *ptr, size_t size);
-	bool loadPngFile(uint16_t file_idx, uint64_t pos, size_t size);
+	bool loadPngFile(uint16_t file_idx, uint64_t pos, size_t size, bool is_unsync = false);
 	void loadPng(uint8_t reduce);
 	void unload();
 };
@@ -348,8 +349,8 @@ public:
 	void setArtist(const char *str, encoding_t encoding = none);
 	void setYear(const char *str, encoding_t encoding = none);
 	void setBatteryVoltage(uint16_t voltage_x1000);
-	void addAlbumArtJpeg(uint16_t file_idx, uint64_t pos, size_t size);
-	void addAlbumArtPng(uint16_t file_idx, uint64_t pos, size_t size);
+	void addAlbumArtJpeg(uint16_t file_idx, uint64_t pos, size_t size, bool is_unsync = false);
+	void addAlbumArtPng(uint16_t file_idx, uint64_t pos, size_t size, bool is_unsync = false);
 	void deleteAlbumArt();
 	void switchToFileView();
 	void switchToPlay();

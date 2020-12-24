@@ -481,6 +481,7 @@ void UIPlayMode::readTag()
     ptype_t ptype;
     uint64_t img_pos;
     size_t size;
+    bool is_unsync;
     int img_cnt = 0;
     
     // Read TAG
@@ -507,9 +508,9 @@ void UIPlayMode::readTag()
     // copy TAG image
     lcd->deleteAlbumArt();
     for (int i = 0; i < tag.getPictureCount(); i++) {
-        if (tag.getPicturePos(i, &mime, &ptype, &img_pos, &size)) {
-            if (mime == jpeg) { lcd->addAlbumArtJpeg(vars->idx_play, img_pos, size); img_cnt++; }
-            else if (mime == png) { lcd->addAlbumArtPng(vars->idx_play, img_pos, size); img_cnt++; }
+        if (tag.getPicturePos(i, &mime, &ptype, &img_pos, &size, &is_unsync)) {
+            if (mime == jpeg) { lcd->addAlbumArtJpeg(vars->idx_play, img_pos, size, is_unsync); img_cnt++; }
+            else if (mime == png) { lcd->addAlbumArtPng(vars->idx_play, img_pos, size, is_unsync); img_cnt++; }
         }
     }
     // if no AlbumArt in TAG, use JPEG or PNG in current folder
