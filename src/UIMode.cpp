@@ -173,6 +173,7 @@ UIMode *UIFileViewMode::randomSearch(uint16_t depth)
     int stack_count;
 
     Serial.println("Random Search");
+    vars->idx_play = 0;
     stack_count = stack_get_count(dir_stack);
     if (stack_count < depth) { return this; }
     for (i = 0; i < depth; i++) {
