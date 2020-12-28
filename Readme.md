@@ -57,6 +57,9 @@ In addition to original connection
 
 tie PCM5102 SCK (12) to low
 
+## Schematic
+[Teensy40_MP3_Player_schematic.pdf](doc/Teensy40_MP3_Player_schematic.pdf)
+
 ## I2S DAC
 Both ES9023 and PCM5102 are supported without code definition change.
 ### PCM5102 Board Setting
@@ -85,8 +88,13 @@ It is recommended to check microSD access stability in advance by [SdInfo](lib/S
 ## Unicode Font File
 Place [resource/unifont.bin](resource/unifont.bin) on microSD root folder
 
-## Schematic
-[Teensy40_MP3_Player_schematic.pdf](doc/Teensy40_MP3_Player_schematic.pdf)
+## How to build
+* Install [Visual Studio Code](https://code.visualstudio.com/) and add Extentions 'PlatformIO IDE'.
+* File menu -> Open Folder -> your local clone direcoty
+* Connect your Teensy 4.0 device and push 'Upload' on bottom Status bar of PlatformIO then required libraries and tools will be downloaded
+* Delete following libraries from your default library path if exists because they conflict with those in this project:
+Audio, TeensyThreads, Adafruit_GFX_Library, Arduino-Teensy-Codec, SdFat, Adafruit_ILI9341, Adafruit_ST7735_and_ST7789
+(check path: %USERNAME%\\.platformio\packages\framework-arduinoteensy\libraries\)
 
 ## Button Control Guide
 Connect MIC pin of Android headphone remote control with 3 buttons to A8 pin of Teensy 4.0.
