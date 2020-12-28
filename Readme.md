@@ -1,5 +1,5 @@
 # Teensy 4.0 MP3 Player
-## Supported Board and Devices
+## Supported Board and Peripheral Devices
 * Teensy 4.0
 * ES9023 24bit I2S Audio DAC
 * PCM5102 32bit I2S Audio DAC
@@ -11,15 +11,15 @@
 ### Supported
 * exFAT format microSD by SDIO (confirmed up to 1TB UHS-I Speed Class 3 card)
 * Sampling Frequency: 44.1KHz, Bit Resolution 16bit, Channel: Stereo
-* MP3 with ID3/ID3v2.2/ID3v2.3/ID3v2.4 Tag (partial support)
-* WAV with Tag information by LIST chunk (partial support)
-* AAC (m4a) with MP4 Tag (partial support)
-* FLAC with FLAC Tag (Vorbis comment) (partial support)
-* JPEG, PNG Cover Art embedded in Tag (multiple image supported)
+* MP3 with ID3/ID3v2.2/ID3v2.3/ID3v2.4 Tag
+* WAV with Tag information by LIST chunk
+* AAC (m4a) with MP4 Tag
+* FLAC with FLAC Tag (Vorbis comment)
+* JPEG, PNG Cover Art embedded in Tag (multiple images supported)
 * Folder/File navigation by UTF16 with unicode font
 * User Interface by Android Headphone button (3 buttons)
 * Volume Control by utilizing DAC 24bit/32bit range for playing 16bit Audio data
-* Album unit random play by time out after play finish (Assuming [Artist Folder]/[Album Folder] structure)
+* Album unit random play by time out when play finished (Assuming [Artist Folder]/[Album Folder] structure)
 * Resume playback
 * Battery voltage check (Optional: external circuit needed)
 
@@ -62,22 +62,22 @@ Both ES9023 and PCM5102 are supported without code definition change.
 ### PCM5102 Board Setting
 tie PCM5102 SCK (12) to low
 open H3L
-![Setting of PM5102 Board](doc/PCM5102A_Board_setting.png)
+![Setting of PM5102 Board](doc/images/PCM5102A_Board_setting.png)
 
 ## LCD Module
 * Edit [lib/LcdCanvas/LcdCanvas.h](lib/LcdCanvas/LcdCanvas.h) to choose your LCD module
 
 ## microSD
 ### Drive strength configuration for SDIO
-Several ways to mount microSD connector phisically.
-Please set SDIO_CTL_PAD_DSE_VAL in platformio.ini depending by connection condition.
-* Hinged type microSD connector (isEasy: B, IO-Timing: A, isSmart: B, SDIO_CTL_PAD_DSE_VAL: 1)
-* Flexible cable (isEasy: C, IO-Timing: B, isSmart: A, SDIO_CTL_PAD_DSE_VAL: 1~2)
-* SD Card connector (isEasy: A, IO-Timing: C, isSmart: C, SDIO_CTL_PAD_DSE_VAL: 2~4)
+Please set SDIO_CTL_PAD_DSE_VAL in [platformio.ini](platformio.ini) depending by microSD Card connection condition.
+
+* Direct Connection on Teensy 4.0 Board such as Hinged type microSD connector: SDIO_CTL_PAD_DSE_VAL = 1
+* Connect through Flexible cable less than 5cm: SDIO_CTL_PAD_DSE_VAL = 1~2
+* With longer cable and/or more load than above cases: SDIO_CTL_PAD_DSE_VAL = 2~4
 
 It is recommended to check microSD access stability in advance by [SdInfo](lib/SdFat/examples/SdInfo) and [bench](lib/SdFat/examples/bench) projects with Arduino environment.
 
-### Confirmed microSD card
+### Confirmed microSD Cards
 * SanDisk microSDXC Ultra A1 64GB (UHS-I Speed-class 1)
 * SanDisk microSDXC Ultra A1 512GB (UHS-I Speed-class 1)
 * SanDisk microSDXC Extreme A2 1TB (UHS-I Speed-class 3)
@@ -109,21 +109,25 @@ A8 also needs to be pulled-up by 2.2Kohm from 3.3V. See schematic for detail.
 * Long push Center button
 
 ## Prototype Example
-![Prototype Example](doc/Teensy40_MP3_Player_prototype.jpg)
+![Prototype Example](doc/images/Teensy40_MP3_Player_prototype.jpg)
 
 * with ST7789_240x240_WOCS and ES9023
 
-[Scene1](doc/Teensy40_MP3_Player_ST7789_240x240_WOCS_0.jpg)
-[Scene2](doc/Teensy40_MP3_Player_ST7789_240x240_WOCS_1.jpg)
-[Scene3](doc/Teensy40_MP3_Player_ST7789_240x240_WOCS_2.jpg)
+[Scene1](doc/images/Teensy40_MP3_Player_ST7789_240x240_WOCS_0.jpg)
+[Scene2](doc/images/Teensy40_MP3_Player_ST7789_240x240_WOCS_1.jpg)
+[Scene3](doc/images/Teensy40_MP3_Player_ST7789_240x240_WOCS_2.jpg)
 
 * with ILI9341_240x320 and ES9023
 
-[Scene4](doc/Teensy40_MP3_Player_ILI9341_240x320_0.jpg)
-[Scene5](doc/Teensy40_MP3_Player_ILI9341_240x320_1.jpg)
+[Scene4](doc/images/Teensy40_MP3_Player_ILI9341_240x320_0.jpg)
+[Scene5](doc/images/Teensy40_MP3_Player_ILI9341_240x320_1.jpg)
 
 * with ST7735_128x160 and ES9023
 
-[Scene6](doc/Teensy40_MP3_Player_ST7735_128x160_0.jpg)
-[Scene7](doc/Teensy40_MP3_Player_ST7735_128x160_1.jpg)
-[Scene8](doc/Teensy40_MP3_Player_ST7735_128x160_2.jpg)
+[Scene6](doc/images/Teensy40_MP3_Player_ST7735_128x160_0.jpg)
+[Scene7](doc/images/Teensy40_MP3_Player_ST7735_128x160_1.jpg)
+[Scene8](doc/images/Teensy40_MP3_Player_ST7735_128x160_2.jpg)
+
+* with ST7735_128x160 and PCM5102
+
+[Scene9](doc/images/Teensy40_MP3_Player_ST7735_128x160_w_PCM5102A.jpg)
