@@ -29,8 +29,10 @@ typedef enum _button_action_t {
     ButtonCenterLongLong,
     ButtonPlusSingle,
     ButtonPlusLong,
+    ButtonPlusFwd,
     ButtonMinusSingle,
     ButtonMinusLong,
+    ButtonMinusRwd,
     ButtonOthers
 } button_action_t;
 

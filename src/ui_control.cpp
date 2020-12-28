@@ -16,8 +16,13 @@
 #define HP_BUTTON_D       2
 #define HP_BUTTON_PLUS    3
 #define HP_BUTTON_MINUS   4
-uint8_t button_prv[NUM_BTN_HISTORY] = {}; // initialized as HP_BUTTON_OPEN
-volatile uint32_t button_repeat_count = 0;
+
+#define RELEASE_IGNORE_COUNT    8
+
+static uint8_t button_prv[NUM_BTN_HISTORY] = {}; // initialized as HP_BUTTON_OPEN
+static uint32_t button_repeat_count = 0;
+static bool fwd_lock = false;
+static bool rwd_lock = false;
 
 Threads::Event button_event;
 volatile button_action_t button_action;
@@ -53,12 +58,12 @@ int count_center_clicks(void)
     int i;
     int detected_fall = 0;
     int count = 0;
-    for (i = 0; i < 8; i++) { // Wait 50ms * 8 from last action
+    for (i = 0; i < RELEASE_IGNORE_COUNT; i++) { // Ignore Wait 50ms * RELEASE_IGNORE_COUNT from last action
         if (button_prv[i] != HP_BUTTON_OPEN) {
             return 0;
         }
     }
-    for (i = 4; i < NUM_BTN_HISTORY; i++) {
+    for (i = RELEASE_IGNORE_COUNT; i < NUM_BTN_HISTORY; i++) {
         if (detected_fall == 0 && button_prv[i-1] == HP_BUTTON_OPEN && button_prv[i] == HP_BUTTON_CENTER) {
             detected_fall = 1;
         } else if (detected_fall == 1 && button_prv[i-1] == HP_BUTTON_CENTER && button_prv[i] == HP_BUTTON_OPEN) {
@@ -91,7 +96,27 @@ void update_button_action(uint8_t android_MIC_pin)
     int i;
     int center_clicks;
     uint8_t button = adc0_get_hp_button(android_MIC_pin);
-    if (button == HP_BUTTON_OPEN) {
+    if (fwd_lock) {
+        if (button == HP_BUTTON_D || button == HP_BUTTON_PLUS) {
+            button_action = ButtonPlusFwd;
+            button_event.trigger();
+        } else {
+            fwd_lock = false;
+        }
+    } else if (rwd_lock) {
+        if (button == HP_BUTTON_MINUS) {
+            button_action = ButtonMinusRwd;
+            button_event.trigger();
+        } else {
+            rwd_lock = false;
+        }
+    } else if (button_prv[0] == HP_BUTTON_CENTER) { // center release with plus or minus pushed
+        if (button == HP_BUTTON_D || button == HP_BUTTON_PLUS) {
+            fwd_lock = true;
+        } else if (button == HP_BUTTON_MINUS) {
+            rwd_lock = true;
+        }
+    } else if (button == HP_BUTTON_OPEN && button_prv[RELEASE_IGNORE_COUNT] == HP_BUTTON_CENTER) { // center release
         button_repeat_count = 0;
         center_clicks = count_center_clicks(); // must be called once per tick because button_prv[] status has changed
         switch (center_clicks) {
