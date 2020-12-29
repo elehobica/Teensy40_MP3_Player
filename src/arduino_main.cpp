@@ -1,5 +1,5 @@
 /*-------------------------------------------------------------------------/
-/ Teensy4.0 MP3 Player v0.85
+/ Teensy4.0 MP3 Player v0.85a
 /--------------------------------------------------------------------------/
 / Copyright (c) 2020, Elehobica
 /
@@ -64,7 +64,7 @@
 //#define NUM_LIST_LINES      20
 #endif
 
-const int Version = 85;
+const char *Version = "0.85a";
 
 const int LoopCycleMs = 50; // loop cycle (ms)
 const int OneSec = 1000 / LoopCycleMs; // 1 Sec
@@ -133,7 +133,7 @@ void setup()
     {
         char str[64];
         Serial.println("###################################");
-        sprintf(str, "Teensy 4.0 MP3 Player ver. %d.%02d", Version/100, Version%100);
+        sprintf(str, "Teensy 4.0 MP3 Player ver. %s", Version);
         Serial.println(str);
         Serial.println("###################################");
     }

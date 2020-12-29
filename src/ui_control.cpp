@@ -110,7 +110,8 @@ void update_button_action(uint8_t android_MIC_pin)
         } else {
             rwd_lock = false;
         }
-    } else if (button_prv[0] == HP_BUTTON_CENTER) { // center release with plus or minus pushed
+    } else if (button_prv[0] == HP_BUTTON_CENTER && button != HP_BUTTON_CENTER) { // center release with plus or minus pushed
+        button_repeat_count = 0;
         if (button == HP_BUTTON_D || button == HP_BUTTON_PLUS) {
             fwd_lock = true;
         } else if (button == HP_BUTTON_MINUS) {
