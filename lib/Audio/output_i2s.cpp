@@ -45,6 +45,8 @@ DMAMEM __attribute__((aligned(32))) static uint32_t i2s_tx_buffer[AUDIO_BLOCK_SA
 
 uint8_t AudioOutputI2S::volume = 65; // 0 ~ 100;
 
+static const int32_t DAC_ZERO_OFFSET = 1; // Non-zero value to prevent Pop noise du to Zero Data Detect of PCM5102A
+
 static const uint32_t vol_table[101] = {
     0, 4, 8, 12, 16, 20, 24, 27, 29, 31,
     34, 37, 40, 44, 48, 52, 57, 61, 67, 73,
@@ -62,24 +64,24 @@ static const uint32_t vol_table[101] = {
 void memcpy_tointerleaveLR(int8_t vol, int32_t *dst, const int16_t *srcL, const int16_t *srcR)
 {
     for (int i = 0; i < AUDIO_BLOCK_SAMPLES/2; i++) {
-        dst[i*2+0] = (int32_t) srcL[i] * vol_table[vol];
-        dst[i*2+1] = (int32_t) srcR[i] * vol_table[vol];
+        dst[i*2+0] = (int32_t) srcL[i] * vol_table[vol] + DAC_ZERO_OFFSET;
+        dst[i*2+1] = (int32_t) srcR[i] * vol_table[vol] + DAC_ZERO_OFFSET;
     }
 }
 
 void memcpy_tointerleaveL(int8_t vol, int32_t *dst, const int16_t *srcL)
 {
     for (int i = 0; i < AUDIO_BLOCK_SAMPLES/2; i++) {
-        dst[i*2+0] = (int32_t) srcL[i] * vol_table[vol];
-        dst[i*2+1] = 0;
+        dst[i*2+0] = (int32_t) srcL[i] * vol_table[vol] + DAC_ZERO_OFFSET;
+        dst[i*2+1] = 0 + DAC_ZERO_OFFSET;
     }
 }
 
 void memcpy_tointerleaveR(int8_t vol, int32_t *dst, const int16_t *srcR)
 {
     for (int i = 0; i < AUDIO_BLOCK_SAMPLES/2; i++) {
-        dst[i*2+0] = 0;
-        dst[i*2+1] = (int32_t) srcR[i] * vol_table[vol];
+        dst[i*2+0] = 0 + DAC_ZERO_OFFSET;
+        dst[i*2+1] = (int32_t) srcR[i] * vol_table[vol] + DAC_ZERO_OFFSET;
     }
 }
 
@@ -154,13 +156,11 @@ void AudioOutputI2S::isr(void)
 	if (saddr < (uint32_t)i2s_tx_buffer + sizeof(i2s_tx_buffer) / 2) {
 		// DMA is transmitting the first half of the buffer
 		// so we must fill the second half
-		//dest = (int16_t *)&i2s_tx_buffer[AUDIO_BLOCK_SAMPLES/2];
 		dest = (int32_t *)&i2s_tx_buffer[AUDIO_BLOCK_SAMPLES]; // Audio sample 16bit -> 32bit
 		if (AudioOutputI2S::update_responsibility) AudioStream::update_all();
 	} else {
 		// DMA is transmitting the second half of the buffer
 		// so we must fill the first half
-		//dest = (int16_t *)i2s_tx_buffer;
 		dest = (int32_t *)i2s_tx_buffer; // Audio sample 16bit -> 32bit
 	}
 
@@ -170,21 +170,20 @@ void AudioOutputI2S::isr(void)
 	offsetR = AudioOutputI2S::block_right_offset;
 
 	if (blockL && blockR) {
-		//memcpy_tointerleaveLR(dest, blockL->data + offsetL, blockR->data + offsetR);
 		memcpy_tointerleaveLR(volume, dest, blockL->data + offsetL, blockR->data + offsetR); // Audio sample 16bit -> 32bit
 		offsetL += AUDIO_BLOCK_SAMPLES / 2;
 		offsetR += AUDIO_BLOCK_SAMPLES / 2;
 	} else if (blockL) {
-		//memcpy_tointerleaveL(dest, blockL->data + offsetL);
 		memcpy_tointerleaveL(volume, dest, blockL->data + offsetL); // Audio sample 16bit -> 32bit
 		offsetL += AUDIO_BLOCK_SAMPLES / 2;
 	} else if (blockR) {
-		//memcpy_tointerleaveR(dest, blockR->data + offsetR);
 		memcpy_tointerleaveR(volume, dest, blockR->data + offsetR); // Audio sample 16bit -> 32bit
 		offsetR += AUDIO_BLOCK_SAMPLES / 2;
 	} else {
-		//memset(dest,0,AUDIO_BLOCK_SAMPLES * 2);
-		memset(dest,0,AUDIO_BLOCK_SAMPLES * 4); // Audio sample 16bit -> 32bit
+		//memset(dest,0,AUDIO_BLOCK_SAMPLES * 4); // Audio sample 16bit -> 32bit
+		for (int i = 0; i < AUDIO_BLOCK_SAMPLES; i++) {
+			((int *) dest)[i] = DAC_ZERO_OFFSET;
+		}
 	}
 
 	arm_dcache_flush_delete(dest, sizeof(i2s_tx_buffer) / 2);

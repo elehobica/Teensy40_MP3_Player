@@ -1,5 +1,5 @@
 /*-------------------------------------------------------------------------/
-/ Teensy4.0 MP3 Player v0.85a
+/ Teensy4.0 MP3 Player v0.8.6
 /--------------------------------------------------------------------------/
 / Copyright (c) 2020, Elehobica
 /
@@ -64,7 +64,7 @@
 //#define NUM_LIST_LINES      20
 #endif
 
-const char *Version = "0.85a";
+const char *Version = "0.8.6";
 
 const int LoopCycleMs = 50; // loop cycle (ms)
 const int OneSec = 1000 / LoopCycleMs; // 1 Sec
