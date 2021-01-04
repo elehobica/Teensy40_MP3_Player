@@ -225,7 +225,7 @@ void UIFileViewMode::idxDec(void)
 {
     if (vars->idx_head == 0 && vars->idx_column == 0) { return; }
     if (vars->idx_column == 0) {
-        if (vars->idx_head - vars->num_list_lines < 0) {
+        if (vars->idx_head < vars->num_list_lines) {
             vars->idx_column = 0;
             vars->idx_head--;
         } else {
@@ -254,7 +254,7 @@ void UIFileViewMode::idxFastInc(void)
 void UIFileViewMode::idxFastDec(void)
 {
     if (vars->idx_head == 0 && vars->idx_column == 0) { return; }
-    if (vars->idx_head - vars->num_list_lines < 0) {
+    if (vars->idx_head < vars->num_list_lines) {
         vars->idx_head = 0;
         idxDec();
     } else {

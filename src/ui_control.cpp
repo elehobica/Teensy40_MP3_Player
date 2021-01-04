@@ -117,24 +117,26 @@ void update_button_action(uint8_t android_MIC_pin)
         } else if (button == HP_BUTTON_MINUS) {
             rwd_lock = true;
         }
-    } else if (button == HP_BUTTON_OPEN && button_prv[RELEASE_IGNORE_COUNT] == HP_BUTTON_CENTER) { // center release
+    } else if (button == HP_BUTTON_OPEN) {
         button_repeat_count = 0;
-        center_clicks = count_center_clicks(); // must be called once per tick because button_prv[] status has changed
-        switch (center_clicks) {
-            case 1:
-                button_action = ButtonCenterSingle;
-                button_event.trigger();
-                break;
-            case 2:
-                button_action = ButtonCenterDouble;
-                button_event.trigger();
-                break;
-            case 3:
-                button_action = ButtonCenterTriple;
-                button_event.trigger();
-                break;
-            default:
-                break;
+        if (button_prv[RELEASE_IGNORE_COUNT] == HP_BUTTON_CENTER) { // center release
+            center_clicks = count_center_clicks(); // must be called once per tick because button_prv[] status has changed
+            switch (center_clicks) {
+                case 1:
+                    button_action = ButtonCenterSingle;
+                    button_event.trigger();
+                    break;
+                case 2:
+                    button_action = ButtonCenterDouble;
+                    button_event.trigger();
+                    break;
+                case 3:
+                    button_action = ButtonCenterTriple;
+                    button_event.trigger();
+                    break;
+                default:
+                    break;
+            }
         }
     } else if (button_prv[0] == HP_BUTTON_OPEN) { // push
         if (button == HP_BUTTON_D || button == HP_BUTTON_PLUS) {
