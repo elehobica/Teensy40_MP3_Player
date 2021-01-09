@@ -282,7 +282,6 @@ UIMode* UIFileViewMode::update()
     }
     if (btn_evt->getState()) {
         btn_evt->clear();
-        idle_count = 0;
         vars->next_play_action = None;
         switch (*btn_act) {
             case ButtonCenterSingle:
@@ -307,7 +306,9 @@ UIMode* UIFileViewMode::update()
                 return nextPlay();
                 break;
             case ButtonCenterLongLong:
-                return getUIMode(PowerOffMode);
+                if (idle_count > 100) {
+                    return getUIMode(PowerOffMode);
+                }
                 break;
             case ButtonPlusSingle:
                 idxDec();
@@ -328,6 +329,7 @@ UIMode* UIFileViewMode::update()
             default:
                 break;
         }
+        idle_count = 0;
     }
     switch (vars->next_play_action) {
         case ImmediatePlay:
@@ -375,7 +377,6 @@ UIMode* UIPlayMode::update()
     AudioCodec *codec = audio_get_codec();
     if (btn_evt->getState()) {
         btn_evt->clear();
-        idle_count = 0;
         switch (*btn_act) {
             case ButtonCenterSingle:
                 codec->pause(!codec->isPaused());
@@ -391,7 +392,9 @@ UIMode* UIPlayMode::update()
                 return getUIMode(FileViewMode);
                 break;
             case ButtonCenterLongLong:
-                return getUIMode(PowerOffMode);
+                if (idle_count > 100) {
+                    return getUIMode(PowerOffMode);
+                }
                 break;
             case ButtonPlusSingle:
             case ButtonPlusLong:
@@ -404,6 +407,7 @@ UIMode* UIPlayMode::update()
             default:
                 break;
         }
+        idle_count = 0;
     }
     if (codec->isPaused() && idle_count > WaitCyclesForPowerOffWhenPaused) {
         return getUIMode(PowerOffMode);
