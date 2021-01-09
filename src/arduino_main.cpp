@@ -64,7 +64,7 @@
 //#define NUM_LIST_LINES      20
 #endif
 
-const char *Version = "0.8.7";
+const char *Version = "0.8.8";
 
 const int LoopCycleMs = 50; // loop cycle (ms)
 const int OneSec = 1000 / LoopCycleMs; // 1 Sec

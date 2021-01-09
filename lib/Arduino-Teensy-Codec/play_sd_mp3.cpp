@@ -92,107 +92,6 @@ float AudioPlaySdMp3::processorUsageMaxSD(void){
 };
 */
 
-#if 0
-int AudioPlaySdMp3::standby_play(MutexFsBaseFile *file)
-{
-	//ftype=codec_file; fptr=NULL; _file = *file; _fsize=_file.fileSize(); _fposition=0;
-	//if (!fopen(_file)) return ERR_CODEC_FILE_NOT_FOUND;
-	//uint8_t *sd_buf_temp = allocBuffer(MP3_SD_BUF_SIZE);
-	uint8_t sd_buf_temp[10];
-	int sd_left_temp = file->read(sd_buf_temp, 10);
-	//Skip ID3, if existent
-	int skip = skipID3(sd_buf_temp);
-	size_t size_id3_temp;
-	int b = 0;
-	if (skip) {
-		size_id3_temp = skip;
-		b = skip & 0xfffffe00;
-		sd_left_temp = 0;
-	} else {
-		size_id3_temp = 0;
-	}
-	/* // DEBUG
-	Serial.print("ID3 skip: ");
-	Serial.println(b);
-	*/
-
-	while (isPlaying()) { /*delay(1);*/ } // Wait for previous MP3 playing to stop
-
-	//fclose();
-	//NVIC_DISABLE_IRQ(IRQ_AUDIOCODEC);
-	MP3ResetDecoder(hMP3Decoder);
-
-	// instance copy start
-	initVars();
-	mp3objptr = this;
-	ftype=codec_file;
-	fptr=NULL;
-	_file = MutexFsBaseFile(*file);
-	_fsize=_file.fileSize();
-	_fposition=10;
-
-	memcpy(sd_buf, sd_buf_temp, sizeof(sd_buf_temp));
-
-	sd_left = sd_left_temp;
-	size_id3 = size_id3_temp;
-	// instance copy done
-
-	lastError = ERR_CODEC_NONE;
-
-	if (b) {
-		fseek(b);
-	} else {
-		fseek(10);
-	}
-	//Fill buffer from the beginning with fresh data
-	sd_left = fillReadBuffer(sd_buf, sd_buf, sd_left, MP3_SD_BUF_SIZE);
-
-	if (!sd_left) {
-		lastError = ERR_CODEC_FILE_NOT_FOUND;
-		stop();
-		return lastError;
-	}
-
-	//_VectorsRam[IRQ_AUDIOCODEC + 16] = &decodeMp3;
-	//initSwi();
-
-	decoded_length[0] = 0;
-	decoded_length[1] = 0;
-	decoding_block = 0;
-	decoding_state = 0;
-
-	play_pos = 0;
-
-	sd_p = sd_buf;
-
-	for (size_t i=0; i< DECODE_NUM_STATES; i++) {
-		decodeMp3_core();
-	}
-
-	if((mp3FrameInfo.samprate != AUDIOCODECS_SAMPLE_RATE ) || (mp3FrameInfo.bitsPerSample != 16) || (mp3FrameInfo.nChans > 2)) {
-		char str[256];
-		sprintf(str, "incompatible MP3 file. samprate: %d, bitsPerSample: %d, nChans: %d", mp3FrameInfo.samprate, mp3FrameInfo.bitsPerSample, mp3FrameInfo.nChans);
-		Serial.println(str);
-		lastError = ERR_CODEC_FORMAT;
-		stop();
-		return lastError;
-	}
-	decoding_block = 1;
-
-	playing = codec_playing;
-	/*
-	Serial.print("playing = codec_playing: ");
-	Serial.println(millis());
-	*/
-
-#ifdef CODEC_DEBUG
-//	Serial.printf("RAM: %d\r\n",ram-freeRam());
-
-#endif
-    return lastError;
-}
-#endif
-
 int AudioPlaySdMp3::play(size_t position, unsigned samples_played)
 {
 	/*
@@ -450,6 +349,9 @@ void decodeMp3_core(void)
 				if (offset >= 0) {
 					o->sd_p += offset;
 					o->sd_left -= offset;
+					// Fill Buffer for enough sd_left bytes even through offset is not zero (doubt for previous incoplete frame)
+					o->sd_left = o->fillReadBuffer(o->sd_buf, o->sd_p, o->sd_left, MP3_SD_BUF_SIZE);
+					o->sd_p = o->sd_buf;
 					break;
 				}
 				o->sd_left = o->fillReadBuffer(o->sd_buf, o->sd_p, 0, MP3_SD_BUF_SIZE);
@@ -508,22 +410,6 @@ mp3end:
 	Serial.println(millis());
 	*/
 }
-
-#if 0
-void AudioPlaySdMp3::stop_for_next(void)
-{
-	//NVIC_DISABLE_IRQ(IRQ_AUDIOCODEC);
-	playing = codec_stopped;
-	/*
-	if (buf[1]) {free(buf[1]);buf[1] = NULL;}
-	if (buf[0]) {free(buf[0]);buf[0] = NULL;}
-	freeBuffer();
-	*/
-	//if (hMP3Decoder) {MP3FreeDecoder(hMP3Decoder);hMP3Decoder=NULL;};
-	fclose();
-	mp3objptr = NULL;
-}
-#endif
 
 // lengthMillis (Override)
 unsigned AudioPlaySdMp3::lengthMillis(void)
