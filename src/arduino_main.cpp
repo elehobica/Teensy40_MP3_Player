@@ -1,5 +1,5 @@
 /*-------------------------------------------------------------------------/
-/ Teensy4.0 MP3 Player v0.8.6
+/ Teensy4.0 MP3 Player v0.8.9
 /--------------------------------------------------------------------------/
 / Copyright (c) 2020, Elehobica
 /
@@ -22,9 +22,9 @@
 
 #include <Wire.h>
 #include <EEPROM.h>
-#include <LcdCanvas.h>
 #include <file_menu_SdFat.h>
 
+#include "LcdCanvas.h"
 #include "ui_control.h"
 #include "stack.h"
 #include "EEPROM_util.h"
@@ -64,7 +64,7 @@
 //#define NUM_LIST_LINES      20
 #endif
 
-const char *Version = "0.8.8";
+const char *Version = "0.8.9";
 
 const int LoopCycleMs = 50; // loop cycle (ms)
 const int OneSec = 1000 / LoopCycleMs; // 1 Sec

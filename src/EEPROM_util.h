@@ -10,7 +10,7 @@
 #define __EEPROM_UTIL_H__
 
 #include <stdint.h>
-#include <LcdCanvas.h>
+#include "LcdCanvas.h"
 #include "stack.h"
 #include "UIMode.h"
 

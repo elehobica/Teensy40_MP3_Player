@@ -68,7 +68,7 @@ open H3L
 ![Setting of PM5102 Board](doc/images/PCM5102A_Board_setting.png)
 
 ## LCD Module
-* Edit [lib/LcdCanvas/LcdCanvas.h](lib/LcdCanvas/LcdCanvas.h) to choose your LCD module
+* Edit [src/LcdCanvas.h](src/LcdCanvas.h) to choose your LCD module
 
 ## microSD
 ### Drive strength configuration for SDIO

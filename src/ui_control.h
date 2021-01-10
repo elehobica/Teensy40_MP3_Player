@@ -10,7 +10,7 @@
 #define __UI_CONTROL_H__
 
 #include "UIMode.h"
-#include <LcdCanvas.h>
+#include "LcdCanvas.h"
 #include "stack.h"
 
 void update_button_action(uint8_t android_MIC_pin);

@@ -10,7 +10,7 @@
 #define _UIMODE_H_
 
 #include <TeensyThreads.h>
-#include <LcdCanvas.h>
+#include "LcdCanvas.h"
 #include "stack.h"
 #include "TagRead.h"
 #include "audio_playback.h"

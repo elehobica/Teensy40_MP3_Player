@@ -1,13 +1,12 @@
 /*-----------------------------------------------------------/
-/ LcdCanvas: Lcd Canvas API for Adafruit_SPITFT v0.90
+/ LcdElementBox: Lcd Element Box API for Adafruit_SPITFT v0.90
 /------------------------------------------------------------/
 / Copyright (c) 2020, Elehobica
 / Released under the BSD-2-Clause
 / refer to https://opensource.org/licenses/BSD-2-Clause
 /-----------------------------------------------------------*/
 
-#include "LcdCanvas.h"
-#include "iconfont.h"
+#include "LcdElementBox.h"
 #include <JPEGDecoder.h>
 #include <PNGDecoder.h>
 #include <file_menu_SdFat.h>
@@ -36,7 +35,7 @@ void ImageBox::update()
     isUpdated = true;
 }
 
-void ImageBox::draw(Adafruit_LCD *tft)
+void ImageBox::draw(Adafruit_SPITFT *tft)
 {
     if (!isUpdated || image == NULL || !isLoaded) { return; }
     isUpdated = false;
@@ -50,7 +49,7 @@ void ImageBox::draw(Adafruit_LCD *tft)
     tft->drawRGBBitmap(pos_x+ofs_x, pos_y+ofs_y, image, img_w, img_h);
 }
 
-void ImageBox::clear(Adafruit_LCD *tft)
+void ImageBox::clear(Adafruit_SPITFT *tft)
 {
     tft->fillRect(pos_x, pos_y, width, height, bgColor); // clear Icon rectangle
 }
@@ -255,25 +254,25 @@ void ImageBox::loadJpeg(bool reduce)
     src_h = JpegDec.height;
     uint16_t mcu_w = JpegDec.MCUWidth;
     uint16_t mcu_h = JpegDec.MCUHeight;
-    #ifdef DEBUG_LCD_CANVAS
+    #ifdef DEBUG_LCD_ELEMENT_BOX
     { // DEBUG
         char str[256];
         sprintf(str, "JPEG info: (w, h) = (%d, %d), (mcu_w, mcu_h) = (%d, %d)", src_w, src_h, mcu_w, mcu_h);
         Serial.println(str);
     }
-    #endif // DEBUG_LCD_CANVAS
+    #endif // DEBUG_LCD_ELEMENT_BOX
    if (reduce) {
         src_w /= 8;
         src_h /= 8;
         mcu_w /= 8;
         mcu_h /= 8;
-        #ifdef DEBUG_LCD_CANVAS
+        #ifdef DEBUG_LCD_ELEMENT_BOX
         { // DEBUG
             char str[256];
             sprintf(str, "Reduce applied:  (w, h) = (%d, %d), (virtual) (mcu_w, mcu_h) = (%d, %d)", src_w, src_h, mcu_w, mcu_h);
             Serial.println(str);
         }
-        #endif // DEBUG_LCD_CANVAS
+        #endif // DEBUG_LCD_ELEMENT_BOX
    }
     // Calculate MCU 2's Accumulation Count
     int mcu_2s_accum_cnt = 0;
@@ -292,7 +291,7 @@ void ImageBox::loadJpeg(bool reduce)
             mcu_h /= 2;
             mcu_2s_accum_cnt++;
         }
-        #ifdef DEBUG_LCD_CANVAS
+        #ifdef DEBUG_LCD_ELEMENT_BOX
         { // DEBUG
             if (mcu_2s_accum_cnt > 0) {
                 char str[256];
@@ -300,7 +299,7 @@ void ImageBox::loadJpeg(bool reduce)
                 Serial.println(str);
             }
         }
-        #endif // DEBUG_LCD_CANVAS
+        #endif // DEBUG_LCD_ELEMENT_BOX
     }
 
     int16_t mcu_y_prev = 0;
@@ -415,13 +414,13 @@ void ImageBox::loadJpeg(bool reduce)
             }
         }
     }
-    #ifdef DEBUG_LCD_CANVAS
+    #ifdef DEBUG_LCD_ELEMENT_BOX
     { // DEBUG
         char str[256];
         sprintf(str, "Resized to (img_w, img_h) = (%d, %d)", img_w, img_h);
         Serial.println(str);
     }
-    #endif // DEBUG_LCD_CANVAS
+    #endif // DEBUG_LCD_ELEMENT_BOX
     if (img_w < width) { // delete horizontal blank
         for (int16_t plot_y = 1; plot_y < img_h; plot_y++) {
             memmove(&image[img_w*plot_y], &image[width*plot_y], img_w*2);
@@ -511,23 +510,23 @@ void ImageBox::loadPng(uint8_t reduce)
     src_h = PngDec.height;
     //PngDec.linkImageBox(this);
     PngDec.set_draw_callback(this, cb_pngdec_draw_with_resize);
-    #ifdef DEBUG_LCD_CANVAS
+    #ifdef DEBUG_LCD_ELEMENT_BOX
     { // DEBUG
         char str[256];
         sprintf(str, "PNG info: (w, h) = (%d, %d)", src_w, src_h);
         Serial.println(str);
     }
-    #endif // DEBUG_LCD_CANVAS
+    #endif // DEBUG_LCD_ELEMENT_BOX
     if (reduce) {
         src_w /= 1<<reduce;
         src_h /= 1<<reduce;
-        #ifdef DEBUG_LCD_CANVAS
+        #ifdef DEBUG_LCD_ELEMENT_BOX
         { // DEBUG
             char str[256];
             sprintf(str, "Reduce applied:  (w, h) = (%d, %d)", src_w, src_h);
             Serial.println(str);
         }
-        #endif // DEBUG_LCD_CANVAS
+        #endif // DEBUG_LCD_ELEMENT_BOX
     }
     if (resizeFit) {
         ratio256_w = width * 256 / src_w;
@@ -549,13 +548,13 @@ void ImageBox::loadPng(uint8_t reduce)
             memmove(&image[img_w*plot_y], &image[width*plot_y], img_w*2);
         }
     }
-    #ifdef DEBUG_LCD_CANVAS
+    #ifdef DEBUG_LCD_ELEMENT_BOX
     { // DEBUG
         char str[256];
         sprintf(str, "Resized to (img_w, img_h) = (%d, %d)", img_w, img_h);
         Serial.println(str);
     }
-    #endif // DEBUG_LCD_CANVAS
+    #endif // DEBUG_LCD_ELEMENT_BOX
 }
 
 void ImageBox::unload()
@@ -611,7 +610,7 @@ void IconBox::update()
     isUpdated = true;
 }
 
-void IconBox::draw(Adafruit_LCD *tft)
+void IconBox::draw(Adafruit_SPITFT *tft)
 {
     if (!isUpdated) { return; }
     isUpdated = false;
@@ -621,7 +620,7 @@ void IconBox::draw(Adafruit_LCD *tft)
     }
 }
 
-void IconBox::clear(Adafruit_LCD *tft)
+void IconBox::clear(Adafruit_SPITFT *tft)
 {
     tft->fillRect(pos_x, pos_y, iconWidth, iconHeight, bgColor); // clear Icon rectangle
 }
@@ -634,39 +633,10 @@ void IconBox::setIcon(uint8_t *icon)
 }
 
 //=================================
-// Implementation of BatteryIconBox class
-//=================================
-BatteryIconBox::BatteryIconBox(int16_t pos_x, int16_t pos_y, uint16_t fgColor, uint16_t bgColor)
-    : IconBox(pos_x, pos_y, ICON16x16_BATTERY, fgColor, bgColor), level(0) {}
-
-void BatteryIconBox::draw(Adafruit_LCD *tft)
-{
-    if (!isUpdated) { return; }
-    isUpdated = false;
-    clear(tft);
-    if (icon != NULL) {
-        tft->drawBitmap(pos_x, pos_y, icon, iconWidth, iconHeight, fgColor);
-        uint16_t color = (level >= 50) ? 0x0600 : (level >= 20) ? 0xc600 : 0xc000;
-        if (level/10 < 9) {
-            tft->fillRect(pos_x+4, pos_y+4, 8, 10-level/10-1, bgColor);
-        }
-        tft->fillRect(pos_x+4, pos_y+13-level/10, 8, level/10+1, color);
-    }
-}
-
-void BatteryIconBox::setLevel(uint8_t value)
-{
-    value = (value <= 100) ? value : 100;
-    if (this->level == value) { return; }
-    this->level = value;
-    update();
-}
-
-//=================================
 // Implementation of TextBox class
 //=================================
 TextBox::TextBox(int16_t pos_x, int16_t pos_y, uint16_t fgColor, uint16_t bgColor)
-    : isUpdated(true), pos_x(pos_x), pos_y(pos_y), fgColor(fgColor), bgColor(bgColor), align(Box::AlignLeft), str(""), encoding(none) {}
+    : isUpdated(true), pos_x(pos_x), pos_y(pos_y), fgColor(fgColor), bgColor(bgColor), align(LcdElementBox::AlignLeft), str(""), encoding(none) {}
 
 TextBox::TextBox(int16_t pos_x, int16_t pos_y, align_enm align, uint16_t fgColor, uint16_t bgColor)
     : isUpdated(true), pos_x(pos_x), pos_y(pos_y), fgColor(fgColor), bgColor(bgColor), align(align), str(""), encoding(none) {}
@@ -701,7 +671,7 @@ void TextBox::update()
     isUpdated = true;
 }
 
-void TextBox::draw(Adafruit_LCD *tft)
+void TextBox::draw(Adafruit_SPITFT *tft)
 {
     if (!isUpdated) { return; }
     int16_t x_ofs;
@@ -709,15 +679,15 @@ void TextBox::draw(Adafruit_LCD *tft)
     TextBox::clear(tft); // call clear() of this class
     //tft->fillRect(x0, y0, w0, h0, bgColor); // clear previous rectangle
     tft->setTextColor(fgColor);
-    x_ofs = (align == Box::AlignRight) ? -w0 : (align == Box::AlignCenter) ? -w0/2 : 0; // at this point, w0 could be not correct
+    x_ofs = (align == LcdElementBox::AlignRight) ? -w0 : (align == LcdElementBox::AlignCenter) ? -w0/2 : 0; // at this point, w0 could be not correct
     tft->getTextBounds(str, pos_x+x_ofs, pos_y, &x0, &y0, &w0, &h0, encoding); // update next smallest rectangle (get correct w0)
-    x_ofs = (align == Box::AlignRight) ? -w0 : (align == Box::AlignCenter) ? -w0/2 : 0;
+    x_ofs = (align == LcdElementBox::AlignRight) ? -w0 : (align == LcdElementBox::AlignCenter) ? -w0/2 : 0;
     tft->getTextBounds(str, pos_x+x_ofs, pos_y, &x0, &y0, &w0, &h0, encoding); // update next smallest rectangle (get total correct info)
     tft->setCursor(pos_x+x_ofs, pos_y);
     tft->println(str, encoding);
 }
 
-void TextBox::clear(Adafruit_LCD *tft)
+void TextBox::clear(Adafruit_SPITFT *tft)
 {
     tft->fillRect(x0, y0, w0, h0, bgColor); // clear previous rectangle
 }
@@ -750,20 +720,20 @@ void TextBox::setInt(int value)
 //=================================
 // Implementation of NFTextBox class
 //=================================
-NFTextBox::NFTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t fgColor, uint16_t bgColor)
-    : TextBox(pos_x, pos_y, "", Box::AlignLeft, fgColor, bgColor), width(width), draw_count(0), blink(false)
+NFTextBox::NFTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t fgColor, uint16_t bgColor, const GFXfont *f, int16_t ofs_y, uint16_t height_y)
+    : TextBox(pos_x, pos_y, "", LcdElementBox::AlignLeft, fgColor, bgColor), Font(f), ofs_y(ofs_y), height_y(height_y), width(width), draw_count(0), blink(false)
 {
     initCanvas();
 }
 
-NFTextBox::NFTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, align_enm align, uint16_t fgColor, uint16_t bgColor)
-    : TextBox(pos_x, pos_y, "", align, fgColor, bgColor), width(width), draw_count(0), blink(false)
+NFTextBox::NFTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, align_enm align, uint16_t fgColor, uint16_t bgColor, const GFXfont *f, int16_t ofs_y, uint16_t height_y)
+    : TextBox(pos_x, pos_y, "", align, fgColor, bgColor), Font(f), ofs_y(ofs_y), height_y(height_y), width(width), draw_count(0), blink(false)
 {
     initCanvas();
 }
 
-NFTextBox::NFTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, const char *str, align_enm align, uint16_t fgColor, uint16_t bgColor)
-    : TextBox(pos_x, pos_y, str, align, fgColor, bgColor), width(width), draw_count(0), blink(false)
+NFTextBox::NFTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, const char *str, align_enm align, uint16_t fgColor, uint16_t bgColor, const GFXfont *f, int16_t ofs_y, uint16_t height_y)
+    : TextBox(pos_x, pos_y, str, align, fgColor, bgColor), Font(f), ofs_y(ofs_y), height_y(height_y), width(width), draw_count(0), blink(false)
 {
     initCanvas();
 }
@@ -776,23 +746,23 @@ NFTextBox::~NFTextBox()
 
 void NFTextBox::initCanvas()
 {
-    canvas = new GFXcanvas1(width, FONT_HEIGHT); // 2x width for minimize canvas update, which costs Unifont SdFat access
-    canvas->setFont(CUSTOM_FONT, CUSTOM_FONT_OFS_Y);
+    canvas = new GFXcanvas1(width, height_y); // 2x width for minimize canvas update, which costs Unifont SdFat access
+    canvas->setFont(Font, ofs_y);
     canvas->setTextWrap(false);
     canvas->setTextSize(1);
     canvas->getTextBounds(str, 0, 0, &x0, &y0, &w0, &h0, encoding); // idle-run because first time fails somehow
 }
 
-void NFTextBox::draw(Adafruit_LCD *tft)
+void NFTextBox::draw(Adafruit_SPITFT *tft)
 {
     if (!isUpdated && !(blink && draw_count % (BlinkInterval/2) == 0)) { draw_count++; return; }
     int16_t x_ofs;
     int16_t new_x_ofs;
     uint16_t new_w0;
     isUpdated = false;
-    x_ofs = (align == Box::AlignRight) ? -w0 : (align == Box::AlignCenter) ? -w0/2 : 0; // previous x_ofs
+    x_ofs = (align == LcdElementBox::AlignRight) ? -w0 : (align == LcdElementBox::AlignCenter) ? -w0/2 : 0; // previous x_ofs
     canvas->getTextBounds(str, 0, 0, &x0, &y0, &new_w0, &h0, encoding); // get next smallest rectangle (get correct new_w0)
-    new_x_ofs = (align == Box::AlignRight) ? -new_w0 : (align == Box::AlignCenter) ? -new_w0/2 : 0;
+    new_x_ofs = (align == LcdElementBox::AlignRight) ? -new_w0 : (align == LcdElementBox::AlignCenter) ? -new_w0/2 : 0;
     if (new_x_ofs > x_ofs) { // clear left-over rectangle
         tft->fillRect(pos_x+x_ofs, pos_y+y0, new_x_ofs-x_ofs, h0, bgColor);
     }
@@ -803,15 +773,15 @@ void NFTextBox::draw(Adafruit_LCD *tft)
     w0 = new_w0;
     x_ofs = new_x_ofs;
     // Flicker less draw (width must be NFTextBox's width)
-    //tft->drawBitmap(pos_x+x_ofs, pos_y, canvas->getBuffer(), width, FONT_HEIGHT, fgColor, bgColor);
+    //tft->drawBitmap(pos_x+x_ofs, pos_y, canvas->getBuffer(), width, height_y, fgColor, bgColor);
     if (blink && (draw_count % BlinkInterval >= (BlinkInterval/2))) { // Blink (Disappear) case
-        tft->fillRect(pos_x+x_ofs, pos_y, width, FONT_HEIGHT, bgColor);
+        tft->fillRect(pos_x+x_ofs, pos_y, width, height_y, bgColor);
     } else { // Normal case + Blink (Appear) case
         int16_t x = pos_x+x_ofs;
         int16_t y = pos_y;
         const uint8_t *bitmap = canvas->getBuffer();
         int16_t w = width;
-        int16_t h = FONT_HEIGHT;
+        int16_t h = height_y;
         uint16_t color = fgColor;
         uint16_t bg = bgColor;
 
@@ -836,9 +806,9 @@ void NFTextBox::draw(Adafruit_LCD *tft)
     draw_count++;
 }
 
-void NFTextBox::clear(Adafruit_LCD *tft)
+void NFTextBox::clear(Adafruit_SPITFT *tft)
 {
-    int16_t x_ofs = (align == Box::AlignRight) ? -w0 : (align == Box::AlignCenter) ? -w0/2 : 0; // previous x_ofs
+    int16_t x_ofs = (align == LcdElementBox::AlignRight) ? -w0 : (align == LcdElementBox::AlignCenter) ? -w0/2 : 0; // previous x_ofs
     tft->fillRect(pos_x+x_ofs, pos_y+y0, w0, h0, bgColor);
 }
 
@@ -849,7 +819,7 @@ void NFTextBox::setText(const char *str, encoding_t encoding)
     update();
     //strncpy(this->str, str, charSize);
     memcpy(this->str, str, charSize);
-    canvas->fillRect(0, 0, width, FONT_HEIGHT, bgColor);
+    canvas->fillRect(0, 0, width, height_y, bgColor);
     canvas->setCursor(0, 0);
     canvas->print(str, encoding);
 }
@@ -885,7 +855,7 @@ void IconTextBox::update()
     TextBox::update();
 }
 
-void IconTextBox::draw(Adafruit_LCD *tft)
+void IconTextBox::draw(Adafruit_SPITFT *tft)
 {
     // For IconBox: Don't display IconBox if str of TextBox is ""
     if (strlen(str) == 0) {
@@ -897,7 +867,7 @@ void IconTextBox::draw(Adafruit_LCD *tft)
     TextBox::draw(tft);
 }
 
-void IconTextBox::clear(Adafruit_LCD *tft)
+void IconTextBox::clear(Adafruit_SPITFT *tft)
 {
     iconBox.clear(tft);
     TextBox::clear(tft);
@@ -909,16 +879,16 @@ void IconTextBox::setIcon(uint8_t *icon)
 }
 
 //=================================
-// Implementation of ScrollTextBox class < Box
+// Implementation of ScrollTextBox class < LcdElementBox
 //=================================
-ScrollTextBox::ScrollTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t fgColor, uint16_t bgColor)
-    : isUpdated(true), pos_x(pos_x), pos_y(pos_y), fgColor(fgColor), bgColor(bgColor),
+ScrollTextBox::ScrollTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t fgColor, uint16_t bgColor, const GFXfont *f, int16_t ofs_y, uint16_t height_y)
+    : isUpdated(true), pos_x(pos_x), pos_y(pos_y), fgColor(fgColor), bgColor(bgColor), Font(f), ofs_y(ofs_y), height_y(height_y),
       str(""), width(width), stay_count(0), scr_en(true), encoding(none)
 {
     int16_t x0, y0; // dummy
     uint16_t h0; // dummy
-    canvas = new GFXcanvas1(width*2, FONT_HEIGHT); // 2x width for minimize canvas update, which costs Unifont SdFat access
-    canvas->setFont(CUSTOM_FONT, CUSTOM_FONT_OFS_Y);
+    canvas = new GFXcanvas1(width*2, height_y); // 2x width for minimize canvas update, which costs Unifont SdFat access
+    canvas->setFont(Font, ofs_y);
     canvas->setTextWrap(false);
     canvas->setTextSize(1);
     canvas->getTextBounds(str, 0, 0, &x0, &y0, &w0, &h0, encoding); // idle-run because first time fails somehow
@@ -953,7 +923,7 @@ void ScrollTextBox::update()
 //  x_ofs is minus value
 //  canvas width: width * 2
 //  canvas update: every ((x_ofs % width) == -(width-1))
-void ScrollTextBox::draw(Adafruit_LCD *tft)
+void ScrollTextBox::draw(Adafruit_SPITFT *tft)
 {
     int16_t under_offset = tft->width()-pos_x-w0; // max minus offset for scroll (width must be tft's width)
     if (!isUpdated && (under_offset >= 0 || !scr_en)) { return; }
@@ -965,7 +935,7 @@ void ScrollTextBox::draw(Adafruit_LCD *tft)
             if (stay_count++ > 20) {
                 if (x_ofs-- != 0) {
                     if (x_ofs < -width + 1) {
-                        canvas->fillRect(0, 0, width*2, FONT_HEIGHT, bgColor);
+                        canvas->fillRect(0, 0, width*2, height_y, bgColor);
                         canvas->setCursor(0, 0);
                         canvas->print(str, encoding);
                     }
@@ -975,7 +945,7 @@ void ScrollTextBox::draw(Adafruit_LCD *tft)
             }
         } else {
             if ((x_ofs % width) == -(width-1)) { // modulo returns minus value (C++)
-                canvas->fillRect(0, 0, width*2, FONT_HEIGHT, bgColor);
+                canvas->fillRect(0, 0, width*2, height_y, bgColor);
                 canvas->setCursor((x_ofs-1)/width*width, 0);
                 canvas->print(str, encoding);
             }
@@ -986,13 +956,13 @@ void ScrollTextBox::draw(Adafruit_LCD *tft)
     isUpdated = false;
 
     // Flicker less draw (width must be ScrollTextBox's width)
-    //tft->drawBitmap(pos_x+x_ofs, pos_y, canvas->getBuffer(), width, FONT_HEIGHT, fgColor, bgColor);
+    //tft->drawBitmap(pos_x+x_ofs, pos_y, canvas->getBuffer(), width, height_y, fgColor, bgColor);
     {
         int16_t x = pos_x + x_ofs%width;
         int16_t y = pos_y;
         const uint8_t *bitmap = canvas->getBuffer();
         int16_t w = width * 2;
-        int16_t h = FONT_HEIGHT;
+        int16_t h = height_y;
         uint16_t color = fgColor;
         uint16_t bg = bgColor;
 
@@ -1016,9 +986,9 @@ void ScrollTextBox::draw(Adafruit_LCD *tft)
     }
 }
 
-void ScrollTextBox::clear(Adafruit_LCD *tft)
+void ScrollTextBox::clear(Adafruit_SPITFT *tft)
 {
-    tft->fillRect(pos_x, pos_y, width, FONT_HEIGHT, bgColor);
+    tft->fillRect(pos_x, pos_y, width, height_y, bgColor);
 }
 
 void ScrollTextBox::setScroll(bool scr_en)
@@ -1041,7 +1011,7 @@ void ScrollTextBox::setText(const char *str, encoding_t encoding)
     x_ofs = 0;
     stay_count = 0;
 
-    canvas->fillRect(0, 0, width*2, FONT_HEIGHT, bgColor);
+    canvas->fillRect(0, 0, width*2, height_y, bgColor);
     canvas->setCursor(0, 0);
     canvas->print(str, encoding);
 }
@@ -1049,11 +1019,11 @@ void ScrollTextBox::setText(const char *str, encoding_t encoding)
 //=================================
 // Implementation of IconScrollTextBox class < ScrollTextBox
 //=================================
-IconScrollTextBox::IconScrollTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t fgColor, uint16_t bgColor)
-    : ScrollTextBox(pos_x+16, pos_y, width-16, fgColor, bgColor), iconBox(pos_x, pos_y, fgColor, bgColor) {}
+IconScrollTextBox::IconScrollTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t fgColor, uint16_t bgColor, const GFXfont *f, int16_t ofs_y, uint16_t height_y)
+    : ScrollTextBox(pos_x+16, pos_y, width-16, fgColor, bgColor, f, ofs_y, height_y), iconBox(pos_x, pos_y, fgColor, bgColor) {}
 
-IconScrollTextBox::IconScrollTextBox(int16_t pos_x, int16_t pos_y, uint8_t *icon, uint16_t width, uint16_t fgColor, uint16_t bgColor)
-    : ScrollTextBox(pos_x+16, pos_y, width-16, fgColor, bgColor), iconBox(pos_x, pos_y, icon, fgColor, bgColor) {}
+IconScrollTextBox::IconScrollTextBox(int16_t pos_x, int16_t pos_y, uint8_t *icon, uint16_t width, uint16_t fgColor, uint16_t bgColor, const GFXfont *f, int16_t ofs_y, uint16_t height_y)
+    : ScrollTextBox(pos_x+16, pos_y, width-16, fgColor, bgColor, f, ofs_y, height_y), iconBox(pos_x, pos_y, icon, fgColor, bgColor) {}
 
 void IconScrollTextBox::setFgColor(uint16_t fgColor)
 {
@@ -1073,7 +1043,7 @@ void IconScrollTextBox::update()
     ScrollTextBox::update();
 }
 
-void IconScrollTextBox::draw(Adafruit_LCD *tft)
+void IconScrollTextBox::draw(Adafruit_SPITFT *tft)
 {
     // For IconBox: Don't display IconBox if str of ScrollTextBox is ""
     if (strlen(str) == 0) {
@@ -1085,7 +1055,7 @@ void IconScrollTextBox::draw(Adafruit_LCD *tft)
     ScrollTextBox::draw(tft);
 }
 
-void IconScrollTextBox::clear(Adafruit_LCD *tft)
+void IconScrollTextBox::clear(Adafruit_SPITFT *tft)
 {
     iconBox.clear(tft);
     ScrollTextBox::clear(tft);
@@ -1094,234 +1064,4 @@ void IconScrollTextBox::clear(Adafruit_LCD *tft)
 void IconScrollTextBox::setIcon(uint8_t *icon)
 {
     iconBox.setIcon(icon);
-}
-
-//=================================
-// Implementation of LcdCanvas class
-//=================================
-LcdCanvas::LcdCanvas(int8_t cs, int8_t dc, int8_t rst) : Adafruit_LCD(cs, dc, rst), play_count(0)
-{
-    #ifdef USE_ST7735_128x160
-    initR(INITR_BLACKTAB);      // Init ST7735S chip, black tab
-    #endif
-    #ifdef USE_ST7789_240x240_WOCS
-    init(240, 240, SPI_MODE2);
-    #endif
-    #ifdef USE_ILI9341_240x320
-    Adafruit_LCD::begin(80000000); // this could be overclock of SPI clock, but works
-    #endif
-    setTextWrap(false);
-    fillScreen(LCD_BLACK);
-    setFont(CUSTOM_FONT, CUSTOM_FONT_OFS_Y);
-    setTextSize(1);
-
-    // FileView parts (nothing to set here)
-
-    // Play parts (nothing to set here)
-}
-
-LcdCanvas::~LcdCanvas()
-{
-}
-
-void LcdCanvas::switchToFileView()
-{
-    clear();
-    msg.setText("");
-    for (int i = 0; i < (int) (sizeof(groupFileView)/sizeof(*groupFileView)); i++) {
-        groupFileView[i]->update();
-    }
-}
-
-void LcdCanvas::switchToPlay()
-{
-    clear();
-    msg.setText("");
-    for (int i = 0; i < (int) (sizeof(groupPlay)/sizeof(*groupPlay)); i++) {
-        groupPlay[i]->update();
-    }
-    for (int i = 0; i < (int) (sizeof(groupPlay0)/sizeof(*groupPlay0)); i++) {
-        groupPlay0[i]->update();
-    }
-    for (int i = 0; i < (int) (sizeof(groupPlay1)/sizeof(*groupPlay1)); i++) {
-        groupPlay1[i]->update();
-    }
-    play_count = 0;
-}
-
-void LcdCanvas::switchToPowerOff(const char *msg_str)
-{
-    clear();
-    msg.setText("");
-    if (msg_str != NULL) { msg.setText(msg_str); }
-    for (int i = 0; i < (int) (sizeof(groupPowerOff)/sizeof(*groupPowerOff)); i++) {
-        groupPowerOff[i]->update();
-    }
-}
-
-void LcdCanvas::clear()
-{
-    fillScreen(LCD_BLACK);
-}
-
-void LcdCanvas::drawFileView()
-{
-    for (int i = 0; i < (int) (sizeof(groupFileView)/sizeof(*groupFileView)); i++) {
-        groupFileView[i]->draw(this);
-    }
-}
-
-void LcdCanvas::drawPlay()
-{
-    for (int i = 0; i < (int) (sizeof(groupPlay)/sizeof(*groupPlay)); i++) {
-        groupPlay[i]->draw(this);
-    }
-    if (play_count % play_cycle < play_change || albumArt.getCount() == 0) { // Play mode 0 display
-        for (int i = 0; i < (int) (sizeof(groupPlay0)/sizeof(*groupPlay0)); i++) {
-            groupPlay0[i]->draw(this);
-        }
-        if (albumArt.getCount() == 0) {
-            msg.setText("No Image");
-        } else if (play_count == 0 && albumArt.getCount() > 0) {
-            if (albumArt.loadNext()) {
-                msg.setText("");
-            } else {
-                msg.setText("Not Supported Image");
-            }
-            #ifdef USE_ALBUM_ART_SMALL
-            if (albumArtSmall.loadNext()) {
-                msg.setText("");
-            } else {
-                msg.setText("Not Supported Image");
-            }
-            #endif // #ifdef USE_ALBUM_ART_SMALL
-        } else if (play_count % play_cycle == play_change-1 && albumArt.getCount() > 0) { // Play mode 0 -> 1
-            for (int i = 0; i < (int) (sizeof(groupPlay)/sizeof(*groupPlay)); i++) {
-                groupPlay[i]->update();
-            }
-            for (int i = 0; i < (int) (sizeof(groupPlay0)/sizeof(*groupPlay0)); i++) {
-                groupPlay0[i]->clear(this);
-            }
-            for (int i = 0; i < (int) (sizeof(groupPlay1)/sizeof(*groupPlay1)); i++) {
-                groupPlay1[i]->update();
-            }
-            if (albumArt.getCount() > 1) {
-                albumArt.clear(this);
-                if (albumArt.loadNext()) {
-                    msg.setText("");
-                } else {
-                    msg.setText("Not Supported Image");
-                }
-            }
-        }
-    } else { // Play mode 1 display
-        for (int i = 0; i < (int) (sizeof(groupPlay1)/sizeof(*groupPlay1)); i++) {
-            groupPlay1[i]->draw(this);
-        }
-        if (play_count % play_cycle == play_cycle-1) { // Play mode 1 -> 0
-            for (int i = 0; i < (int) (sizeof(groupPlay)/sizeof(*groupPlay)); i++) {
-                groupPlay[i]->update();
-            }
-            for (int i = 0; i < (int) (sizeof(groupPlay1)/sizeof(*groupPlay1)); i++) {
-                groupPlay1[i]->clear(this);
-            }
-            for (int i = 0; i < (int) (sizeof(groupPlay0)/sizeof(*groupPlay0)); i++) {
-                groupPlay0[i]->update();
-            }
-        }
-    }
-    play_count++;
-}
-
-void LcdCanvas::drawPowerOff()
-{
-    for (int i = 0; i < (int) (sizeof(groupPowerOff)/sizeof(*groupPowerOff)); i++) {
-        groupPowerOff[i]->draw(this);
-    }
-}
-
-void LcdCanvas::setFileItem(int column, const char *str, bool isDir, bool isFocused, encoding_t encoding)
-{
-    uint8_t *icon[2] = {ICON16x16_FILE, ICON16x16_FOLDER};
-    uint16_t color[2] = {LCD_GRAY, LCD_GBLUE};
-    fileItem[column].setIcon(icon[isDir]);
-    fileItem[column].setFgColor(color[isFocused]);
-    fileItem[column].setText(str, encoding);
-    fileItem[column].setScroll(isFocused); // Scroll for focused item only
-}
-
-void LcdCanvas::setBitRate(uint16_t value)
-{
-    bitRate.setFormatText("%dKbps", (int) value);
-}
-
-void LcdCanvas::setVolume(uint8_t value)
-{
-    volume.setInt((int) value);
-}
-
-void LcdCanvas::setTrack(const char *str)
-{
-    if (strlen(str)) {
-        track.setFormatText("[ %s ]", str);
-    } else {
-        track.setText("");
-    }
-}
-
-void LcdCanvas::setPlayTime(uint32_t positionSec, uint32_t lengthSec, bool blink)
-{
-    playTime.setFormatText("%lu:%02lu / %lu:%02lu", positionSec/60, positionSec%60, lengthSec/60, lengthSec%60);
-    playTime.setBlink(blink);
-}
-
-void LcdCanvas::setTitle(const char *str, encoding_t encoding)
-{
-    title.setText(str, encoding);
-}
-
-void LcdCanvas::setAlbum(const char *str, encoding_t encoding)
-{
-    album.setText(str, encoding);
-}
-
-void LcdCanvas::setArtist(const char *str, encoding_t encoding)
-{
-    artist.setText(str, encoding);
-}
-
-void LcdCanvas::setYear(const char *str, encoding_t encoding)
-{
-    year.setText(str, encoding);
-}
-
-void LcdCanvas::setBatteryVoltage(uint16_t voltage_x1000)
-{
-    const uint16_t lvl100 = 4100;
-    const uint16_t lvl0 = 2900;
-    battery.setLevel(((voltage_x1000 - lvl0) * 100) / (lvl100 - lvl0));
-}
-
-void LcdCanvas::addAlbumArtJpeg(uint16_t file_idx, uint64_t pos, size_t size, bool is_unsync)
-{
-    albumArt.addJpegFile(file_idx, pos, size, is_unsync);
-    #ifdef USE_ALBUM_ART_SMALL
-    albumArtSmall.addJpegFile(file_idx, pos, size, is_unsync);
-    #endif // #ifdef USE_ALBUM_ART_SMALL
-}
-
-void LcdCanvas::addAlbumArtPng(uint16_t file_idx, uint64_t pos, size_t size, bool is_unsync)
-{
-    albumArt.addPngFile(file_idx, pos, size, is_unsync);
-    #ifdef USE_ALBUM_ART_SMALL
-    albumArtSmall.addPngFile(file_idx, pos, size, is_unsync);
-    #endif // #ifdef USE_ALBUM_ART_SMALL
-}
-
-void LcdCanvas::deleteAlbumArt()
-{
-    albumArt.deleteAll();
-    #ifdef USE_ALBUM_ART_SMALL
-    albumArtSmall.deleteAll();
-    #endif // #ifdef USE_ALBUM_ART_SMALL
 }
