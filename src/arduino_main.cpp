@@ -66,7 +66,7 @@
 
 const char *Version = "0.8.9";
 
-const int LoopCycleMs = 50; // loop cycle (ms)
+const int LoopCycleMs = UIMode::UpdateCycleMs; // loop cycle (50 ms)
 const int OneSec = 1000 / LoopCycleMs; // 1 Sec
 const int BackLightDimCycles = 20 * OneSec; // Time to dim LCD Backlight
 

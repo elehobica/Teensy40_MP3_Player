@@ -281,7 +281,6 @@ UIMode* UIFileViewMode::update()
             break;
     }
     if (btn_evt->getState()) {
-        btn_evt->clear();
         vars->next_play_action = None;
         switch (*btn_act) {
             case ButtonCenterSingle:
@@ -306,7 +305,7 @@ UIMode* UIFileViewMode::update()
                 return nextPlay();
                 break;
             case ButtonCenterLongLong:
-                if (idle_count > 100) {
+                if (idle_count > 2*OneSec) {
                     return getUIMode(PowerOffMode);
                 }
                 break;
@@ -345,7 +344,7 @@ UIMode* UIFileViewMode::update()
     }
     if (idle_count > WaitCyclesForPowerOffWhenNoOp) {
         return getUIMode(PowerOffMode);
-    } else if (idle_count > 100) {
+    } else if (idle_count > 5*OneSec) {
         file_menu_idle(); // for background sort
     }
     lcd->setBatteryVoltage(vars->bat_mv);
@@ -376,7 +375,6 @@ UIMode* UIPlayMode::update()
 {
     AudioCodec *codec = audio_get_codec();
     if (btn_evt->getState()) {
-        btn_evt->clear();
         switch (*btn_act) {
             case ButtonCenterSingle:
                 codec->pause(!codec->isPaused());
@@ -392,7 +390,7 @@ UIMode* UIPlayMode::update()
                 return getUIMode(FileViewMode);
                 break;
             case ButtonCenterLongLong:
-                if (idle_count > 100) {
+                if (idle_count > 2*OneSec) {
                     return getUIMode(PowerOffMode);
                 }
                 break;

@@ -53,7 +53,7 @@ static uint8_t adc0_get_hp_button(uint8_t android_MIC_pin)
     return ret;
 }
 
-int count_center_clicks(void)
+static int count_center_clicks(void)
 {
     int i;
     int detected_fall = 0;
@@ -91,6 +91,13 @@ int count_center_clicks(void)
     return count;
 }
 
+static void trigger_event(button_action_t action)
+{
+    if (button_event.getState()) { return; } // ignore if not received
+    button_action = action;
+    button_event.trigger();
+}
+
 void update_button_action(uint8_t android_MIC_pin)
 {
     int i;
@@ -98,15 +105,13 @@ void update_button_action(uint8_t android_MIC_pin)
     uint8_t button = adc0_get_hp_button(android_MIC_pin);
     if (fwd_lock) {
         if (button == HP_BUTTON_D || button == HP_BUTTON_PLUS) {
-            button_action = ButtonPlusFwd;
-            button_event.trigger();
+            trigger_event(ButtonPlusFwd);
         } else {
             fwd_lock = false;
         }
     } else if (rwd_lock) {
         if (button == HP_BUTTON_MINUS) {
-            button_action = ButtonMinusRwd;
-            button_event.trigger();
+            trigger_event(ButtonMinusRwd);
         } else {
             rwd_lock = false;
         }
@@ -123,16 +128,13 @@ void update_button_action(uint8_t android_MIC_pin)
             center_clicks = count_center_clicks(); // must be called once per tick because button_prv[] status has changed
             switch (center_clicks) {
                 case 1:
-                    button_action = ButtonCenterSingle;
-                    button_event.trigger();
+                    trigger_event(ButtonCenterSingle);
                     break;
                 case 2:
-                    button_action = ButtonCenterDouble;
-                    button_event.trigger();
+                    trigger_event(ButtonCenterDouble);
                     break;
                 case 3:
-                    button_action = ButtonCenterTriple;
-                    button_event.trigger();
+                    trigger_event(ButtonCenterTriple);
                     break;
                 default:
                     break;
@@ -140,26 +142,21 @@ void update_button_action(uint8_t android_MIC_pin)
         }
     } else if (button_prv[0] == HP_BUTTON_OPEN) { // push
         if (button == HP_BUTTON_D || button == HP_BUTTON_PLUS) {
-            button_action = ButtonPlusSingle;
-            button_event.trigger();
+            trigger_event(ButtonPlusSingle);
         } else if (button == HP_BUTTON_MINUS) {
-            button_action = ButtonMinusSingle;
-            button_event.trigger();
+            trigger_event(ButtonMinusSingle);
         }
     } else if (button_repeat_count == 10) { // long push
         if (button == HP_BUTTON_CENTER) {
             button_repeat_count++; // only once and step to longer push event
         } else if (button == HP_BUTTON_D || button == HP_BUTTON_PLUS) {
-            button_action = ButtonPlusLong;
-            button_event.trigger();
+            trigger_event(ButtonPlusLong);
         } else if (button == HP_BUTTON_MINUS) {
-            button_action = ButtonMinusLong;
-            button_event.trigger();
+            trigger_event(ButtonMinusLong);
         }
     } else if (button_repeat_count == 20) { // long long push
         if (button == HP_BUTTON_CENTER) {
-            button_action = ButtonCenterLongLong;
-            button_event.trigger();
+            trigger_event(ButtonCenterLongLong);
         }
         button_repeat_count++; // only once and step to longer push event
     } else if (button == button_prv[0]) {
@@ -202,6 +199,7 @@ void ui_update()
     } else {
         ui_mode->draw();
     }
+    button_event.clear();
 }
 
 void ui_force_update(ui_mode_enm_t ui_mode_enm)
@@ -215,6 +213,7 @@ void ui_force_update(ui_mode_enm_t ui_mode_enm)
     } else {
         ui_mode->draw();
     }
+    button_event.clear();
 }
 
 void ui_reg_terminate_func(void (*terminate)(ui_mode_enm_t last_ui_mode))

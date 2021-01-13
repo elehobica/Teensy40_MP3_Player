@@ -78,7 +78,7 @@ public:
     static Threads::Event *btn_evt;
     static volatile button_action_t *btn_act;
     static LcdCanvas *lcd;
-    static const int UpdateCycleMs = 50; // loop cycle (ms)
+    static const int UpdateCycleMs = 50; // loop cycle (ms) (= LoopCycleMs value in arduino_main.cpp)
     static const int OneSec = 1000 / UpdateCycleMs; // 1 Sec
     static const int OneMin = 60 * OneSec; // 1 Min
     static void linkLcdCanvas(LcdCanvas *lcd_canvas);
