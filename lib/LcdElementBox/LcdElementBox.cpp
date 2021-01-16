@@ -588,7 +588,7 @@ int ImageBox::getCount()
 IconBox::IconBox(int16_t pos_x, int16_t pos_y, uint16_t fgColor, uint16_t bgColor)
     : isUpdated(true), pos_x(pos_x), pos_y(pos_y), fgColor(fgColor), bgColor(bgColor), icon(NULL) {}
 
-IconBox::IconBox(int16_t pos_x, int16_t pos_y, uint8_t *icon, uint16_t fgColor, uint16_t bgColor)
+IconBox::IconBox(int16_t pos_x, int16_t pos_y, const uint8_t *icon, uint16_t fgColor, uint16_t bgColor)
     : isUpdated(true), pos_x(pos_x), pos_y(pos_y), fgColor(fgColor), bgColor(bgColor), icon(icon) {}
 
 void IconBox::setFgColor(uint16_t fgColor)
@@ -625,7 +625,7 @@ void IconBox::clear(Adafruit_SPITFT *tft)
     tft->fillRect(pos_x, pos_y, iconWidth, iconHeight, bgColor); // clear Icon rectangle
 }
 
-void IconBox::setIcon(uint8_t *icon)
+void IconBox::setIcon(const uint8_t *icon)
 {
     if (this->icon == icon) { return; }
     this->icon = icon;
@@ -834,7 +834,7 @@ void NFTextBox::setBlink(bool blink)
 //=================================
 // Implementation of IconTextBox class
 //=================================
-IconTextBox::IconTextBox(int16_t pos_x, int16_t pos_y, uint8_t *icon, uint16_t fgColor, uint16_t bgColor)
+IconTextBox::IconTextBox(int16_t pos_x, int16_t pos_y, const uint8_t *icon, uint16_t fgColor, uint16_t bgColor)
     : TextBox(pos_x+16, pos_y, fgColor, bgColor), iconBox(pos_x, pos_y, icon, fgColor, bgColor) {}
 
 void IconTextBox::setFgColor(uint16_t fgColor)
@@ -873,7 +873,7 @@ void IconTextBox::clear(Adafruit_SPITFT *tft)
     TextBox::clear(tft);
 }
 
-void IconTextBox::setIcon(uint8_t *icon)
+void IconTextBox::setIcon(const uint8_t *icon)
 {
     iconBox.setIcon(icon);
 }
@@ -1022,7 +1022,7 @@ void ScrollTextBox::setText(const char *str, encoding_t encoding)
 IconScrollTextBox::IconScrollTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t fgColor, uint16_t bgColor, const GFXfont *f, int16_t ofs_y, uint16_t height_y)
     : ScrollTextBox(pos_x+16, pos_y, width-16, fgColor, bgColor, f, ofs_y, height_y), iconBox(pos_x, pos_y, fgColor, bgColor) {}
 
-IconScrollTextBox::IconScrollTextBox(int16_t pos_x, int16_t pos_y, uint8_t *icon, uint16_t width, uint16_t fgColor, uint16_t bgColor, const GFXfont *f, int16_t ofs_y, uint16_t height_y)
+IconScrollTextBox::IconScrollTextBox(int16_t pos_x, int16_t pos_y, const uint8_t *icon, uint16_t width, uint16_t fgColor, uint16_t bgColor, const GFXfont *f, int16_t ofs_y, uint16_t height_y)
     : ScrollTextBox(pos_x+16, pos_y, width-16, fgColor, bgColor, f, ofs_y, height_y), iconBox(pos_x, pos_y, icon, fgColor, bgColor) {}
 
 void IconScrollTextBox::setFgColor(uint16_t fgColor)
@@ -1061,7 +1061,7 @@ void IconScrollTextBox::clear(Adafruit_SPITFT *tft)
     ScrollTextBox::clear(tft);
 }
 
-void IconScrollTextBox::setIcon(uint8_t *icon)
+void IconScrollTextBox::setIcon(const uint8_t *icon)
 {
     iconBox.setIcon(icon);
 }

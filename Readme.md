@@ -19,7 +19,7 @@
 * Folder/File navigation by UTF16 with unicode font
 * User Interface by Android Headphone button (3 buttons)
 * Volume Control by utilizing DAC 24bit/32bit range for playing 16bit Audio data
-* Album unit random play by time out when play finished (Assuming [Artist Folder]/[Album Folder] structure)
+* Album unit Sequential/Repeat/Random play by time out when play finished (Assuming [Artist Folder]/[Album Folder] structure)
 * Resume playback
 * Battery voltage check (Optional: external circuit needed)
 
@@ -45,7 +45,7 @@ In addition to original connection
 | 16 | GPIO | to Power Keep (DC/DC) |
 | 18 | GPIO | to Battery Check |
 | 20 | LRCLK1 | to ES9023 LRCK (2) / to PCM5102 LRCK (15) |
-| 21 | BCLK1 | to ES9023 BCK (1) / to PCM5102 BCK (13) | 
+| 21 | BCLK1 | to ES9024 BCK (1) / to PCM5102 BCK (13) | 
 | 22 | A8 | from Android Head Phone MIC (Button) |
 | 23 | MCLK | to ES9023 MCLK (13) |
 | 34 | DAT1 | from/to microSD DAT1 |
@@ -53,7 +53,7 @@ In addition to original connection
 | 36 | CLK | to microSD CLK |
 | 37 | CMD | from/to microSD CMD |
 | 38 | DAT3 | from/to microSD DAT3 |
-| 39 | DAT2 | from/to microSD DAT2 |
+| 39 | DAT2 | from/to microSD DAT3 |
 
 tie PCM5102 SCK (12) to low
 
@@ -63,8 +63,9 @@ tie PCM5102 SCK (12) to low
 ## I2S DAC
 Both ES9023 and PCM5102 are supported without code definition change.
 ### PCM5102 Board Setting
-tie PCM5102 SCK (12) to low
-open H3L
+* tie PCM5102 SCK (12) to low
+* open H3L
+
 ![Setting of PM5102 Board](doc/images/PCM5102A_Board_setting.png)
 
 ## LCD Module
@@ -105,13 +106,16 @@ A8 also needs to be pulled-up by 2.2Kohm from 3.3V. See schematic for detail.
 * Center 1 click to get into the folder
 * Center 1 click to play WAV file (go to Play Mode)
 * Center 2 click to go parent folder
-* Center 3 click to random album play (go to Play Mode)
+* Center 3 click to Random album play (go to Play Mode)
+* Long push Center button within 3 sec from last Up/Down button to go Config Mode
+* 1 min passed without any button: Sequential/SequentialRepeat/Repeat/Random album play (go to Play Mode)
 
 ### Play Mode
 * Up/Down button for volume up/down
 * Center 1 click to pause/play
 * Center 2 click to stop (go back to FileView Mode)
-* Center 3 click to random album play
+* Center 3 click to Random album play
+* Long push Center button within 3 sec from last Up/Down button to go Config Mode
 
 ### Power On/Off (Optional: external circuit needed)
 * Long push Center button

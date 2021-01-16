@@ -33,12 +33,13 @@ void UIMode::linkButtonAction(Threads::Event *button_event, volatile button_acti
     btn_act = button_action;
 }
 
-UIMode::UIMode(const char *name, ui_mode_enm_t ui_mode_enm, UIVars *vars) : name(name), ui_mode_enm(ui_mode_enm), vars(vars), idle_count(0)
+UIMode::UIMode(const char *name, ui_mode_enm_t ui_mode_enm, UIVars *vars) : name(name), prevMode(NULL), ui_mode_enm(ui_mode_enm), vars(vars), idle_count(0)
 {
 }
 
 void UIMode::entry(UIMode *prevMode)
 {
+    this->prevMode = prevMode;
     idle_count = 0;
     if (ui_mode_enm == vars->init_dest_ui_mode) { // Reached desitination of initial UI mode
         vars->init_dest_ui_mode = InitialMode;
@@ -102,14 +103,15 @@ void UIFileViewMode::listIdxItems()
     char str[256];
     for (int i = 0; i < vars->num_list_lines; i++) {
         if (vars->idx_head+i >= file_menu_get_num()) {
-            lcd->setFileItem(i, ""); // delete
+            lcd->setListItem(i, ""); // delete
             continue;
         }
+        const uint8_t *icon = file_menu_is_dir(vars->idx_head+i) ? ICON16x16_FOLDER : ICON16x16_FILE;
         if (vars->idx_head+i == 0) {
-            lcd->setFileItem(i, "..", file_menu_is_dir(vars->idx_head+i), (i == vars->idx_column));
+            lcd->setListItem(i, "..", icon, (i == vars->idx_column));
         } else {
             file_menu_get_fname_UTF16(vars->idx_head+i, (char16_t *) str, sizeof(str)/2);
-            lcd->setFileItem(i, utf16_to_utf8((const char16_t *) str).c_str(), file_menu_is_dir(vars->idx_head+i), (i == vars->idx_column), utf8);
+            lcd->setListItem(i, utf16_to_utf8((const char16_t *) str).c_str(), icon, (i == vars->idx_column), utf8);
         }
     }
 }
@@ -163,8 +165,78 @@ void UIFileViewMode::chdir()
 
 UIMode *UIFileViewMode::nextPlay()
 {
-    vars->next_play_action = None;
-    return randomSearch(2);
+    switch (USERCFG_PLAY_NEXT_ALBUM) {
+        case UserConfig::next_play_action_t::Sequential:
+            return sequentialSearch(false);
+            break;
+        case UserConfig::next_play_action_t::SequentialRepeat:
+            return sequentialSearch(true);
+            break;
+        case UserConfig::next_play_action_t::Repeat:
+            vars->idx_head = 0;
+            vars->idx_column = 0;
+            return getUIPlayMode();
+        case UserConfig::next_play_action_t::Random:
+            return randomSearch(USERCFG_PLAY_RAND_DEPTH);
+            break;
+        case UserConfig::next_play_action_t::Stop:
+        default:
+            return this;
+            break;
+    }
+    return this;
+}
+
+UIMode *UIFileViewMode::sequentialSearch(bool repeatFlg)
+{
+    int stack_count;
+    uint16_t last_dir_idx;
+
+    Serial.println("Sequential Search");
+    vars->idx_play = 0;
+    stack_count = stack_get_count(dir_stack);
+    if (stack_count < 1) { return this; }
+    {
+        vars->idx_head = 0;
+        vars->idx_column = 0;
+        chdir(); // cd ..;
+    }
+    vars->idx_head += vars->idx_column;
+    vars->idx_column = 0;
+    last_dir_idx = vars->idx_head;
+    while (1) {
+        {
+            if (file_menu_get_dir_num() == 0) { break; }
+            while (1) {
+                vars->idx_head++;
+                if (repeatFlg) {
+                    // [Option 1] loop back to first album (don't take ".." directory)
+                    if (vars->idx_head >= file_menu_get_num()) { vars->idx_head = 1; }
+                } else {
+                    // [Option 2] stop at the bottom of albums
+                    if (vars->idx_head >= file_menu_get_num()) {
+                        // go back to last dir
+                        vars->idx_head = last_dir_idx;
+                        chdir();
+                        return this;
+                    }
+                }
+                file_menu_sort_entry(vars->idx_head, vars->idx_head+1);
+                if (file_menu_is_dir(vars->idx_head) > 0) { break; }
+            }
+            chdir();
+        }
+        // Check if Next Target Dir has Audio track files
+        if (stack_count == stack_get_count(dir_stack) && getNumAudioFiles() > 0) { break; }
+        // Otherwise, chdir to stack_count-depth and retry again
+        Serial.println("Retry Sequential Search");
+        while (stack_count - 1 != stack_get_count(dir_stack)) {
+            vars->idx_head = 0;
+            vars->idx_column = 0;
+            chdir(); // cd ..;
+        }
+    }
+    return getUIPlayMode();
 }
 
 UIMode *UIFileViewMode::randomSearch(uint16_t depth)
@@ -281,7 +353,7 @@ UIMode* UIFileViewMode::update()
             break;
     }
     if (btn_evt->getState()) {
-        vars->next_play_action = None;
+        vars->do_next_play = None;
         switch (*btn_act) {
             case ButtonCenterSingle:
                 if (file_menu_is_dir(vars->idx_head+vars->idx_column) > 0) { // Target is Directory
@@ -302,11 +374,13 @@ UIMode* UIFileViewMode::update()
                 listIdxItems();
                 break;
             case ButtonCenterTriple:
-                return nextPlay();
+                return randomSearch(USERCFG_PLAY_RAND_DEPTH);
                 break;
             case ButtonCenterLongLong:
-                if (idle_count > 2*OneSec) {
+                if (idle_count > 3*OneSec) {
                     return getUIMode(PowerOffMode);
+                } else {
+                    return getUIMode(ConfigMode);
                 }
                 break;
             case ButtonPlusSingle:
@@ -330,19 +404,21 @@ UIMode* UIFileViewMode::update()
         }
         idle_count = 0;
     }
-    switch (vars->next_play_action) {
+    switch (vars->do_next_play) {
         case ImmediatePlay:
-            return nextPlay();
+            vars->do_next_play = None;
+            return randomSearch(USERCFG_PLAY_RAND_DEPTH);
             break;
         case TimeoutPlay:
-            if (idle_count > WaitCyclesForRandomPlay) {
+            if (idle_count > USERCFG_PLAY_TM_NXT_PLY*OneSec) {
+                vars->do_next_play = None;
                 return nextPlay();
             }
             break;
         default:
             break;
     }
-    if (idle_count > WaitCyclesForPowerOffWhenNoOp) {
+    if (idle_count > USERCFG_GEN_TM_PWROFF*OneSec) {
         return getUIMode(PowerOffMode);
     } else if (idle_count > 5*OneSec) {
         file_menu_idle(); // for background sort
@@ -356,12 +432,12 @@ void UIFileViewMode::entry(UIMode *prevMode)
 {
     UIMode::entry(prevMode);
     listIdxItems();
-    lcd->switchToFileView();
+    lcd->switchToListView();
 }
 
 void UIFileViewMode::draw()
 {
-    lcd->drawFileView();
+    lcd->drawListView();
 }
 
 //====================================
@@ -382,16 +458,18 @@ UIMode* UIPlayMode::update()
             case ButtonCenterDouble:
                 vars->idx_play = 0;
                 codec->stop();
-                vars->next_play_action = None;
+                vars->do_next_play = None;
                 return getUIMode(FileViewMode);
                 break;
             case ButtonCenterTriple:
-                vars->next_play_action = ImmediatePlay;
+                vars->do_next_play = ImmediatePlay;
                 return getUIMode(FileViewMode);
                 break;
             case ButtonCenterLongLong:
-                if (idle_count > 2*OneSec) {
+                if (idle_count > 3*OneSec) {
                     return getUIMode(PowerOffMode);
+                } else {
+                    return getUIMode(ConfigMode);
                 }
                 break;
             case ButtonPlusSingle:
@@ -407,7 +485,7 @@ UIMode* UIPlayMode::update()
         }
         idle_count = 0;
     }
-    if (codec->isPaused() && idle_count > WaitCyclesForPowerOffWhenPaused) {
+    if (codec->isPaused() && idle_count > USERCFG_GEN_TM_PWROFF*OneSec) {
         return getUIMode(PowerOffMode);
     } else if (!codec->isPlaying() || (codec->positionMillis() + 500 > codec->lengthMillis())) {
         MutexFsBaseFile file;
@@ -423,7 +501,7 @@ UIMode* UIPlayMode::update()
         } else {
             while (codec->isPlaying()) { delay(1); }
             codec->stop();
-            vars->next_play_action = TimeoutPlay;
+            vars->do_next_play = TimeoutPlay;
             return getUIMode(FileViewMode);
         }
     }
@@ -539,15 +617,169 @@ void UIPlayMode::entry(UIMode *prevMode)
 {
     MutexFsBaseFile file;
     UIMode::entry(prevMode);
-    audio_set_codec(getAudioCodec(&file));
-    readTag();
-    audio_play(&file);
+    if (prevMode->getUIModeEnm() != ConfigMode) {
+        audio_set_codec(getAudioCodec(&file));
+        readTag();
+        audio_play(&file);
+    }
     lcd->switchToPlay();
 }
 
 void UIPlayMode::draw()
 {
     lcd->drawPlay();
+}
+
+//=======================================
+// Implementation of UIConfigMode class
+//=======================================
+UIConfigMode::UIConfigMode(UIVars *vars) : UIMode("UIConfigMode", ConfigMode, vars),
+    path_stack(NULL), idx_head(0), idx_column(0)
+{
+    path_stack = stack_init();
+}
+
+uint16_t UIConfigMode::getNum()
+{
+    return (uint16_t) userConfig.getNum() + 1;
+}
+
+const char *UIConfigMode::getStr(uint16_t idx)
+{
+    if (idx == 0) { return "[Back]"; }
+    return userConfig.getStr((int) idx-1);
+}
+
+const uint8_t *UIConfigMode::getIcon(uint16_t idx)
+{
+    const uint8_t *icon = NULL;
+    if (idx == 0) {
+        icon = ICON16x16_LEFTARROW;
+    } else if (!userConfig.isSelection()) {
+        icon = ICON16x16_GEAR;
+    } else if (userConfig.selIdxMatched(idx-1)) {
+        icon = ICON16x16_CHECKED;
+    }
+    return icon;
+}
+
+void UIConfigMode::listIdxItems()
+{
+    for (int i = 0; i < vars->num_list_lines; i++) {
+        if (idx_head+i >= getNum()) {
+            lcd->setListItem(i, ""); // delete
+            continue;
+        }
+        lcd->setListItem(i, getStr(idx_head+i), getIcon(idx_head+i), (i == idx_column));
+    }
+}
+
+void UIConfigMode::idxInc(void)
+{
+    if (idx_head >= getNum() - vars->num_list_lines && idx_column == vars->num_list_lines-1) { return; }
+    if (idx_head + idx_column + 1 >= getNum()) { return; }
+    idx_column++;
+    if (idx_column >= vars->num_list_lines) {
+        if (idx_head + vars->num_list_lines >= getNum() - vars->num_list_lines) {
+            idx_column = vars->num_list_lines-1;
+            idx_head++;
+        } else {
+            idx_column = 0;
+            idx_head += vars->num_list_lines;
+        }
+    }
+}
+
+void UIConfigMode::idxDec(void)
+{
+    if (idx_head == 0 && idx_column == 0) { return; }
+    if (idx_column == 0) {
+        if (idx_head < vars->num_list_lines) {
+            idx_column = 0;
+            idx_head--;
+        } else {
+            idx_column = vars->num_list_lines-1;
+            idx_head -= vars->num_list_lines;
+        }
+    } else {
+        idx_column--;
+    }
+}
+
+int UIConfigMode::select()
+{
+    stack_data_t stack_data;
+    if (idx_head + idx_column == 0) {
+        if (userConfig.leave()) {
+            stack_pop(path_stack, &stack_data);
+            idx_head = stack_data.head;
+            idx_column = stack_data.column;
+        } else {
+            return 0; // exit from Config
+        }
+    } else {
+        if (userConfig.enter(idx_head + idx_column - 1)) {
+            stack_data.head = idx_head;
+            stack_data.column = idx_column;
+            stack_push(path_stack, &stack_data);
+            idx_head = 0;
+            idx_column = 0;
+        }
+    }
+    return 1;
+}
+
+UIMode* UIConfigMode::update()
+{
+    if (btn_evt->getState()) {
+        vars->do_next_play = None;
+        switch (*btn_act) {
+            case ButtonCenterSingle:
+                if (select()) {
+                    listIdxItems();
+                } else {
+                    return prevMode;
+                }
+                break;
+            case ButtonCenterDouble:
+                return prevMode;
+                break;
+            case ButtonCenterTriple:
+                break;
+            case ButtonCenterLongLong:
+                break;
+            case ButtonPlusSingle:
+            case ButtonPlusLong:
+                idxDec();
+                listIdxItems();
+                break;
+            case ButtonMinusSingle:
+            case ButtonMinusLong:
+                idxInc();
+                listIdxItems();
+                break;
+            default:
+                break;
+        }
+        idle_count = 0;
+    }
+    if (idle_count > USERCFG_GEN_TM_CONFIG*OneSec) {
+        return prevMode;
+    }
+    idle_count++;
+    return this;
+}
+
+void UIConfigMode::entry(UIMode *prevMode)
+{
+    UIMode::entry(prevMode);
+    listIdxItems();
+    lcd->switchToListView();
+}
+
+void UIConfigMode::draw()
+{
+    lcd->drawListView();
 }
 
 //=======================================

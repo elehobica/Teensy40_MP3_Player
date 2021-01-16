@@ -15,9 +15,9 @@
 #include "UIMode.h"
 
 void initEEPROM();
-ui_mode_enm_t loadFromEEPROM(LcdCanvas *lcd, stack_t *dir_stack);
-void storeToEEPROM(LcdCanvas *lcd, stack_t *dir_stack, ui_mode_enm_t last_ui_mode);
-void writeEEPROM(int idx, uint8_t val);
-uint8_t readEEPROM(int idx);
+ui_mode_enm_t loadFromEEPROM(stack_t *dir_stack);
+void storeToEEPROM(stack_t *dir_stack, ui_mode_enm_t last_ui_mode);
+void loadUserConfigFromEEPROM(int idx, int *val);
+void storeUserConfigToEEPROM(int idx, int *val);
 
 #endif // __EEPROM_UTIL_H__

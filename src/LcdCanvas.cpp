@@ -7,7 +7,7 @@
 /-----------------------------------------------------------*/
 
 #include "LcdCanvas.h"
-#include "fonts/iconfont.h"
+//#include "fonts/iconfont.h"
 
 //=================================
 // Implementation of BatteryIconBox class
@@ -57,7 +57,7 @@ LcdCanvas::LcdCanvas(int8_t cs, int8_t dc, int8_t rst) : Adafruit_LCD(cs, dc, rs
     setFont(CUSTOM_FONT, CUSTOM_FONT_OFS_Y);
     setTextSize(1);
 
-    // FileView parts (nothing to set here)
+    // ListView parts (nothing to set here)
 
     // Play parts (nothing to set here)
 }
@@ -66,12 +66,12 @@ LcdCanvas::~LcdCanvas()
 {
 }
 
-void LcdCanvas::switchToFileView()
+void LcdCanvas::switchToListView()
 {
     clear();
     msg.setText("");
-    for (int i = 0; i < (int) (sizeof(groupFileView)/sizeof(*groupFileView)); i++) {
-        groupFileView[i]->update();
+    for (int i = 0; i < (int) (sizeof(groupListView)/sizeof(*groupListView)); i++) {
+        groupListView[i]->update();
     }
 }
 
@@ -106,10 +106,10 @@ void LcdCanvas::clear()
     fillScreen(LCD_BLACK);
 }
 
-void LcdCanvas::drawFileView()
+void LcdCanvas::drawListView()
 {
-    for (int i = 0; i < (int) (sizeof(groupFileView)/sizeof(*groupFileView)); i++) {
-        groupFileView[i]->draw(this);
+    for (int i = 0; i < (int) (sizeof(groupListView)/sizeof(*groupListView)); i++) {
+        groupListView[i]->draw(this);
     }
 }
 
@@ -182,14 +182,13 @@ void LcdCanvas::drawPowerOff()
     }
 }
 
-void LcdCanvas::setFileItem(int column, const char *str, bool isDir, bool isFocused, encoding_t encoding)
+void LcdCanvas::setListItem(int column, const char *str, const uint8_t *icon, bool isFocused, encoding_t encoding)
 {
-    uint8_t *icon[2] = {ICON16x16_FILE, ICON16x16_FOLDER};
     uint16_t color[2] = {LCD_GRAY, LCD_GBLUE};
-    fileItem[column].setIcon(icon[isDir]);
-    fileItem[column].setFgColor(color[isFocused]);
-    fileItem[column].setText(str, encoding);
-    fileItem[column].setScroll(isFocused); // Scroll for focused item only
+    listItem[column].setIcon(icon);
+    listItem[column].setFgColor(color[isFocused]);
+    listItem[column].setText(str, encoding);
+    listItem[column].setScroll(isFocused); // Scroll for focused item only
 }
 
 void LcdCanvas::setBitRate(uint16_t value)

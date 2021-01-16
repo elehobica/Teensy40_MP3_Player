@@ -43,12 +43,14 @@
 //#include "fonts/Open_Sans_Condensed_Light_12.h"
 //#include "fonts/Open_Sans_Condensed_Light_16.h"
 
+#include "fonts/iconfont.h"
+
 //#define DEBUG_LCD_CANVAS
 
 // Common for Unicode Font & Custom Font (gfxFont)
 #define FONT_HEIGHT		16
 
-extern uint8_t Icon16[];
+//extern uint8_t Icon16[];
 #define ICON16x16_TITLE		&Icon16[32*0]
 #define ICON16x16_ARTIST	&Icon16[32*1]
 #define ICON16x16_ALBUM		&Icon16[32*2]
@@ -57,6 +59,9 @@ extern uint8_t Icon16[];
 #define ICON16x16_VOLUME	&Icon16[32*5]
 #define ICON16x16_BATTERY	&Icon16[32*6]
 #define ICON16x16_YEAR		&Icon16[32*7]
+#define ICON16x16_GEAR		&Icon16[32*8]
+#define ICON16x16_CHECKED	&Icon16[32*9]
+#define ICON16x16_LEFTARROW	&Icon16[32*10]
 
 //=================================
 // Definition of BatteryIconBox class < IconBox
@@ -86,7 +91,7 @@ public:
     ~LcdCanvas();
 	void clear();
 	void bye();
-	void setFileItem(int column, const char *str, bool isDir = false, bool isFocused = false, encoding_t = none);
+	void setListItem(int column, const char *str, const uint8_t *icon = NULL, bool isFocused = false, encoding_t = none);
 	void setBitRate(uint16_t value);
 	void setVolume(uint8_t value);
 	void setPlayTime(uint32_t posionSec, uint32_t lengthSec, bool blink = false);
@@ -99,10 +104,10 @@ public:
 	void addAlbumArtJpeg(uint16_t file_idx, uint64_t pos, size_t size, bool is_unsync = false);
 	void addAlbumArtPng(uint16_t file_idx, uint64_t pos, size_t size, bool is_unsync = false);
 	void deleteAlbumArt();
-	void switchToFileView();
+	void switchToListView();
 	void switchToPlay();
 	void switchToPowerOff(const char *msg_str = NULL);
-	void drawFileView();
+	void drawListView();
 	void drawPlay();
 	void drawPowerOff();
 
@@ -111,7 +116,7 @@ protected:
 	const int play_cycle = 400;
 	const int play_change = 350;
 	#ifdef USE_ST7735_128x160
-	IconScrollTextBox fileItem[10] = {
+	IconScrollTextBox listItem[10] = {
 		IconScrollTextBox(16*0, 16*0, width(), LCD_GRAY, LCD_BLACK, CUSTOM_FONT, CUSTOM_FONT_OFS_Y, FONT_HEIGHT),
 		IconScrollTextBox(16*0, 16*1, width(), LCD_GRAY, LCD_BLACK, CUSTOM_FONT, CUSTOM_FONT_OFS_Y, FONT_HEIGHT),
 		IconScrollTextBox(16*0, 16*2, width(), LCD_GRAY, LCD_BLACK, CUSTOM_FONT, CUSTOM_FONT_OFS_Y, FONT_HEIGHT),
@@ -134,8 +139,8 @@ protected:
 	TextBox track = TextBox(16*0, height()-16, LcdElementBox::AlignLeft, LCD_GRAY);
 	TextBox msg = TextBox(width()/2, height()/2-FONT_HEIGHT, LcdElementBox::AlignCenter);
 	ImageBox albumArt = ImageBox(0, (height() - width())/2, width(), width());
-	LcdElementBox *groupFileView[10] = {
-		&fileItem[0], &fileItem[1], &fileItem[2], &fileItem[3], &fileItem[4], &fileItem[5], &fileItem[6], &fileItem[7], &fileItem[8], &fileItem[9]
+	LcdElementBox *groupListView[10] = {
+		&listItem[0], &listItem[1], &listItem[2], &listItem[3], &listItem[4], &listItem[5], &listItem[6], &listItem[7], &listItem[8], &listItem[9]
 	};
 	LcdElementBox *groupPlay[5] = {&battery, &volume, &bitRate, &playTime, &track}; // Common for Play mode 0 and 1
 	LcdElementBox *groupPlay0[4] = {&title, &artist, &album, &year}; // Play mode 0 only
@@ -143,7 +148,7 @@ protected:
 	LcdElementBox *groupPowerOff[1] = {&msg};
 	#endif // USE_ST7735_128x160
 	#ifdef USE_ST7789_240x240_WOCS
-	IconScrollTextBox fileItem[15] = {
+	IconScrollTextBox listItem[15] = {
 		IconScrollTextBox(16*0, 16*0, width(), LCD_GRAY, LCD_BLACK, CUSTOM_FONT, CUSTOM_FONT_OFS_Y, FONT_HEIGHT),
 		IconScrollTextBox(16*0, 16*1, width(), LCD_GRAY, LCD_BLACK, CUSTOM_FONT, CUSTOM_FONT_OFS_Y, FONT_HEIGHT),
 		IconScrollTextBox(16*0, 16*2, width(), LCD_GRAY, LCD_BLACK, CUSTOM_FONT, CUSTOM_FONT_OFS_Y, FONT_HEIGHT),
@@ -172,9 +177,9 @@ protected:
 	TextBox msg = TextBox(width()/2, 240/2-FONT_HEIGHT, LcdElementBox::AlignCenter);
 	ImageBox albumArtSmall = ImageBox((240-16*9)/2, 16*1, 16*9, 16*9);
 	ImageBox albumArt = ImageBox(0, (240 - width())/2, width(), width());
-	LcdElementBox *groupFileView[15] = {
-		&fileItem[0],  &fileItem[1],  &fileItem[2],  &fileItem[3],  &fileItem[4], &fileItem[5], &fileItem[6], &fileItem[7], &fileItem[8], &fileItem[9],
-		&fileItem[10], &fileItem[11], &fileItem[12], &fileItem[13], &fileItem[14]
+	LcdElementBox *groupListView[15] = {
+		&listItem[0],  &listItem[1],  &listItem[2],  &listItem[3],  &listItem[4], &listItem[5], &listItem[6], &listItem[7], &listItem[8], &listItem[9],
+		&listItem[10], &listItem[11], &listItem[12], &listItem[13], &listItem[14]
 	};
 	LcdElementBox *groupPlay[1] = {&msg}; // Common for Play mode 0 and 1
 	LcdElementBox *groupPlay0[10] = {&battery, &volume, &bitRate, &playTime, &track, &title, &artist, &album, &year, &albumArtSmall}; // Play mode 0 only
@@ -182,7 +187,7 @@ protected:
 	LcdElementBox *groupPowerOff[1] = {&msg};
 	#endif // USE_ST7789_240x240_WOCS
 	#ifdef USE_ILI9341_240x320
-	IconScrollTextBox fileItem[20] = {
+	IconScrollTextBox listItem[20] = {
 		IconScrollTextBox(16*0, 16*0, width(), LCD_GRAY, LCD_BLACK, CUSTOM_FONT, CUSTOM_FONT_OFS_Y, FONT_HEIGHT),
 		IconScrollTextBox(16*0, 16*1, width(), LCD_GRAY, LCD_BLACK, CUSTOM_FONT, CUSTOM_FONT_OFS_Y, FONT_HEIGHT),
 		IconScrollTextBox(16*0, 16*2, width(), LCD_GRAY, LCD_BLACK, CUSTOM_FONT, CUSTOM_FONT_OFS_Y, FONT_HEIGHT),
@@ -215,9 +220,9 @@ protected:
 	TextBox track = TextBox(width()/2, height()-16, LcdElementBox::AlignCenter, LCD_GRAY);
 	TextBox msg = TextBox(width()/2, height()/2-FONT_HEIGHT, LcdElementBox::AlignCenter);
 	ImageBox albumArt = ImageBox(0, 16*1, width(), width());
-	LcdElementBox *groupFileView[20] = {
-		&fileItem[0],  &fileItem[1],  &fileItem[2],  &fileItem[3],  &fileItem[4],  &fileItem[5],  &fileItem[6],  &fileItem[7],  &fileItem[8],  &fileItem[9],
-		&fileItem[10], &fileItem[11], &fileItem[12], &fileItem[13], &fileItem[14], &fileItem[15], &fileItem[16], &fileItem[17], &fileItem[18], &fileItem[19]
+	LcdElementBox *groupListView[20] = {
+		&listItem[0],  &listItem[1],  &listItem[2],  &listItem[3],  &listItem[4],  &listItem[5],  &listItem[6],  &listItem[7],  &listItem[8],  &listItem[9],
+		&listItem[10], &listItem[11], &listItem[12], &listItem[13], &listItem[14], &listItem[15], &listItem[16], &listItem[17], &listItem[18], &listItem[19]
 	};
 	LcdElementBox *groupPlay[11] = {&battery, &volume, &bitRate, &playTime, &track, &title, &artist, &album, &year, &albumArt, &msg}; // Common for Play mode 0 and 1
 	LcdElementBox *groupPlay0[0] = {}; // Play mode 0 only

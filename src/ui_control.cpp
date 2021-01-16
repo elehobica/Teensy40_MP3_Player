@@ -29,7 +29,7 @@ volatile button_action_t button_action;
 
 UIVars vars;
 UIMode *ui_mode = NULL;
-UIMode *ui_mode_ary[4] = {};
+UIMode *ui_mode_ary[5] = {};
 
 void (*_terminate)(ui_mode_enm_t last_ui_mode) = NULL;
 
@@ -174,16 +174,17 @@ UIMode *getUIMode(ui_mode_enm_t ui_mode_enm)
     return ui_mode_ary[ui_mode_enm];
 }
 
-void ui_init(ui_mode_enm_t init_dest_ui_mode, LcdCanvas *lcd, stack_t *dir_stack, const uint16_t num_list_lines)
+void ui_init(ui_mode_enm_t init_dest_ui_mode, stack_t *dir_stack, LcdCanvas *lcd)
 {
     vars.init_dest_ui_mode = init_dest_ui_mode;
     UIMode::linkLcdCanvas(lcd);
     UIMode::linkButtonAction(&button_event, &button_action);
-    vars.num_list_lines = num_list_lines;
+    vars.num_list_lines = lcd->height()/16;
 
     ui_mode_ary[InitialMode]  = (UIMode *) new UIInitialMode(&vars);
     ui_mode_ary[FileViewMode] = (UIMode *) new UIFileViewMode(&vars, dir_stack);
     ui_mode_ary[PlayMode]     = (UIMode *) new UIPlayMode(&vars);
+    ui_mode_ary[ConfigMode]   = (UIMode *) new UIConfigMode(&vars);
     ui_mode_ary[PowerOffMode] = (UIMode *) new UIPowerOffMode(&vars);
     ui_mode = getUIMode(InitialMode);
     ui_mode->entry(ui_mode);

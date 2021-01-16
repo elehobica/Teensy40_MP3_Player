@@ -11,13 +11,16 @@
 #include <file_menu_SdFat.h>
 #include "ui_control.h"
 #include "audio_playback.h"
+#include "UserConfig.h"
 
 //#define EEPROM_INITIALIZE
 #define EEPROM_SIZE 1080
 #define EEPROM_BASE 0
 // Config Space (Byte Unit Access)
-#define CFG_BASE    EEPROM_BASE
-#define CFG_SIZE    48 // 0x30
+#define CFG_BASE            EEPROM_BASE
+#define CFG_USER_CFG_BASE   (EEPROM_BASE + 48)
+#define CFG_SIZE            64 // 0x40: Set CFG parameters + UserConfig parameters
+
 #define CFG_EPRW_COUNT_L    (EEPROM_BASE + 0)
 #define CFG_EPRW_COUNT_H    (EEPROM_BASE + 1)
 #define CFG_SEED0           (EEPROM_BASE + 2)
@@ -63,7 +66,6 @@
 #define CFG_SAMPLES_PLAYED1 (EEPROM_BASE + 42)
 #define CFG_SAMPLES_PLAYED2 (EEPROM_BASE + 43)
 #define CFG_SAMPLES_PLAYED3 (EEPROM_BASE + 44)
-#define CFG_DISP_ROTATION   (EEPROM_BASE + 45)
 
 static uint16_t eprw_count; // EEPROM Write Count (to check for write endurance of 100,000 cycles)
 
@@ -71,20 +73,24 @@ void initEEPROM()
 {
     char str[64];
     eprw_count = ((uint16_t) EEPROM.read(CFG_EPRW_COUNT_H) << 8) | ((uint16_t) EEPROM.read(CFG_EPRW_COUNT_L));
-    #ifdef EEPROM_INITIALIZE
+    #if defined(EEPROM_INITIALIZE)
     if (1) {
+        if (eprw_count == 0xffff) { eprw_count = 0; } // Keep eprw_count except for not initialized
     #else
     if (eprw_count == 0xffff) { // Default Value Clear if area is not initialized
-    #endif // EEPROM_INITIALIZE
         eprw_count = 0;
+    #endif // defined(EEPROM_INITIALIZE)
         // Clear the value other than zero
         EEPROM.write(CFG_VOLUME, 65);
         // Zero Clear
         for (int i = CFG_EPRW_COUNT_L; i < CFG_EPRW_COUNT_L + CFG_SIZE; i++) {
+            if (i == CFG_EPRW_COUNT_L) { continue; }
+            if (i == CFG_EPRW_COUNT_H) { continue; }
             if (i == CFG_VOLUME) { continue; }
-            if (i == CFG_DISP_ROTATION) { continue; }
             EEPROM.write(i, 0);
         }
+        // Initialize UserConfig (Default values in UserConfig.h) & do hook_func
+        userConfig.scanSelIdx(storeUserConfigToEEPROM, true);
     } else {
         for (int i = 0; i < CFG_SIZE; i++) {
             int value = EEPROM.read(CFG_BASE + i);
@@ -103,7 +109,7 @@ void initEEPROM()
     Serial.println(str);
 }
 
-ui_mode_enm_t loadFromEEPROM(LcdCanvas *lcd, stack_t *dir_stack)
+ui_mode_enm_t loadFromEEPROM(stack_t *dir_stack)
 {
     uint8_t volume;
     stack_data_t item;
@@ -117,7 +123,6 @@ ui_mode_enm_t loadFromEEPROM(LcdCanvas *lcd, stack_t *dir_stack)
 
     randomSeed(((uint16_t) EEPROM.read(CFG_SEED1) << 8) | ((uint16_t) EEPROM.read(CFG_SEED0)));
     volume = EEPROM.read(CFG_VOLUME);
-    if (EEPROM.read(CFG_DISP_ROTATION) < 4) { lcd->setRotation(EEPROM.read(CFG_DISP_ROTATION)); }
     // Resume last folder & play
     for (int i = EEPROM.read(CFG_STACK_COUNT) - 1; i >= 0; i--) {
         item.head = ((uint16_t) EEPROM.read(CFG_STACK_HEAD0_H + i*4) << 8) | ((uint16_t) EEPROM.read(CFG_STACK_HEAD0_L + i*4));
@@ -161,10 +166,13 @@ ui_mode_enm_t loadFromEEPROM(LcdCanvas *lcd, stack_t *dir_stack)
     audio_set_volume(volume);
     audio_set_position(fpos, samples_played);
 
+    // Load UserConfig & do hook_func
+    userConfig.scanSelIdx(loadUserConfigFromEEPROM, true);
+
     return ui_mode_enm;
 }
 
-void storeToEEPROM(LcdCanvas *lcd, stack_t *dir_stack, ui_mode_enm_t last_ui_mode)
+void storeToEEPROM(stack_t *dir_stack, ui_mode_enm_t last_ui_mode)
 {
     stack_data_t item;
     uint16_t idx_head;
@@ -208,14 +216,16 @@ void storeToEEPROM(LcdCanvas *lcd, stack_t *dir_stack, ui_mode_enm_t last_ui_mod
     for (int i = 0; i < 4; i++) {
         EEPROM.write(CFG_SAMPLES_PLAYED0 + i, (uint8_t) ((samples_played >> i*8) & 0xff));
     }
+    // Store UserConfig
+    userConfig.scanSelIdx(storeUserConfigToEEPROM);
 }
 
-void writeEEPROM(int idx, uint8_t val)
+void loadUserConfigFromEEPROM(int idx, int *val)
 {
-    EEPROM.write(idx, val);
+    *val = (int) EEPROM.read(CFG_USER_CFG_BASE + idx);
 }
 
-uint8_t readEEPROM(int idx)
+void storeUserConfigToEEPROM(int idx, int *val)
 {
-    return EEPROM.read(idx);
+    EEPROM.write(CFG_USER_CFG_BASE + idx, (uint8_t) *val);
 }

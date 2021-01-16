@@ -28,6 +28,7 @@
 #include "ui_control.h"
 #include "stack.h"
 #include "EEPROM_util.h"
+#include "UserConfig.h"
 
 // Pin Definitions
 #define PIN_DAC_MUTE_B          (6)
@@ -36,39 +37,27 @@
 #define PIN_BACKLIGHT_CONTROL   (15)
 
 // LCD Pin & Parameter Definitions (Edit "#define USE_xxx" in lib/LcdCanvas.h to select LCD type)
-#ifdef USE_ST7735_128x160
+#if defined(USE_ST7735_128x160)
 // LCD (ST7735, 1.8", 128x160pix)
 #define TFT_CS              10
 #define TFT_RST             9 // Or set to -1 and connect to Arduino RESET pin
 #define TFT_DC              8
-#define BACKLIGHT_HIGH      256 // n/256 PWM
-#define BACKLIGHT_LOW       128 // n/256 PWM
-//#define NUM_LIST_LINES      10
-#endif
-#ifdef USE_ST7789_240x240_WOCS
+#elif defined(USE_ST7789_240x240_WOCS)
 // LCD (ST7789, 1.3", 240x240pix without CS)
 #define TFT_CS              -1
 #define TFT_RST             9 // Or set to -1 and connect to Arduino RESET pin
 #define TFT_DC              8
-#define BACKLIGHT_HIGH      192 // n/256 PWM
-#define BACKLIGHT_LOW       80 // n/256 PWM
-//#define NUM_LIST_LINES      15
-#endif
-#ifdef USE_ILI9341_240x320
+#elif defined(USE_ILI9341_240x320)
 // LCD (ILI9341, 2.2", 240x320pix)
 #define TFT_CS              10
 #define TFT_RST             -1 // Connected to VCC
 #define TFT_DC              8
-#define BACKLIGHT_HIGH      64 // n/256 PWM
-#define BACKLIGHT_LOW       32 // n/256 PWM
-//#define NUM_LIST_LINES      20
 #endif
 
-const char *Version = "0.8.9";
+const char *Version = "0.8.10";
 
 const int LoopCycleMs = UIMode::UpdateCycleMs; // loop cycle (50 ms)
 const int OneSec = 1000 / LoopCycleMs; // 1 Sec
-const int BackLightDimCycles = 20 * OneSec; // Time to dim LCD Backlight
 
 IntervalTimer timer;
 volatile uint32_t tick_50ms_count = 0;
@@ -110,7 +99,7 @@ void terminate(ui_mode_enm_t last_ui_mode)
 {
     // Audio Mute
     digitalWrite(PIN_DAC_MUTE_B, LOW);
-    storeToEEPROM(&lcd, dir_stack, last_ui_mode);
+    storeToEEPROM(dir_stack, last_ui_mode);
     delay(500);
     // Self Power Off
     digitalWrite(PIN_DCDC_SHDN_B, LOW);
@@ -143,7 +132,7 @@ void setup()
     pinMode(PIN_DCDC_SHDN_B, OUTPUT);
     pinMode(PIN_BATTERY_CHECK, OUTPUT);
     pinMode(PIN_BACKLIGHT_CONTROL, OUTPUT);
-    analogWrite(PIN_BACKLIGHT_CONTROL, BACKLIGHT_HIGH); // PWM
+    analogWrite(PIN_BACKLIGHT_CONTROL, USERCFG_DISP_BLH); // PWM
 
     // Audio Mute
     digitalWrite(PIN_DAC_MUTE_B, LOW);
@@ -164,7 +153,7 @@ void setup()
     digitalWrite(PIN_DAC_MUTE_B, HIGH);
 
     // Restore previous power off situation
-    ui_mode_enm_t init_dest_ui_mode = loadFromEEPROM(&lcd, dir_stack);
+    ui_mode_enm_t init_dest_ui_mode = loadFromEEPROM(dir_stack);
 
     // ADC Average Setting
     analogReadAveraging(1);
@@ -173,7 +162,7 @@ void setup()
     timer.begin(tick_50ms, 50000);
 
     // UI initialize
-    ui_init(init_dest_ui_mode, &lcd, dir_stack, lcd.height()/16); // NUM_LIST_LINES
+    ui_init(init_dest_ui_mode, dir_stack, &lcd);
     ui_reg_terminate_func(terminate);
 }
 
@@ -189,10 +178,10 @@ void loop()
     }
 
     // Back Light Boost within BackLightBoostTime from last stimulus
-    if (ui_get_idle_count() < BackLightDimCycles) {
-        analogWrite(PIN_BACKLIGHT_CONTROL, BACKLIGHT_HIGH); // PWM
+    if (USERCFG_DISP_TM_BLL < 0 || ui_get_idle_count() < USERCFG_DISP_TM_BLL*OneSec) {
+        analogWrite(PIN_BACKLIGHT_CONTROL, USERCFG_DISP_BLH); // PWM
     } else {
-        analogWrite(PIN_BACKLIGHT_CONTROL, BACKLIGHT_LOW); // PWM
+        analogWrite(PIN_BACKLIGHT_CONTROL, USERCFG_DISP_BLL); // PWM
     }
 
     time = millis() - time;

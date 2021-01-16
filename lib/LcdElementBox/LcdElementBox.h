@@ -121,13 +121,13 @@ class IconBox : public LcdElementBox
 {
 public:
 	IconBox(int16_t pos_x, int16_t pos_y, uint16_t fgColor = LCD_WHITE, uint16_t bgColor = LCD_BLACK);
-	IconBox(int16_t pos_x, int16_t pos_y, uint8_t *icon, uint16_t fgColor = LCD_WHITE, uint16_t bgColor = LCD_BLACK);
+	IconBox(int16_t pos_x, int16_t pos_y, const uint8_t *icon, uint16_t fgColor = LCD_WHITE, uint16_t bgColor = LCD_BLACK);
 	void setFgColor(uint16_t fgColor);
 	void setBgColor(uint16_t bgColor);
 	void update();
 	void draw(Adafruit_SPITFT *tft);
 	void clear(Adafruit_SPITFT *tft);
-	void setIcon(uint8_t *icon);
+	void setIcon(const uint8_t *icon);
 	static const int iconWidth = 16;
 	static const int iconHeight = 16;
 protected:
@@ -135,7 +135,7 @@ protected:
 	int16_t pos_x, pos_y;
 	uint16_t fgColor;
 	uint16_t bgColor;
-	uint8_t *icon;
+	const uint8_t *icon;
 };
 
 //=================================
@@ -202,13 +202,13 @@ protected:
 class IconTextBox : public TextBox
 {
 public:
-	IconTextBox(int16_t pos_x, int16_t pos_y, uint8_t *icon, uint16_t fgColor = LCD_WHITE, uint16_t bgColor = LCD_BLACK);
+	IconTextBox(int16_t pos_x, int16_t pos_y, const uint8_t *icon, uint16_t fgColor = LCD_WHITE, uint16_t bgColor = LCD_BLACK);
 	void setFgColor(uint16_t fgColor);
 	void setBgColor(uint16_t bgColor);
 	void update();
 	void draw(Adafruit_SPITFT *tft);
 	void clear(Adafruit_SPITFT *tft);
-	void setIcon(uint8_t *icon);
+	void setIcon(const uint8_t *icon);
 protected:
 	IconBox iconBox;
 };
@@ -254,13 +254,13 @@ class IconScrollTextBox : public ScrollTextBox
 {
 public:
 	IconScrollTextBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t fgColor = LCD_WHITE, uint16_t bgColor = LCD_BLACK, const GFXfont *f = NULL, int16_t ofs_y = 0, uint16_t height_y = 16);
-	IconScrollTextBox(int16_t pos_x, int16_t pos_y, uint8_t *icon, uint16_t width, uint16_t fgColor = LCD_WHITE, uint16_t bgColor = LCD_BLACK, const GFXfont *f = NULL, int16_t ofs_y = 0, uint16_t height_y = 16);
+	IconScrollTextBox(int16_t pos_x, int16_t pos_y, const uint8_t *icon, uint16_t width, uint16_t fgColor = LCD_WHITE, uint16_t bgColor = LCD_BLACK, const GFXfont *f = NULL, int16_t ofs_y = 0, uint16_t height_y = 16);
 	void setFgColor(uint16_t fgColor);
 	void setBgColor(uint16_t bgColor);
 	void update();
 	void draw(Adafruit_SPITFT *tft);
 	void clear(Adafruit_SPITFT *tft);
-	void setIcon(uint8_t *icon);
+	void setIcon(const uint8_t *icon);
 protected:
 	IconBox iconBox;
 };

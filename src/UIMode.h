@@ -14,11 +14,13 @@
 #include "stack.h"
 #include "TagRead.h"
 #include "audio_playback.h"
+#include "UserConfig.h"
 
 typedef enum _ui_mode_enm_t {
     InitialMode = 0,
     FileViewMode,
     PlayMode,
+    ConfigMode,
     PowerOffMode
 } ui_mode_enm_t;
 
@@ -40,7 +42,7 @@ typedef enum _next_play_action_t {
     None = 0,
     ImmediatePlay,
     TimeoutPlay
-} next_play_action_t;
+} do_next_play_t;
 
 typedef enum _next_play_type_t {
     SequentialPlay = 0,
@@ -57,7 +59,7 @@ public:
     uint16_t idx_column = 0;
     uint16_t idx_play = 0;
     uint16_t num_tracks = 0;
-    next_play_action_t next_play_action = None;
+    do_next_play_t do_next_play = None;
     next_play_type_t next_play_type = RandomPlay;
     const char *power_off_msg = "Bye";
 };
@@ -85,6 +87,7 @@ public:
     static void linkButtonAction(Threads::Event *button_event, volatile button_action_t *button_action);
 protected:
     const char *name;
+    UIMode *prevMode;
     ui_mode_enm_t ui_mode_enm;
     UIVars *vars;
     uint16_t idle_count;
@@ -108,8 +111,6 @@ public:
 class UIFileViewMode : public UIMode
 {
 public:
-    static const int WaitCyclesForRandomPlay = 1 * OneMin;
-    static const int WaitCyclesForPowerOffWhenNoOp = 3 * OneMin;
     UIFileViewMode(UIVars *vars, stack_t *dir_stack);
     UIMode* update();
     void entry(UIMode *prevMode);
@@ -121,6 +122,7 @@ protected:
     uint16_t getNumAudioFiles();
     void chdir();
     UIMode *nextPlay();
+    UIMode *sequentialSearch(bool repeatFlg);
     UIMode *randomSearch(uint16_t depth);
     void idxInc();
     void idxDec();
@@ -135,7 +137,6 @@ protected:
 class UIPlayMode : public UIMode
 {
 public:
-    static const int WaitCyclesForPowerOffWhenPaused = 3 * OneMin;
     UIPlayMode(UIVars *vars);
     UIMode* update();
     void entry(UIMode *prevMode);
@@ -143,6 +144,29 @@ public:
 protected:
     audio_codec_enm_t getAudioCodec(MutexFsBaseFile *f);
     void readTag();
+};
+
+//===================================
+// Interface of UIConfigMode class
+//===================================
+class UIConfigMode : public UIMode
+{
+public:
+    UIConfigMode(UIVars *vars);
+    UIMode* update();
+    void entry(UIMode *prevMode);
+    void draw();
+protected:
+    stack_t *path_stack;
+    uint16_t idx_head;
+    uint16_t idx_column;
+    uint16_t getNum();
+    const char *getStr(uint16_t idx);
+    const uint8_t *getIcon(uint16_t idx);
+    void listIdxItems();
+    void idxInc();
+    void idxDec();
+    int select();
 };
 
 //===================================
