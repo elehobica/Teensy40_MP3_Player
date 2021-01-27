@@ -36,6 +36,8 @@
 #define PIN_BATTERY_CHECK       (18)
 #define PIN_BACKLIGHT_CONTROL   (15)
 
+//#define DISABLE_BATTERY_CHECK
+
 // LCD Pin & Parameter Definitions (Edit "#define USE_xxx" in lib/LcdCanvas.h to select LCD type)
 #if defined(USE_ST7735_128x160)
 // LCD (ST7735, 1.8", 128x160pix)
@@ -112,7 +114,12 @@ void terminate(ui_mode_enm_t resume_ui_mode)
 
 bool is_battery_low_voltage()
 {
-    bool flg = (bat_mv < 2900); // Battery Lower Than 2.9V
+    bool flg;
+    #if defined(DISABLE_BATTERY_CHECK)
+    flg = false;
+    #else // defined(DISABLE_BATTERY_CHECK)
+    flg = (bat_mv < 2900); // Battery Lower Than 2.9V
+    #endif // defined(DISABLE_BATTERY_CHECK)
     uiv_set_battery_voltage(bat_mv, flg);
     return flg;
 }
