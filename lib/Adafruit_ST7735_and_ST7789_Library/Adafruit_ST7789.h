@@ -14,7 +14,7 @@ public:
 #endif // end !ESP8266
 
   void setRotation(uint8_t m);
-  void init(uint16_t width, uint16_t height, uint8_t spiMode = SPI_MODE0);
+  void init(uint16_t width, uint16_t height, uint8_t spiMode = SPI_MODE0, uint32_t freq = 0);
 
 private:
   uint16_t windowWidth;

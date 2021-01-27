@@ -136,8 +136,8 @@ void Adafruit_ST77xx::begin(uint32_t freq) {
     @param  cmdList  Flash memory array with commands and data to send
 */
 /**************************************************************************/
-void Adafruit_ST77xx::commonInit(const uint8_t *cmdList) {
-  begin();
+void Adafruit_ST77xx::commonInit(const uint8_t *cmdList, uint32_t freq) {
+  begin(freq);
 
   if (cmdList) {
     displayInit(cmdList);

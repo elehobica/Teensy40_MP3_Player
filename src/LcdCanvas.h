@@ -16,22 +16,23 @@
 #define USE_ST7789_240x240_WOCS
 //#define USE_ILI9341_240x320
 
-#ifdef USE_ST7735_128x160
+#if defined(USE_ST7735_128x160)
 #include <Adafruit_ST7735.h> // Hardware-specific library for ST7735
 #define Adafruit_LCD Adafruit_ST7735
+#define SPI_FREQ	32000000
 #define CUSTOM_FONT	(&Nimbus_Sans_L_Regular_Condensed_12)
 #define CUSTOM_FONT_OFS_Y	13
-#endif
-#ifdef USE_ST7789_240x240_WOCS
+#elif defined(USE_ST7789_240x240_WOCS)
 #include <Adafruit_ST7789.h> // Hardware-specific library for ST7789
 #define Adafruit_LCD Adafruit_ST7789
+#define SPI_FREQ	80000000
 #define CUSTOM_FONT	(&Nimbus_Sans_L_Regular_Condensed_16)
 #define CUSTOM_FONT_OFS_Y	13
 #define USE_ALBUM_ART_SMALL
-#endif
-#ifdef USE_ILI9341_240x320
+#elif defined(USE_ILI9341_240x320)
 #include <Adafruit_ILI9341.h> // Hardware-specific library for ILI9341
 #define Adafruit_LCD Adafruit_ILI9341
+#define SPI_FREQ	80000000
 #define CUSTOM_FONT	(&Nimbus_Sans_L_Regular_Condensed_12)
 #define CUSTOM_FONT_OFS_Y	13
 #endif

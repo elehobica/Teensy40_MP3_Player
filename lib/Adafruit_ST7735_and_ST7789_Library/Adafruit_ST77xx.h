@@ -108,7 +108,7 @@ protected:
       spiMode = SPI_MODE0; ///< Certain display needs MODE3 instead
 
   void begin(uint32_t freq = 0);
-  void commonInit(const uint8_t *cmdList);
+  void commonInit(const uint8_t *cmdList, uint32_t freq = 0);
   void displayInit(const uint8_t *addr);
   void setColRowStart(int8_t col, int8_t row);
 };

@@ -88,7 +88,7 @@ static const uint8_t PROGMEM
                    the defines only, the values are NOT the same!)
 */
 /**************************************************************************/
-void Adafruit_ST7789::init(uint16_t width, uint16_t height, uint8_t mode) {
+void Adafruit_ST7789::init(uint16_t width, uint16_t height, uint8_t mode, uint32_t freq) {
   // Save SPI data mode. commonInit() calls begin() (in Adafruit_ST77xx.cpp),
   // which in turn calls initSPI() (in Adafruit_SPITFT.cpp), passing it the
   // value of spiMode. It's done this way because begin() really should not
@@ -101,7 +101,7 @@ void Adafruit_ST7789::init(uint16_t width, uint16_t height, uint8_t mode) {
   // (Might get added similarly to other display types as needed on a
   // case-by-case basis.)
 
-  commonInit(NULL);
+  commonInit(NULL, freq);
 
   if ((width == 240) && (height == 240)) { // 1.3" and 1.54" displays
     _colstart = 0;

@@ -205,8 +205,8 @@ static const uint8_t PROGMEM
     @brief  Initialization code common to all ST7735B displays
 */
 /**************************************************************************/
-void Adafruit_ST7735::initB(void) {
-  commonInit(Bcmd);
+void Adafruit_ST7735::initB(uint32_t freq) {
+  commonInit(Bcmd, freq);
   setRotation(0);
 }
 
@@ -216,8 +216,8 @@ void Adafruit_ST7735::initB(void) {
     @param  options  Tab color from adafruit purchase
 */
 /**************************************************************************/
-void Adafruit_ST7735::initR(uint8_t options) {
-  commonInit(Rcmd1);
+void Adafruit_ST7735::initR(uint8_t options, uint32_t freq) {
+  commonInit(Rcmd1, freq);
   if (options == INITR_GREENTAB) {
     displayInit(Rcmd2green);
     _colstart = 2;
