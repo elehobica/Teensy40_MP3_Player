@@ -28,6 +28,7 @@ typedef enum _button_action_t {
     ButtonCenterSingle = 0,
     ButtonCenterDouble,
     ButtonCenterTriple,
+    ButtonCenterLong,
     ButtonCenterLongLong,
     ButtonPlusSingle,
     ButtonPlusLong,
@@ -49,9 +50,8 @@ typedef enum _next_play_type_t {
     RandomPlay,
 } next_play_type_t;
 
-class UIVars
+struct UIVars
 {
-public:
     uint16_t num_list_lines = 1;
     ui_mode_enm_t init_dest_ui_mode = InitialMode;
     uint16_t bat_mv = 4200;
@@ -61,6 +61,7 @@ public:
     uint16_t num_tracks = 0;
     do_next_play_t do_next_play = None;
     next_play_type_t next_play_type = RandomPlay;
+    ui_mode_enm_t resume_ui_mode = FileViewMode;
     const char *power_off_msg = "Bye";
 };
 

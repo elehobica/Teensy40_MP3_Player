@@ -172,7 +172,7 @@ ui_mode_enm_t loadFromEEPROM(stack_t *dir_stack)
     return ui_mode_enm;
 }
 
-void storeToEEPROM(stack_t *dir_stack, ui_mode_enm_t last_ui_mode)
+void storeToEEPROM(stack_t *dir_stack, ui_mode_enm_t resume_ui_mode)
 {
     stack_data_t item;
     uint16_t idx_head;
@@ -205,7 +205,7 @@ void storeToEEPROM(stack_t *dir_stack, ui_mode_enm_t last_ui_mode)
     EEPROM.write(CFG_IDX_HEAD_H, (uint8_t) ((idx_head >> 8) & 0xff));
     EEPROM.write(CFG_IDX_COLUMN_L, (uint8_t) (idx_column & 0xff));
     EEPROM.write(CFG_IDX_COLUMN_H, (uint8_t) ((idx_column >> 8) & 0xff));
-    EEPROM.write(CFG_MODE, static_cast<uint8_t>(last_ui_mode));
+    EEPROM.write(CFG_MODE, static_cast<uint8_t>(resume_ui_mode));
     EEPROM.write(CFG_IDX_PLAY_L, (uint8_t) (idx_play & 0xff));
     EEPROM.write(CFG_IDX_PLAY_H, (uint8_t) ((idx_play >> 8) & 0xff));
     audio_get_position(&fpos, &samples_played);

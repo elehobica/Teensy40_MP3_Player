@@ -18,20 +18,22 @@
 #define HP_BUTTON_MINUS   4
 
 #define RELEASE_IGNORE_COUNT    8
+#define LONG_PUSH_COUNT         10
+#define LONG_LONG_PUSH_COUNT    30
 
 static uint8_t button_prv[NUM_BTN_HISTORY] = {}; // initialized as HP_BUTTON_OPEN
-static uint32_t button_repeat_count = 0;
-static bool fwd_lock = false;
-static bool rwd_lock = false;
+static uint32_t button_repeat_count = LONG_LONG_PUSH_COUNT; // to ignore first buttton press when power-on
+//static bool fwd_lock = false;
+//static bool rwd_lock = false;
 
 Threads::Event button_event;
 volatile button_action_t button_action;
 
 UIVars vars;
-UIMode *ui_mode = NULL;
+UIMode *ui_mode = nullptr;
 UIMode *ui_mode_ary[5] = {};
 
-void (*_terminate)(ui_mode_enm_t last_ui_mode) = NULL;
+void (*_terminate)(ui_mode_enm_t last_ui_mode) = nullptr;
 
 static uint8_t adc0_get_hp_button(uint8_t android_MIC_pin)
 {
@@ -72,13 +74,11 @@ static int count_center_clicks(void)
         }
     }
     if (count > 0) {
-        /*
-        { // DEBUG
+        /*{ // DEBUG
             char str[64];
-            sprintf(str, "center_clicks = %d", center_clicks);
+            sprintf(str, "center_clicks = %d", count);
             Serial.println(str);
-        }
-        */
+        }*/
         /*{ // DEBUG
             char str[NUM_BTN_HISTORY+1] = {};
             for (i = 0; i < NUM_BTN_HISTORY; i++) {
@@ -103,7 +103,7 @@ void update_button_action(uint8_t android_MIC_pin)
     int i;
     int center_clicks;
     uint8_t button = adc0_get_hp_button(android_MIC_pin);
-    if (fwd_lock) {
+    /*if (fwd_lock) {
         if (button == HP_BUTTON_D || button == HP_BUTTON_PLUS) {
             trigger_event(ButtonPlusFwd);
         } else {
@@ -115,14 +115,22 @@ void update_button_action(uint8_t android_MIC_pin)
         } else {
             rwd_lock = false;
         }
-    } else if (button_prv[0] == HP_BUTTON_CENTER && button != HP_BUTTON_CENTER) { // center release with plus or minus pushed
+    } else if (button_prv[0] == HP_BUTTON_CENTER && button != HP_BUTTON_CENTER && button != HP_BUTTON_OPEN) { // center release with plus or minus pushed
         button_repeat_count = 0;
         if (button == HP_BUTTON_D || button == HP_BUTTON_PLUS) {
             fwd_lock = true;
         } else if (button == HP_BUTTON_MINUS) {
             rwd_lock = true;
         }
-    } else if (button == HP_BUTTON_OPEN) {
+    } else */
+    if (button == HP_BUTTON_OPEN) {
+        // Ignore button release after long push
+        if (button_repeat_count > LONG_PUSH_COUNT) {
+            for (i = 0; i < NUM_BTN_HISTORY; i++) {
+                button_prv[i] = HP_BUTTON_OPEN;
+            }
+            button = HP_BUTTON_OPEN;
+        }
         button_repeat_count = 0;
         if (button_prv[RELEASE_IGNORE_COUNT] == HP_BUTTON_CENTER) { // center release
             center_clicks = count_center_clicks(); // must be called once per tick because button_prv[] status has changed
@@ -146,15 +154,16 @@ void update_button_action(uint8_t android_MIC_pin)
         } else if (button == HP_BUTTON_MINUS) {
             trigger_event(ButtonMinusSingle);
         }
-    } else if (button_repeat_count == 10) { // long push
+    } else if (button_repeat_count == LONG_PUSH_COUNT) { // long push
         if (button == HP_BUTTON_CENTER) {
+            trigger_event(ButtonCenterLong);
             button_repeat_count++; // only once and step to longer push event
         } else if (button == HP_BUTTON_D || button == HP_BUTTON_PLUS) {
             trigger_event(ButtonPlusLong);
         } else if (button == HP_BUTTON_MINUS) {
             trigger_event(ButtonMinusLong);
         }
-    } else if (button_repeat_count == 20) { // long long push
+    } else if (button_repeat_count == LONG_LONG_PUSH_COUNT) { // long long push
         if (button == HP_BUTTON_CENTER) {
             trigger_event(ButtonCenterLongLong);
         }
@@ -206,8 +215,8 @@ void ui_update()
 void ui_force_update(ui_mode_enm_t ui_mode_enm)
 {
     //Serial.println(ui_mode->getName());
-    UIMode *ui_mode_next = getUIMode(ui_mode_enm);
     ui_mode->update();
+    UIMode *ui_mode_next = getUIMode(ui_mode_enm);
     if (ui_mode_next != ui_mode) {
         ui_mode_next->entry(ui_mode);
         ui_mode = ui_mode_next;
@@ -224,7 +233,7 @@ void ui_reg_terminate_func(void (*terminate)(ui_mode_enm_t last_ui_mode))
 
 void ui_terminate(ui_mode_enm_t last_ui_mode)
 {
-    if (_terminate == NULL) { return; }
+    if (_terminate == nullptr) { return; }
     (*_terminate)(last_ui_mode);
 }
 

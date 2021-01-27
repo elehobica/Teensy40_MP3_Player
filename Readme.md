@@ -107,7 +107,7 @@ A8 also needs to be pulled-up by 2.2Kohm from 3.3V. See schematic for detail.
 * Center 1 click to play WAV file (go to Play Mode)
 * Center 2 click to go parent folder
 * Center 3 click to Random album play (go to Play Mode)
-* Long push Center button within 3 sec from last Up/Down button to go Config Mode
+* Long push Center button to go to Config Mode
 * 1 min passed without any button: Sequential/SequentialRepeat/Repeat/Random album play (go to Play Mode)
 
 ### Play Mode
@@ -115,9 +115,15 @@ A8 also needs to be pulled-up by 2.2Kohm from 3.3V. See schematic for detail.
 * Center 1 click to pause/play
 * Center 2 click to stop (go back to FileView Mode)
 * Center 3 click to Random album play
-* Long push Center button within 3 sec from last Up/Down button to go Config Mode
+* Long push Center button to go to Config Mode
 
-### Power On/Off (Optional: external circuit needed)
+### Config Mode
+* Up/Down button to go up/down for config item selection
+* Center 1 click to select config item
+* Center 2 click to go back to previous Mode (FileView or Play)
+* Long push to Power Off (Optional: external circuit needed)
+
+### Power On (Optional: external circuit needed)
 * Long push Center button
 
 ## Prototype Example

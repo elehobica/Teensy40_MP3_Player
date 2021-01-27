@@ -345,6 +345,7 @@ UIMode *UIFileViewMode::getUIPlayMode()
 
 UIMode* UIFileViewMode::update()
 {
+    vars->resume_ui_mode = this->getUIModeEnm();
     switch (vars->init_dest_ui_mode) {
         case PlayMode:
             return getUIPlayMode();
@@ -376,12 +377,12 @@ UIMode* UIFileViewMode::update()
             case ButtonCenterTriple:
                 return randomSearch(USERCFG_PLAY_RAND_DEPTH);
                 break;
-            case ButtonCenterLongLong:
-                if (idle_count > 3*OneSec) {
-                    return getUIMode(PowerOffMode);
-                } else {
+            case ButtonCenterLong:
+                //if (idle_count > 3*OneSec) {
                     return getUIMode(ConfigMode);
-                }
+                //}
+                break;
+            case ButtonCenterLongLong:
                 break;
             case ButtonPlusSingle:
                 idxDec();
@@ -449,6 +450,7 @@ UIPlayMode::UIPlayMode(UIVars *vars) : UIMode("UIPlayMode", PlayMode, vars)
 
 UIMode* UIPlayMode::update()
 {
+    vars->resume_ui_mode = this->getUIModeEnm();
     AudioCodec *codec = audio_get_codec();
     if (btn_evt->getState()) {
         switch (*btn_act) {
@@ -465,12 +467,12 @@ UIMode* UIPlayMode::update()
                 vars->do_next_play = ImmediatePlay;
                 return getUIMode(FileViewMode);
                 break;
-            case ButtonCenterLongLong:
-                if (idle_count > 3*OneSec) {
-                    return getUIMode(PowerOffMode);
-                } else {
+            case ButtonCenterLong:
+                //if (idle_count > 3*OneSec) {
                     return getUIMode(ConfigMode);
-                }
+                //}
+                break;
+            case ButtonCenterLongLong:
                 break;
             case ButtonPlusSingle:
             case ButtonPlusLong:
@@ -746,7 +748,10 @@ UIMode* UIConfigMode::update()
                 break;
             case ButtonCenterTriple:
                 break;
+            case ButtonCenterLong:
+                break;
             case ButtonCenterLongLong:
+                return getUIMode(PowerOffMode);
                 break;
             case ButtonPlusSingle:
             case ButtonPlusLong:
@@ -799,8 +804,7 @@ void UIPowerOffMode::entry(UIMode *prevMode)
     UIMode::entry(prevMode);
     lcd->switchToPowerOff(vars->power_off_msg);
     lcd->drawPowerOff();
-    audio_terminate();
-    ui_terminate(prevMode->getUIModeEnm());
+    ui_terminate(vars->resume_ui_mode);
 }
 
 void UIPowerOffMode::draw()

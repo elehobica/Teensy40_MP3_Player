@@ -69,25 +69,25 @@ LcdCanvas lcd = LcdCanvas(TFT_CS, TFT_DC, TFT_RST);
 // Directory History
 stack_t *dir_stack;
 
-void monitor_battery_voltage()
+void monitor_battery_voltage(uint8_t battery_check_enable_pin, uint8_t battery_voltage_pin)
 {
-    digitalWrite(PIN_BATTERY_CHECK, HIGH);
+    digitalWrite(battery_check_enable_pin, HIGH);
     delayMicroseconds(100); // waiting for voltage stable
-    uint32_t adc0_rdata = analogRead(PIN_A0);
+    uint32_t adc0_rdata = analogRead(battery_voltage_pin);
     bat_mv = adc0_rdata * 3300 * (33+10) / 1023 / 33; // voltage divider: 1 Kohm + 3.3 Kohm, ADC ref: 3300mV
     #ifdef BATTERY_VOLTAGE_MSG
     Serial.print("Battery Voltage = ");
     Serial.println(bat_mv);
     #endif // BATTERY_VOLTAGE_MSG
-    digitalWrite(PIN_BATTERY_CHECK, LOW);
+    digitalWrite(battery_check_enable_pin, LOW);
 }
 
 void tick_50ms(void)
 {
-    if (millis() < 2 * 1000) { return; } // not to detect any actions within 2 sec after boot
-    __disable_irq(); // need to be below 'if (millis() < 2 * 1000) { return; }' line
+    if (millis() < 1 * 1000) { return; } // not to detect any actions within 1 sec after boot
+    __disable_irq(); // need to be below 'if (millis() < 2 * 1000) { return; }' line otherwise system irq will be masked?
     if ((tick_50ms_count % (20*5)) == 0) { // Check Battery Voltage at 5 sec each
-        monitor_battery_voltage();
+        monitor_battery_voltage(PIN_BATTERY_CHECK, PIN_A0);
     }
     update_button_action(PIN_A8);
     tick_50ms_count++;
@@ -95,11 +95,12 @@ void tick_50ms(void)
 }
 
 // terminate() is called from UIPowerOffMode::entry()
-void terminate(ui_mode_enm_t last_ui_mode)
+void terminate(ui_mode_enm_t resume_ui_mode)
 {
-    // Audio Mute
+    // Audio Termination & Mute
+    audio_terminate();
     digitalWrite(PIN_DAC_MUTE_B, LOW);
-    storeToEEPROM(dir_stack, last_ui_mode);
+    storeToEEPROM(dir_stack, resume_ui_mode);
     delay(500);
     // Self Power Off
     digitalWrite(PIN_DCDC_SHDN_B, LOW);
