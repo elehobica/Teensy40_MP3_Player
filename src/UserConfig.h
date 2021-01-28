@@ -63,7 +63,7 @@ public:
 		uint16_t		size;
 	} config_category_t;
 
-	static UserConfig& instance() { return _instance; }
+	static UserConfig& instance(); // Singleton
 	// For Read Users
 	int getValue(int category_idx, int item_idx);
 	// For Flash Load/Store
@@ -79,10 +79,11 @@ public:
 	bool isSelection();
 	bool selIdxMatched(int idx);
 
-protected:	
-	static UserConfig _instance;
+private:
 	UserConfig();
 	~UserConfig();
+	UserConfig(const UserConfig&) = delete;
+	UserConfig& operator=(const UserConfig&) = delete;
 	config_sel_t sel_time0[3] = {
 		{"3 min", 3*60},
 		{"5 min", 5*60},

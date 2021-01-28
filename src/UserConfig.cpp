@@ -21,7 +21,12 @@ void hook_disp_rotation()
 //=================================
 // Implementation of UserConfig class
 //=================================
-UserConfig UserConfig::_instance; // Singleton
+
+UserConfig& UserConfig::instance()
+{
+    static UserConfig _instance; // Singleton
+    return _instance;
+}
 
 UserConfig::UserConfig() : level(0)
 {
