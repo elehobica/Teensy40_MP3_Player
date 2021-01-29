@@ -345,7 +345,7 @@ UIMode *UIFileViewMode::getUIPlayMode()
 
 UIMode* UIFileViewMode::update()
 {
-    vars->resume_ui_mode = this->getUIModeEnm();
+    vars->resume_ui_mode = ui_mode_enm;
     switch (vars->init_dest_ui_mode) {
         case PlayMode:
             return getUIPlayMode();
@@ -354,6 +354,7 @@ UIMode* UIFileViewMode::update()
             break;
     }
     if (btn_evt->getState()) {
+        btn_evt->clear();
         vars->do_next_play = None;
         switch (*btn_act) {
             case ButtonCenterSingle:
@@ -378,9 +379,7 @@ UIMode* UIFileViewMode::update()
                 return randomSearch(USERCFG_PLAY_RAND_DEPTH);
                 break;
             case ButtonCenterLong:
-                //if (idle_count > 3*OneSec) {
-                    return getUIMode(ConfigMode);
-                //}
+                return getUIMode(ConfigMode);
                 break;
             case ButtonCenterLongLong:
                 break;
@@ -450,9 +449,10 @@ UIPlayMode::UIPlayMode(UIVars *vars) : UIMode("UIPlayMode", PlayMode, vars)
 
 UIMode* UIPlayMode::update()
 {
-    vars->resume_ui_mode = this->getUIModeEnm();
+    vars->resume_ui_mode = ui_mode_enm;
     AudioCodec *codec = audio_get_codec();
     if (btn_evt->getState()) {
+        btn_evt->clear();
         switch (*btn_act) {
             case ButtonCenterSingle:
                 codec->pause(!codec->isPaused());
@@ -468,9 +468,7 @@ UIMode* UIPlayMode::update()
                 return getUIMode(FileViewMode);
                 break;
             case ButtonCenterLong:
-                //if (idle_count > 3*OneSec) {
-                    return getUIMode(ConfigMode);
-                //}
+                return getUIMode(ConfigMode);
                 break;
             case ButtonCenterLongLong:
                 break;
@@ -734,6 +732,7 @@ int UIConfigMode::select()
 UIMode* UIConfigMode::update()
 {
     if (btn_evt->getState()) {
+        btn_evt->clear();
         vars->do_next_play = None;
         switch (*btn_act) {
             case ButtonCenterSingle:

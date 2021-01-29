@@ -209,7 +209,6 @@ void ui_update()
     } else {
         ui_mode->draw();
     }
-    button_event.clear();
 }
 
 void ui_force_update(ui_mode_enm_t ui_mode_enm)
