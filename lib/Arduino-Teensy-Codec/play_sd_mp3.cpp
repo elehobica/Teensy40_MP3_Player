@@ -92,6 +92,13 @@ float AudioPlaySdMp3::processorUsageMaxSD(void){
 };
 */
 
+void AudioPlaySdMp3::initVars(void)
+{
+	bitrate_sum = 0;
+	frames_played = 0;
+	AudioCodec::initVars();
+}
+
 int AudioPlaySdMp3::play(size_t position, unsigned samples_played)
 {
 	/*
@@ -285,6 +292,8 @@ void AudioPlaySdMp3::update(void)
 	}
 
 	samples_played += AUDIO_BLOCK_SAMPLES;
+	bitrate_sum += bitrate;
+	frames_played++;
 
 	release(block_left);
 
@@ -414,10 +423,17 @@ mp3end:
 // lengthMillis (Override)
 unsigned AudioPlaySdMp3::lengthMillis(void)
 {
-	if (mp3FrameInfo.numFrames) { // also safe for VBR case
+	if (mp3FrameInfo.numFrames) { // w/ Xing header case (VBR)
 		// numFrames - 1: Sub a frame where Xing Header exists
-		return ((unsigned long long) (mp3FrameInfo.numFrames - 1) * mp3FrameInfo.nChans * 576 * 1000 / AUDIO_SAMPLE_RATE_EXACT);
-	} else {
-		return max((fsize() - size_id3) * 8 / bitrate,  positionMillis());
+		return (unsigned) ((uint64_t) (mp3FrameInfo.numFrames - 1) * mp3FrameInfo.nChans * 576 * 1000 / AUDIO_SAMPLE_RATE_EXACT);
 	}
+	if (frames_played == 0 || bitrate == 0) { return positionMillis(); }
+	unsigned short bitrate_ave = bitrate_sum / frames_played; // Kbps
+	// No Xing header (CBR, VBR)
+	if (bitrate_ave != 0) {
+		// use average bitrate estimated by past accumulated bitrate to supress flickering total time (in case of VBR w/o Xing header)
+		return (unsigned) (positionMillis() + (fsize() - fposition()) * 8 / bitrate_ave);
+	}
+	// previous method (works well with CBR)
+	return max((fsize() - size_id3) * 8 / bitrate,  positionMillis());
 }

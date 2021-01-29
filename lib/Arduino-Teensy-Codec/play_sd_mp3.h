@@ -75,6 +75,10 @@ protected:
 	HMP3Decoder		hMP3Decoder;
 	MP3FrameInfo	mp3FrameInfo;
 
+	uint64_t		bitrate_sum;
+	unsigned		frames_played;
+
+	void initVars(void);
 	int play(size_t position = 0, unsigned samples_played = 0);
 	void update(void);
 	friend void decodeMp3_core(void);
