@@ -18,6 +18,7 @@ TagRead tag;
 LcdCanvas *UIMode::lcd = nullptr;
 Threads::Event *UIMode::btn_evt = nullptr;
 volatile button_action_t *UIMode::btn_act = nullptr;
+bool UIMode::btn_evt_rcv = false;
 
 //================================
 // Implementation of UIMode class
@@ -44,6 +45,7 @@ void UIMode::entry(UIMode *prevMode)
     if (ui_mode_enm == vars->init_dest_ui_mode) { // Reached desitination of initial UI mode
         vars->init_dest_ui_mode = InitialMode;
     }
+    clrBtnEvt();
 }
 
 const char *UIMode::getName()
@@ -59,6 +61,22 @@ ui_mode_enm_t UIMode::getUIModeEnm()
 uint16_t UIMode::getIdleCount()
 {
     return idle_count;
+}
+
+bool UIMode::getBtnEvt()
+{
+    bool flg = btn_evt->getState();
+    // get event but not clear here because next event has to be blocked until display is reflected by draw()
+    if (flg) { btn_evt_rcv = true; }
+    return flg;
+}
+
+void UIMode::clrBtnEvt()
+{
+    if (btn_evt_rcv) {
+        btn_evt_rcv = false;
+        btn_evt->clear();
+    }
 }
 
 //=======================================
@@ -353,8 +371,7 @@ UIMode* UIFileViewMode::update()
         default:
             break;
     }
-    if (btn_evt->getState()) {
-        btn_evt->clear();
+    if (getBtnEvt()) {
         vars->do_next_play = None;
         switch (*btn_act) {
             case ButtonCenterSingle:
@@ -438,6 +455,7 @@ void UIFileViewMode::entry(UIMode *prevMode)
 void UIFileViewMode::draw()
 {
     lcd->drawListView();
+    clrBtnEvt();
 }
 
 //====================================
@@ -451,8 +469,7 @@ UIMode* UIPlayMode::update()
 {
     vars->resume_ui_mode = ui_mode_enm;
     AudioCodec *codec = audio_get_codec();
-    if (btn_evt->getState()) {
-        btn_evt->clear();
+    if (getBtnEvt()) {
         switch (*btn_act) {
             case ButtonCenterSingle:
                 codec->pause(!codec->isPaused());
@@ -628,6 +645,7 @@ void UIPlayMode::entry(UIMode *prevMode)
 void UIPlayMode::draw()
 {
     lcd->drawPlay();
+    clrBtnEvt();
 }
 
 //=======================================
@@ -731,8 +749,7 @@ int UIConfigMode::select()
 
 UIMode* UIConfigMode::update()
 {
-    if (btn_evt->getState()) {
-        btn_evt->clear();
+    if (getBtnEvt()) {
         vars->do_next_play = None;
         switch (*btn_act) {
             case ButtonCenterSingle:
@@ -784,6 +801,7 @@ void UIConfigMode::entry(UIMode *prevMode)
 void UIConfigMode::draw()
 {
     lcd->drawListView();
+    clrBtnEvt();
 }
 
 //=======================================

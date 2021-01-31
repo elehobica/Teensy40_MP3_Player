@@ -222,7 +222,6 @@ void ui_force_update(ui_mode_enm_t ui_mode_enm)
     } else {
         ui_mode->draw();
     }
-    button_event.clear();
 }
 
 void ui_reg_terminate_func(void (*terminate)(ui_mode_enm_t last_ui_mode))

@@ -71,6 +71,7 @@ struct UIVars
 class UIMode
 {
 public:
+    static const int UpdateCycleMs = 50; // loop cycle (ms) (= LoopCycleMs value in arduino_main.cpp)
     UIMode(const char *name, ui_mode_enm_t ui_mode_enm, UIVars *vars);
     virtual UIMode* update() = 0;
     virtual void entry(UIMode *prevMode);
@@ -78,20 +79,22 @@ public:
     const char *getName();
     ui_mode_enm_t getUIModeEnm();
     uint16_t getIdleCount();
-    static Threads::Event *btn_evt;
-    static volatile button_action_t *btn_act;
-    static LcdCanvas *lcd;
-    static const int UpdateCycleMs = 50; // loop cycle (ms) (= LoopCycleMs value in arduino_main.cpp)
-    static const int OneSec = 1000 / UpdateCycleMs; // 1 Sec
-    static const int OneMin = 60 * OneSec; // 1 Min
     static void linkLcdCanvas(LcdCanvas *lcd_canvas);
     static void linkButtonAction(Threads::Event *button_event, volatile button_action_t *button_action);
 protected:
+    static const int OneSec = 1000 / UpdateCycleMs; // 1 Sec
+    static const int OneMin = 60 * OneSec; // 1 Min
+    static Threads::Event *btn_evt;
+    static volatile button_action_t *btn_act;
+    static bool btn_evt_rcv;
+    static LcdCanvas *lcd;
     const char *name;
     UIMode *prevMode;
     ui_mode_enm_t ui_mode_enm;
     UIVars *vars;
     uint16_t idle_count;
+    bool getBtnEvt();
+    void clrBtnEvt();
 };
 
 //===================================
