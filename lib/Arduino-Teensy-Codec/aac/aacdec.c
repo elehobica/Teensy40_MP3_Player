@@ -368,7 +368,7 @@ int AACDecode(HAACDecoder hAACDecoder, unsigned char **inbuf, int *bytesLeft, sh
 		
 		elementChans = elementNumChans[aacDecInfo->currBlockID];
 		if (baseChan + elementChans > AAC_MAX_NCHANS)
-			return ERR_AAC_NCHANS_TOO_HIGH;
+			return ERR_AAC_NCHANS_TOO_HIGH; // Can be ALAC (Apple Lossless Audio Codec)
 
 		/* noiseless decoder and dequantizer */
 		for (ch = 0; ch < elementChans; ch++) {
