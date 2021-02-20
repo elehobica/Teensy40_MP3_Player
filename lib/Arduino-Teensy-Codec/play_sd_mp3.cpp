@@ -384,7 +384,7 @@ void decodeMp3_core(void)
 				//case ERR_MP3_INVALID_HUFFCODES: // Ignore Error for initial dummy frames
 				default :
 				{
-					if (o->err_cnt++ < 1) { // Ignore Error
+					if (o->err_cnt++ < 2) { // Ignore Error
 						MP3GetLastFrameInfo(o->hMP3Decoder, &o->mp3FrameInfo);
 						o->decoded_length[db] = o->mp3FrameInfo.outputSamps;
 						o->bitrate = o->mp3FrameInfo.bitrate / 1000; // bps -> Kbps
