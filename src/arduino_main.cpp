@@ -136,6 +136,13 @@ void setup()
         sprintf(str, "Teensy 4.0 MP3 Player ver. %s", Version);
         Serial.println(str);
         Serial.println("###################################");
+#if defined(USE_ST7735_128x160)
+        Serial.println("LCD: ST7735 128x160");
+#elif defined(USE_ST7789_240x240_WOCS)
+        Serial.println("LCD: ST7789 240x240");
+#elif defined(USE_ILI9341_240x320)
+        Serial.println("LCD: ILI9341 240x320");
+#endif
     }
 
     // Pin Mode Setting
