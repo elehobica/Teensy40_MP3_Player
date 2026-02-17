@@ -97,6 +97,17 @@ Place [resource/unifont.bin](resource/unifont.bin) on microSD root folder
 Audio, TeensyThreads, Adafruit_GFX_Library, Arduino-Teensy-Codec, SdFat, Adafruit_ILI9341, Adafruit_ST7735_and_ST7789
 (check path: %USERNAME%\\.platformio\packages\framework-arduinoteensy\libraries\)
 
+## How to upload firmware
+You can upload a pre-built firmware.hex (e.g. from [Releases](https://github.com/elehobica/Teensy40_MP3_Player/releases) or CI artifacts) using [Teensy Loader CLI](https://github.com/PaulStoffregen/teensy_loader_cli).
+
+```
+teensy_loader_cli -mmcu=imxrt1062 -w -s -v firmware.hex
+```
+
+* Press the button on Teensy 4.0 board to enter bootloader mode before running the command, or use `-s` option to wait for a soft reboot
+* Teensy Loader CLI is also bundled in PlatformIO package at `~/.platformio/packages/tool-teensy/teensy_loader_cli`
+* Alternatively, [Teensy Loader](https://www.pjrc.com/teensy/loader.html) (GUI application) can be used to open and upload .hex files
+
 ## Button Control Guide
 Connect MIC pin of Android headphone remote control with 3 buttons to A8 pin of Teensy 4.0.
 A8 also needs to be pulled-up by 2.2Kohm from 3.3V. See schematic for detail.
