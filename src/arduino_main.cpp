@@ -56,7 +56,10 @@
 #define TFT_DC              8
 #endif
 
-const char *Version = "0.8.11";
+#ifndef FW_VERSION
+#define FW_VERSION "0.0.0-unknown"
+#endif
+const char *Version = FW_VERSION;
 
 const int LoopCycleMs = UIMode::UpdateCycleMs; // loop cycle (50 ms)
 const int OneSec = 1000 / LoopCycleMs; // 1 Sec

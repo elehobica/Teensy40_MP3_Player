@@ -239,7 +239,6 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
         // this code is modified from version 3, ideally we should reuse some
         while (filepos-10 < (int) id32header->size) {
             // make space for new frame
-            int i;
             id322frame* frame = (id322frame *) calloc(1, sizeof(id322frame));
             frame->next = NULL;
             // populate from file
@@ -315,7 +314,6 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
         // start reading frames
         while (filepos-10 < (int) id32header->size) {
             // make space for new frame
-            int i;
             id32frame* frame = (id32frame *) calloc(1, sizeof(id32frame));
             frame->next = NULL;
             // populate from file
@@ -409,7 +407,6 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
         // start reading frames
         while (filepos-10 < (int) id32header->size) {
             // make space for new frame
-            int i;
             id32frame* frame = (id32frame *) calloc(1, sizeof(id32frame));
             frame->next = NULL;
             // populate from file
@@ -517,9 +514,9 @@ int TagRead::getUTF8Title(char* str, size_t size)
     if (GetMP4BoxUTF8("\xa9""nam", str, size)) { return 1; }
     if (GetID32UTF8("TT2", "TIT2", str, size)) { return 1; }
     if (GetFlacTagUTF8("title", 5, str, size)) { return 1; }
-    if (strlen(id3v1->title)) {
+    if (strnlen(id3v1->title, sizeof(id3v1->title))) {
         memset(str, 0, size);
-        strncpy(str, id3v1->title, (strlen(id3v1->title) < size - 1) ? strlen(id3v1->title) : size - 1);
+        memcpy(str, id3v1->title, strnlen(id3v1->title, sizeof(id3v1->title) < size - 1 ? sizeof(id3v1->title) : size - 1));
         return 1;
     }
     return 0;
@@ -530,9 +527,9 @@ int TagRead::getUTF8Album(char* str, size_t size)
     if (GetMP4BoxUTF8("\xa9""alb", str, size)) { return 1; }
     if (GetID32UTF8("TAL", "TALB", str, size)) { return 1; }
     if (GetFlacTagUTF8("album", 5, str, size)) { return 1; }
-    if (strlen(id3v1->album)) {
+    if (strnlen(id3v1->album, sizeof(id3v1->album))) {
         memset(str, 0, size);
-        strncpy(str, id3v1->album, (strlen(id3v1->album) < size - 1) ? strlen(id3v1->album) : size - 1);
+        memcpy(str, id3v1->album, strnlen(id3v1->album, sizeof(id3v1->album) < size - 1 ? sizeof(id3v1->album) : size - 1));
         return 1;
     }
     return 0;
@@ -543,9 +540,9 @@ int TagRead::getUTF8Artist(char* str, size_t size)
     if (GetMP4BoxUTF8("\xa9""ART", str, size)) { return 1; }
     if (GetID32UTF8("TP1", "TPE1", str, size)) { return 1; }
     if (GetFlacTagUTF8("artist", 6, str, size)) { return 1; }
-    if (strlen(id3v1->artist)) {
+    if (strnlen(id3v1->artist, sizeof(id3v1->artist))) {
         memset(str, 0, size);
-        strncpy(str, id3v1->artist, (strlen(id3v1->artist) < size - 1) ? strlen(id3v1->artist) : size - 1);
+        memcpy(str, id3v1->artist, strnlen(id3v1->artist, sizeof(id3v1->artist) < size - 1 ? sizeof(id3v1->artist) : size - 1));
         return 1;
     }
     return 0;
@@ -556,9 +553,9 @@ int TagRead::getUTF8Year(char* str, size_t size)
     if (GetMP4BoxUTF8("\xa9""day", str, size)) { return 1; }
     if (GetID32UTF8("TYE", "TYER", str, size)) { return 1; }
     if (GetFlacTagUTF8("date", 4, str, size)) { return 1; }
-    if (strlen(id3v1->year)) {
+    if (strnlen(id3v1->year, sizeof(id3v1->year))) {
         memset(str, 0, size);
-        strncpy(str, id3v1->year, (strlen(id3v1->year) < size - 1) ? strlen(id3v1->year) : size - 1);
+        memcpy(str, id3v1->year, strnlen(id3v1->year, sizeof(id3v1->year) < size - 1 ? sizeof(id3v1->year) : size - 1));
         return 1;
     }
     return 0;
@@ -702,7 +699,7 @@ int TagRead::getID32Picture(int idx, mime_t *mime, ptype_t *ptype, uint64_t *pos
                 size_t frame_size;
                 int ofs;
                 if ((thisframe->flags[1] & 0x1) != 0x00) { // Data length indicator (ID3v2.4)
-                    frame_size = getBESize4SyncSafe(&thisframe->data[0]); // This is the actual size deducted Unsynchronization 0xFF 0x00 -> 0xFF
+                    frame_size = getBESize4SyncSafe((unsigned char *)&thisframe->data[0]); // This is the actual size deducted Unsynchronization 0xFF 0x00 -> 0xFF
                     ofs = 4;
                 } else {
                     frame_size = thisframe->size;
@@ -1023,13 +1020,17 @@ int TagRead::getListChunk(MutexFsBaseFile *file)
                         file->read(str, size);
                         // copy LIST INFO data to ID3v1 member (note that ID3v1 members don't finish with '\0')
                         if (memcmp(chunk_id, "IART", 4) == 0) { // Artist
-                            strncpy(id3v1->artist, str, sizeof(id3v1->artist));
+                            memset(id3v1->artist, 0, sizeof(id3v1->artist));
+                            memcpy(id3v1->artist, str, strnlen(str, sizeof(id3v1->artist)));
                         } else if (memcmp(chunk_id, "INAM", 4) == 0) { // Title
-                            strncpy(id3v1->title, str, sizeof(id3v1->title));
+                            memset(id3v1->title, 0, sizeof(id3v1->title));
+                            memcpy(id3v1->title, str, strnlen(str, sizeof(id3v1->title)));
                         } else if (memcmp(chunk_id, "IPRD", 4) == 0) { // Album
-                            strncpy(id3v1->album, str, sizeof(id3v1->album));
+                            memset(id3v1->album, 0, sizeof(id3v1->album));
+                            memcpy(id3v1->album, str, strnlen(str, sizeof(id3v1->album)));
                         } else if (memcmp(chunk_id, "ICRD", 4) == 0) { // Year
-                            strncpy(id3v1->year, str, sizeof(id3v1->year));
+                            memset(id3v1->year, 0, sizeof(id3v1->year));
+                            memcpy(id3v1->year, str, strnlen(str, sizeof(id3v1->year)));
                         } else if (memcmp(chunk_id, "IPRT", 4) == 0) { // Track  ==> type not matched
                             id3v1->tracknum = (unsigned char) atoi(str); // atoi stops conversion if non-number appeared
                         //} else if (memcmp(chunk_id, "IGNR", 4) == 0) { // Genre  ==> type not matched
@@ -1172,7 +1173,7 @@ int TagRead::GetMP4BoxUTF8(const char *mp4_type, char *str, size_t size)
             if (mp4_ilst_item->data_type == reserved) { // for track number
                 unsigned char c[4];
                 memcpy(c, mp4_ilst_item->data_buf, 4);
-                sprintf(str, "%lu", getBESize4(c));
+                sprintf(str, "%u", (unsigned int) getBESize4(c));
                 return 1;
             } else if (mp4_ilst_item->data_type == UTF8) {
                 max_size = (mp4_ilst_item->data_size <= size - 1) ? mp4_ilst_item->data_size : size - 1;
@@ -1242,12 +1243,12 @@ int TagRead::getFlacMetadata(MutexFsBaseFile *file)
 
     // for FLAC Pictures
     file->rewind();
-    flac_pics_count = FLAC__metadata_get_picture_count_sd_file(file, /*type*/-1, /*mime_type*/NULL, /*description*/NULL, /*max_width*/(unsigned) -1, /*max_height*/(unsigned) -1, /*max_depth*/(unsigned) -1, /*max_colors*/(unsigned) -1);
+    flac_pics_count = FLAC__metadata_get_picture_count_sd_file(file, /*type*/(FLAC__StreamMetadata_Picture_Type)-1, /*mime_type*/NULL, /*description*/NULL, /*max_width*/(unsigned) -1, /*max_height*/(unsigned) -1, /*max_depth*/(unsigned) -1, /*max_colors*/(unsigned) -1);
     flac_pics = (FLAC__StreamMetadata **) calloc(flac_pics_count, sizeof(FLAC__StreamMetadata *));
     for (int i = 0; i < flac_pics_count; i++) {
         file->rewind();
         //file_menu_get_obj(file_idx, &file);
-        FLAC__metadata_get_picture_sd_file(file, /*idx*/i, /*picture*/&flac_pics[i], /*type*/-1, /*mime_type*/NULL, /*description*/NULL, /*max_width*/(unsigned) -1, /*max_height*/(unsigned) -1, /*max_depth*/(unsigned) -1, /*max_colors*/(unsigned) -1);
+        FLAC__metadata_get_picture_sd_file(file, /*idx*/i, /*picture*/&flac_pics[i], /*type*/(FLAC__StreamMetadata_Picture_Type)-1, /*mime_type*/NULL, /*description*/NULL, /*max_width*/(unsigned) -1, /*max_height*/(unsigned) -1, /*max_depth*/(unsigned) -1, /*max_colors*/(unsigned) -1);
     }
 
     if (has_tags || flac_pics_count > 0) { return 1; }
@@ -1272,7 +1273,9 @@ int TagRead::GetFlacTagUTF8(const char *lc_key, size_t key_size, char *str, size
             if (strncmp(key, lc_key, key_size) == 0) {
                 //Serial.println((char *) value);
                 memset(str, 0, size);
-                strncpy(str, value, (strlen(value) < size - 1) ? strlen(value) : size - 1);
+                size_t copy_len = strlen(value);
+                if (copy_len > size - 1) copy_len = size - 1;
+                memcpy(str, value, copy_len);
                 return 1;
             }
         }
