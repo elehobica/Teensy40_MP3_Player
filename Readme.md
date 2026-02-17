@@ -101,7 +101,7 @@ Audio, TeensyThreads, Adafruit_GFX_Library, Arduino-Teensy-Codec, SdFat, Adafrui
 You can upload a pre-built firmware.hex (e.g. from [Releases](https://github.com/elehobica/Teensy40_MP3_Player/releases) or CI artifacts) using [Teensy Loader CLI](https://github.com/PaulStoffregen/teensy_loader_cli).
 
 ```
-teensy_loader_cli -mmcu=imxrt1062 -w -s -v firmware.hex
+teensy_loader_cli --mcu=TEENSY40 -w -s firmware-xxx.hex
 ```
 
 * Press the button on Teensy 4.0 board to enter bootloader mode before running the command, or use `-s` option to wait for a soft reboot
