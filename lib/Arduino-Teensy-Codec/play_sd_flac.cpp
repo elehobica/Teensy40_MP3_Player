@@ -161,6 +161,8 @@ int AudioPlaySdFlac::play(const size_t p, const size_t size){
 int AudioPlaySdFlac::play(size_t position, unsigned samples_played)
 {
 	lastError = ERR_CODEC_NONE;
+	unsigned short samprate;
+	unsigned short bitsPerSample;
 	initVars();
 
 	hFLACDecoder = FLAC__stream_decoder_new();
@@ -210,8 +212,8 @@ int AudioPlaySdFlac::play(size_t position, unsigned samples_played)
 	}
 
 	_channels = FLAC__stream_decoder_get_channels(hFLACDecoder);
-	unsigned short samprate = FLAC__stream_decoder_get_sample_rate(hFLACDecoder);
-	unsigned short	bitsPerSample = FLAC__stream_decoder_get_bits_per_sample(hFLACDecoder);
+	samprate = FLAC__stream_decoder_get_sample_rate(hFLACDecoder);
+	bitsPerSample = FLAC__stream_decoder_get_bits_per_sample(hFLACDecoder);
 	bitrate = (unsigned short) ((unsigned long) samprate * bitsPerSample * _channels / 1000);
 
 	if (samprate != AUDIOCODECS_SAMPLE_RATE || _channels > 2) {

@@ -1,0 +1,16 @@
+name: Build
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: elehobica/teensy40-docker:1.0.0
+    strategy:
+      matrix:
+        env: [ST7735, ST7789, ILI9341]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build (${{ matrix.env }})
+        run: pio run -e ${{ matrix.env }}

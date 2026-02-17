@@ -11,10 +11,10 @@
 
 #include <LcdElementBox.h>
 
-// Select LCD device
-//#define USE_ST7735_128x160
-#define USE_ST7789_240x240_WOCS
-//#define USE_ILI9341_240x320
+// LCD type is selected by build_flags in platformio.ini
+#if !defined(USE_ST7735_128x160) && !defined(USE_ST7789_240x240_WOCS) && !defined(USE_ILI9341_240x320)
+#error "LCD type not defined. Add -D USE_ST7735_128x160, -D USE_ST7789_240x240_WOCS, or -D USE_ILI9341_240x320 to build_flags in platformio.ini"
+#endif
 
 #if defined(USE_ST7735_128x160)
 #include <Adafruit_ST7735.h> // Hardware-specific library for ST7735
