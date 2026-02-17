@@ -7,6 +7,7 @@
 /-----------------------------------------------------------*/
 
 #include "UserConfig.h"
+#include "audio_playback.h"
 
 //=================================
 // Implementation of Hook Functions
@@ -16,6 +17,12 @@ void hook_disp_rotation()
     extern LcdCanvas lcd;
     lcd.setRotation(USERCFG_DISP_ROTATION);
     lcd.switchToListView();
+}
+
+void hook_audio_output()
+{
+    extern void apply_audio_output_mode(int mode);
+    apply_audio_output_mode(USERCFG_AUD_OUTPUT);
 }
 
 //=================================

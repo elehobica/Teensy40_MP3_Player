@@ -23,11 +23,13 @@
 #define USERCFG_PLAY_TM_NXT_PLY	(userConfig.getValue(2, 0))
 #define USERCFG_PLAY_NEXT_ALBUM	(userConfig.getValue(2, 1))
 #define USERCFG_PLAY_RAND_DEPTH	(userConfig.getValue(2, 2))
+#define USERCFG_AUD_OUTPUT		(userConfig.getValue(3, 0))
 
 //=================================
 // Interface of Hook Functions
 //=================================
 void hook_disp_rotation();
+void hook_audio_output();
 
 //=================================
 // Interface of UserConfig class
@@ -42,6 +44,12 @@ public:
 		Repeat,
 		Random
 	} next_play_action_t;
+
+	typedef enum {
+		AudioOutI2S = 0,
+		AudioOutSPDIF,
+		AudioOutI2S_SPDIF
+	} audio_output_t;
 
 	typedef struct {
 		const char	*name;
@@ -146,6 +154,11 @@ private:
 		{"3", 3},
 		{"4", 4}
 	};
+	config_sel_t sel_audio_output[3] = {
+		{"I2S", AudioOutI2S},
+		{"S/PDIF", AudioOutSPDIF},
+		{"I2S+S/PDIF", AudioOutI2S_SPDIF}
+	};
 	#define sz_sel(x)	(sizeof(x)/sizeof(config_sel_t))
 			
 	config_item_t items_general[2] = {
@@ -176,13 +189,18 @@ private:
 		{"Next Play Album",			0,			sel_next_play_album, 		1,			sz_sel(sel_next_play_album),	nullptr},
 		{"Random Dir Depth",		0,			sel_rand_dir_depth,			1,			sz_sel(sel_rand_dir_depth),		nullptr}
 	};
+	config_item_t items_audio[1] = {
+	//	Name						Flash		selection					sel_idx		size
+		{"Output",					0,			sel_audio_output,			0,			sz_sel(sel_audio_output),		hook_audio_output}
+	};
 	#define sz_item(x)	(sizeof(x)/sizeof(config_item_t))
 
-	config_category_t category[3] = {
+	config_category_t category[4] = {
 	// 	name 			items				size
 		{"General", 	items_general, 		sz_item(items_general)},
 		{"Display",		items_display, 		sz_item(items_display)},
-		{"Play", 		items_play, 		sz_item(items_play)}
+		{"Play", 		items_play, 		sz_item(items_play)},
+		{"Audio",		items_audio,		sz_item(items_audio)}
 	};
 	const int sz_category = sizeof(category)/sizeof(config_category_t);
 

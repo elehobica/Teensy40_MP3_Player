@@ -18,6 +18,7 @@
 #include <play_sd_aac.h>
 #include <play_sd_flac.h>
 #include <output_i2s.h>
+#include <output_spdif2.h>
 #include <TeensyThreads.h>
 
 AudioPlaySdMp3      playMp3;
@@ -26,6 +27,7 @@ AudioPlaySdAac      playAac;
 AudioPlaySdFlac     playFlac;
 AudioCodec          *codec = &playMp3;
 AudioOutputI2S      i2s1;
+AudioOutputSPDIF2   spdif2;
 AudioMixer4         mixer0;
 AudioMixer4         mixer1;
 AudioConnection     patchCordIn0_0(playMp3, 0, mixer0, 0);
@@ -38,6 +40,8 @@ AudioConnection     patchCordIn3_0(playFlac, 0, mixer0, 3);
 AudioConnection     patchCordIn3_1(playFlac, 1, mixer1, 3);
 AudioConnection     patchCordOut0(mixer0, 0, i2s1, 0);
 AudioConnection     patchCordOut1(mixer1, 0, i2s1, 1);
+AudioConnection     patchCordSpdifOut0(mixer0, 0, spdif2, 0);
+AudioConnection     patchCordSpdifOut1(mixer1, 0, spdif2, 1);
 
 Threads::Event codec_event;
 
@@ -161,4 +165,9 @@ void audio_get_position(size_t *fpos, uint32_t *samples_played)
 {
     *fpos = _fpos;
     *samples_played = _samples_played;
+}
+
+void audio_spdif_mute(bool mute)
+{
+    AudioOutputSPDIF2::mute_PCM(mute);
 }

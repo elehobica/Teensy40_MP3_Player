@@ -38,5 +38,6 @@ void audio_play(MutexFsBaseFile *file);
 void audio_terminate();
 void audio_set_position(size_t fpos, uint32_t samples_played);
 void audio_get_position(size_t *fpos, uint32_t *samples_played);
+void audio_spdif_mute(bool mute);
 
 #endif // __AUDIO_PLAYBACK_H__
