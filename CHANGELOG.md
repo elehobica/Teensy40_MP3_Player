@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.9.0] - 2026-02-17
 ### Added
 - Add CI workflow with GitHub Actions
 ### Changed

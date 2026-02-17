@@ -14,11 +14,13 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build (${{ matrix.env }})
         run: pio run -e ${{ matrix.env }}
+      - name: Rename firmware
+        run: cp .pio/build/${{ matrix.env }}/firmware.hex .pio/build/${{ matrix.env }}/firmware-${{ matrix.env }}.hex
       - name: Upload firmware
         uses: actions/upload-artifact@v4
         with:
           name: firmware-${{ matrix.env }}
-          path: .pio/build/${{ matrix.env }}/firmware.hex
+          path: .pio/build/${{ matrix.env }}/firmware-${{ matrix.env }}.hex
 
   release-tag-condition:
     runs-on: ubuntu-latest

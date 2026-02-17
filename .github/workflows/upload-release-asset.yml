@@ -57,11 +57,19 @@ jobs:
         id: download-artifacts
         run: |
           gh run download ${{ inputs.source_run_id }}
+      - name: Rename Artifacts with Version Tag
+        run: |
+          for dir in ${{ inputs.artifacts_dirs }}; do
+            for file in $dir/*.hex; do
+              base=$(basename "$file" .hex)
+              mv "$file" "$dir/${base}-${{ github.ref_name }}.hex"
+            done
+          done
       - name: Upload Release Assets
         id: upload-release-assets
         run: |
           for dir in ${{ inputs.artifacts_dirs }}; do
-            for file in $(ls $dir/*.hex); do
+            for file in $dir/*.hex; do
               gh release upload ${{ github.ref_name }} "$file"
             done
           done
