@@ -185,7 +185,12 @@ void audio_spdif_mute(bool mute)
         // Disconnect Pin 2 from SAI2 and drive LOW to stop S/PDIF signal
         pinMode(2, OUTPUT);
         digitalWrite(2, LOW);
+        // Cut power to S/PDIF TX module (Pin 3)
+        pinMode(3, INPUT);
     } else {
+        // Supply 3.3V to S/PDIF TX module (Pin 3)
+        pinMode(3, OUTPUT);
+        digitalWrite(3, HIGH);
         // Reconnect Pin 2 to SAI2_TX_DATA0 to resume S/PDIF signal
         CORE_PIN2_CONFIG = 2;
     }

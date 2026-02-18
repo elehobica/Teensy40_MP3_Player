@@ -3,12 +3,17 @@
 [![Build](https://github.com/elehobica/Teensy40_MP3_Player/actions/workflows/build.yml/badge.svg)](https://github.com/elehobica/Teensy40_MP3_Player/actions/workflows/build.yml)
 
 ## Supported Board and Peripheral Devices
+### Main board
 * Teensy 4.0
-* ES9023 24bit I2S Audio DAC
-* PCM5102 32bit I2S Audio DAC
+### LCD module
 * ST7789 1.3" LCD (240x240 pix) without CS type
 * IL9341 2.2" LCD (240x320 pix)
 * ST7735 1.8" LCD (128x160 pix)
+### I2S DAC
+* ES9023 24bit I2S Audio DAC
+* PCM5102 32bit I2S Audio DAC
+### S/PDIF Tx (Optional)
+* DLT1160A-T-1 (or equivalent module)
 
 ## Features
 ### Supported
@@ -25,6 +30,8 @@
 * Album unit Sequential/Repeat/Random play by time out when play finished (Assuming [Artist Folder]/[Album Folder] structure)
 * Resume playback
 * Battery voltage check (Optional: external circuit needed)
+* I2S DAC output
+* S/PDIF Tx output
 
 ### Not supported
 * Progressive JPEG Cover Art
@@ -36,7 +43,8 @@ In addition to original connection
 
 | Teensy4.0 Pin | Function | Connection |
 ----|----|----
-| 2 | OUT2 | S/PDIF output |
+| 2 | OUT2 | to S/PDIF Tx |
+| 3 | GPIO | to S/PDIF Power |
 | 6 | GPIO | to ES9023 MUTE_B (15) / to PCM5102 XSMT (17) |
 | 7 | OUT1A | to ES9023 SDI (3) / to PCM5102 DIN (14) |
 | 8 | GPIO | to LCD DC |
@@ -105,7 +113,7 @@ Audio, TeensyThreads, Adafruit_GFX_Library, Arduino-Teensy-Codec, SdFat, Adafrui
 You can upload a pre-built firmware.hex (e.g. from [Releases](https://github.com/elehobica/Teensy40_MP3_Player/releases) or CI artifacts) using [Teensy Loader CLI](https://github.com/PaulStoffregen/teensy_loader_cli).
 
 ```
-teensy_loader_cli --mcu=TEENSY40 -w -s firmware-xxx.hex
+teensy_loader_cli --mcu=TEENSY40 -wvs firmware-xxx.hex
 ```
 
 * Press the button on Teensy 4.0 board to enter bootloader mode before running the command, or use `-s` option to wait for a soft reboot
