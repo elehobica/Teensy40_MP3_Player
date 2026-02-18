@@ -1,4 +1,7 @@
 # Teensy 4.0 MP3 Player
+
+[![Build](https://github.com/elehobica/Teensy40_MP3_Player/actions/workflows/build.yml/badge.svg)](https://github.com/elehobica/Teensy40_MP3_Player/actions/workflows/build.yml)
+
 ## Supported Board and Peripheral Devices
 * Teensy 4.0
 * ES9023 24bit I2S Audio DAC
@@ -33,6 +36,7 @@ In addition to original connection
 
 | Teensy4.0 Pin | Function | Connection |
 ----|----|----
+| 2 | OUT2 | S/PDIF output |
 | 6 | GPIO | to ES9023 MUTE_B (15) / to PCM5102 XSMT (17) |
 | 7 | OUT1A | to ES9023 SDI (3) / to PCM5102 DIN (14) |
 | 8 | GPIO | to LCD DC |
