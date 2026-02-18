@@ -61,27 +61,27 @@ static const uint32_t vol_table[101] = {
     65536
 };
 
-void memcpy_tointerleaveLR(int8_t vol, int32_t *dst, const int16_t *srcL, const int16_t *srcR)
+void memcpy_tointerleaveLR(int8_t vol, int32_t *dst, const int32_t *srcL, const int32_t *srcR)
 {
     for (int i = 0; i < AUDIO_BLOCK_SAMPLES/2; i++) {
-        dst[i*2+0] = (int32_t) srcL[i] * vol_table[vol] + DAC_ZERO_OFFSET;
-        dst[i*2+1] = (int32_t) srcR[i] * vol_table[vol] + DAC_ZERO_OFFSET;
+        dst[i*2+0] = (int32_t)(((int64_t)srcL[i] * vol_table[vol]) >> 8) + DAC_ZERO_OFFSET;
+        dst[i*2+1] = (int32_t)(((int64_t)srcR[i] * vol_table[vol]) >> 8) + DAC_ZERO_OFFSET;
     }
 }
 
-void memcpy_tointerleaveL(int8_t vol, int32_t *dst, const int16_t *srcL)
+void memcpy_tointerleaveL(int8_t vol, int32_t *dst, const int32_t *srcL)
 {
     for (int i = 0; i < AUDIO_BLOCK_SAMPLES/2; i++) {
-        dst[i*2+0] = (int32_t) srcL[i] * vol_table[vol] + DAC_ZERO_OFFSET;
+        dst[i*2+0] = (int32_t)(((int64_t)srcL[i] * vol_table[vol]) >> 8) + DAC_ZERO_OFFSET;
         dst[i*2+1] = 0 + DAC_ZERO_OFFSET;
     }
 }
 
-void memcpy_tointerleaveR(int8_t vol, int32_t *dst, const int16_t *srcR)
+void memcpy_tointerleaveR(int8_t vol, int32_t *dst, const int32_t *srcR)
 {
     for (int i = 0; i < AUDIO_BLOCK_SAMPLES/2; i++) {
         dst[i*2+0] = 0 + DAC_ZERO_OFFSET;
-        dst[i*2+1] = (int32_t) srcR[i] * vol_table[vol] + DAC_ZERO_OFFSET;
+        dst[i*2+1] = (int32_t)(((int64_t)srcR[i] * vol_table[vol]) >> 8) + DAC_ZERO_OFFSET;
     }
 }
 

@@ -100,7 +100,7 @@ void AudioOutputSPDIF2::begin(void)
 void AudioOutputSPDIF2::isr(void)
 {
 	static uint16_t frame = 0;
-	const int16_t *src;
+	const int32_t *src;
 	int32_t *end, *dest;
 	audio_block_t *block;
 	uint32_t saddr, offset;
@@ -127,7 +127,7 @@ void AudioOutputSPDIF2::isr(void)
 		src = &block->data[offset];
 		do {
 
-			sample = *src++;
+			sample = (uint16_t)(*src++ >> 8); // int32_t (24bit) -> 16bit
 
 			//Subframe Channel 1
 			hi  = spdif_bmclookup[(uint8_t)(sample >> 8)];
@@ -179,7 +179,7 @@ void AudioOutputSPDIF2::isr(void)
 		src = &block->data[offset];
 
 		do {
-			sample = *src++;
+			sample = (uint16_t)(*src++ >> 8); // int32_t (24bit) -> 16bit
 
 			//Subframe Channel 2
 			hi  = spdif_bmclookup[(uint8_t)(sample >> 8)];

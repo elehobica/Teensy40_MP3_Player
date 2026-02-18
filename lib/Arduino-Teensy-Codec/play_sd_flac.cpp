@@ -473,8 +473,8 @@ void AudioPlaySdFlac::update(void)
 			int16_t *abufptrR = audiobuffer->get();
 			for (int j=0; j < AUDIO_BLOCK_SAMPLES; j++)
 			{
-				audioblockL->data[j] = *abufptrL++;
-				audioblockR->data[j] = *abufptrR++;
+				audioblockL->data[j] = (int32_t)(*abufptrL++) << 8;
+				audioblockR->data[j] = (int32_t)(*abufptrR++) << 8;
 			}
 			transmit(audioblockL, 0);
 			transmit(audioblockR, 1);
@@ -485,7 +485,7 @@ void AudioPlaySdFlac::update(void)
 			int16_t *abufptrL = audiobuffer->get();
 			for (int j=0; j < AUDIO_BLOCK_SAMPLES; j++)
 			{
-				audioblockL->data[j] = *abufptrL++;
+				audioblockL->data[j] = (int32_t)(*abufptrL++) << 8;
 			}
 			transmit(audioblockL, 0);
 			release(audioblockL);
