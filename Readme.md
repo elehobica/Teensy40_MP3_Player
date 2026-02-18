@@ -1,5 +1,7 @@
 # Teensy 4.0 MP3 Player
 
+![Scene](doc/images/Teensy40_MP3_Player_ST7789_240x240_WOCS.jpg)
+
 [![Build](https://github.com/elehobica/Teensy40_MP3_Player/actions/workflows/build.yml/badge.svg)](https://github.com/elehobica/Teensy40_MP3_Player/actions/workflows/build.yml)
 
 ## Supported Board and Peripheral Devices
