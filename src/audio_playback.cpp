@@ -167,7 +167,26 @@ void audio_get_position(size_t *fpos, uint32_t *samples_played)
     *samples_played = _samples_played;
 }
 
+void audio_i2s_mute(bool mute)
+{
+    if (mute) {
+        // Disconnect Pin 7 from SAI1 and drive LOW to stop I2S signal
+        pinMode(7, OUTPUT);
+        digitalWrite(7, LOW);
+    } else {
+        // Reconnect Pin 7 to SAI1_TX_DATA0 to resume I2S signal
+        CORE_PIN7_CONFIG = 3;
+    }
+}
+
 void audio_spdif_mute(bool mute)
 {
-    AudioOutputSPDIF2::mute_PCM(mute);
+    if (mute) {
+        // Disconnect Pin 2 from SAI2 and drive LOW to stop S/PDIF signal
+        pinMode(2, OUTPUT);
+        digitalWrite(2, LOW);
+    } else {
+        // Reconnect Pin 2 to SAI2_TX_DATA0 to resume S/PDIF signal
+        CORE_PIN2_CONFIG = 2;
+    }
 }

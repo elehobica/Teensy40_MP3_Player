@@ -46,9 +46,9 @@ public:
 	} next_play_action_t;
 
 	typedef enum {
-		AudioOutI2S = 0,
-		AudioOutSPDIF,
-		AudioOutI2S_SPDIF
+		AudioOutI2S_SPDIF = 0,
+		AudioOutI2S,
+		AudioOutSPDIF
 	} audio_output_t;
 
 	typedef struct {
@@ -155,9 +155,9 @@ private:
 		{"4", 4}
 	};
 	config_sel_t sel_audio_output[3] = {
+		{"I2S+S/PDIF", AudioOutI2S_SPDIF},
 		{"I2S", AudioOutI2S},
-		{"S/PDIF", AudioOutSPDIF},
-		{"I2S+S/PDIF", AudioOutI2S_SPDIF}
+		{"S/PDIF", AudioOutSPDIF}
 	};
 	#define sz_sel(x)	(sizeof(x)/sizeof(config_sel_t))
 			

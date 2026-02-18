@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 ### Added
-* Support S/PDIF output
+* Support S/PDIF output (I2S + S/PDIF, I2S and S/PDIF selection)
 ### Changed
 ### Fixed
 

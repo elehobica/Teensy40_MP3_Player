@@ -104,18 +104,22 @@ void apply_audio_output_mode(int mode)
 {
     switch (mode) {
         case UserConfig::AudioOutI2S:
+            audio_i2s_mute(false);
             digitalWrite(PIN_DAC_MUTE_B, HIGH);
             audio_spdif_mute(true);
             break;
         case UserConfig::AudioOutSPDIF:
+            audio_i2s_mute(true);
             digitalWrite(PIN_DAC_MUTE_B, LOW);
             audio_spdif_mute(false);
             break;
         case UserConfig::AudioOutI2S_SPDIF:
+            audio_i2s_mute(false);
             digitalWrite(PIN_DAC_MUTE_B, HIGH);
             audio_spdif_mute(false);
             break;
         default:
+            audio_i2s_mute(false);
             digitalWrite(PIN_DAC_MUTE_B, HIGH);
             audio_spdif_mute(true);
             break;
@@ -127,6 +131,7 @@ void terminate(ui_mode_enm_t resume_ui_mode)
 {
     // Audio Termination & Mute
     audio_terminate();
+    audio_i2s_mute(true);
     digitalWrite(PIN_DAC_MUTE_B, LOW);
     audio_spdif_mute(true);
     storeToEEPROM(dir_stack, resume_ui_mode);
@@ -191,19 +196,20 @@ void setup()
     Adafruit_GFX::loadUnifontFile("/", "unifont.bin");
 
     audio_init();
+
+    // Restore previous power off situation
+    ui_mode_enm_t init_dest_ui_mode = loadFromEEPROM(dir_stack);
+
     // Apply audio output mode from UserConfig
     apply_audio_output_mode(USERCFG_AUD_OUTPUT);
     {
-        const char *output_names[] = {"I2S", "S/PDIF", "I2S+S/PDIF"};
+        const char *output_names[] = {"I2S+S/PDIF", "I2S", "S/PDIF"};
         int mode = USERCFG_AUD_OUTPUT;
         if (mode >= 0 && mode <= 2) {
             Serial.print("Audio Output: ");
             Serial.println(output_names[mode]);
         }
     }
-
-    // Restore previous power off situation
-    ui_mode_enm_t init_dest_ui_mode = loadFromEEPROM(dir_stack);
 
     // ADC Average Setting
     analogReadAveraging(1);
