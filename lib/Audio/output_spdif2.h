@@ -36,6 +36,7 @@ public:
 	void begin(void);
 	//friend class AudioInputSPDIF;
 	static void mute_PCM(const bool mute);
+	static void setFrequency(float fs);
 protected:
 	//AudioOutputSPDIF2(int dummy): AudioStream(2, inputQueueArray) {}
 	static void config_SPDIF(void);

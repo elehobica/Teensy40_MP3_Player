@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased]
 ### Added
 * Support S/PDIF output (I2S + S/PDIF, I2S and S/PDIF selection)
+* Support 24bit resolution for WAV
+* Support sampling frequencies other than 44.1KHz for WAV
 ### Changed
 ### Fixed
 

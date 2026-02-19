@@ -47,7 +47,7 @@
 
 extern Threads::Event codec_event;
 
-#define WAV_SD_BUF_SIZE	(1152*4)
+#define WAV_SD_BUF_SIZE	(1152*16)
 #define WAV_BUF_SIZE	(WAV_SD_BUF_SIZE/2)
 #define DECODE_NUM_STATES 1									//SD read + decode in single step
 
@@ -56,6 +56,11 @@ extern Threads::Event codec_event;
 //#define CODEC_DEBUG
 
 static AudioPlaySdWav 	*wavobjptr;
+
+static bool isValidSampleRate(unsigned int sr) {
+	return (sr == 44100 || sr == 48000 || sr == 88200 ||
+	        sr == 96000 || sr == 176400 || sr == 192000);
+}
 
 void decodeWav(void);
 
@@ -71,7 +76,7 @@ size_t AudioPlaySdWav::parseFmtChunk(uint8_t *sd_buf, size_t sd_buf_size)
 			uint32_t *size = (uint32_t *) (sd_buf + ofs + 4);
 			if (memcmp(chunk_id, "fmt ", 4) == 0) {
 				_channels =     (unsigned short) (*((uint16_t *) (sd_buf + ofs + 4 + 4 + 2))); // channels
-				samprate =      (unsigned short) (*((uint32_t *) (sd_buf + ofs + 4 + 4 + 2 + 2))); // samplerate
+				samprate =      *((uint32_t *) (sd_buf + ofs + 4 + 4 + 2 + 2)); // samplerate
 				bitrate =       (unsigned short) (*((uint32_t *) (sd_buf + ofs + 4 + 4 + 2 + 2 + 4)) /* bytepersec */ * 8 / 1000); // Kbps
 				bitsPerSample = (unsigned short) (*((uint16_t *) (sd_buf + ofs + 4 + 4 + 2 + 2 + 4 + 4 + 2))); // bitswidth
 				break;
@@ -225,7 +230,7 @@ int AudioPlaySdWav::play(size_t position, unsigned samples_played)
 	sd_left = fillReadBuffer(sd_buf, sd_buf, 0, WAV_SD_BUF_SIZE);
 	// parse 'fmt ' chunk
 	int skip = parseFmtChunk(sd_buf, WAV_SD_BUF_SIZE);
-	if (!skip || samprate != AUDIOCODECS_SAMPLE_RATE || (bitsPerSample != 16 && bitsPerSample != 24)) {
+	if (!skip || !isValidSampleRate(samprate) || (bitsPerSample != 16 && bitsPerSample != 24)) {
 		Serial.println("incompatible WAV file.");
 		lastError = ERR_CODEC_FORMAT;
 		stop();
@@ -246,6 +251,8 @@ int AudioPlaySdWav::play(size_t position, unsigned samples_played)
 		return lastError;
 	}
 
+	Serial.printf("[play_sd_wav] %dbit / %dHz / %dch\r\n", bitsPerSample, samprate, _channels);
+
 	_VectorsRam[IRQ_AUDIOCODEC + 16] = &decodeWav;
 	initSwi();
 
@@ -258,36 +265,22 @@ int AudioPlaySdWav::play(size_t position, unsigned samples_played)
 
 	sd_p = sd_buf;
 
-	for (size_t i=0; i< DECODE_NUM_STATES; i++) {
-		decodeWav_core();
-	}
-
 	// For Resume play with 'position'
 	if (position != 0 && position < fsize()) {
 		fseek(position);
 		this->samples_played += samples_played;
-		// Replace sd_buf data after sd_p with Frame Data in 'position'
-
-		// [Method 1]: just replace data after sd_p with Frame Data in 'position'
-		//fread(sd_p, sd_left);
-
-		// [Method 2]: set sd_p = sd_buf and fill sd_buf fully with Frame Data in 'position'
-		sd_left = fillReadBuffer(sd_buf, sd_p, 0, WAV_SD_BUF_SIZE);
+		sd_left = 0;  // force fresh read from new position
 		sd_p = sd_buf;
 	}
 
+	// Pre-fill both buffers before starting playback
+	decodeWav_core();          // fills buffer 0
 	decoding_block = 1;
+	decodeWav_core();          // fills buffer 1
 
+	// decoding_block stays at 1, so playing_block = 0 (play buffer 0 first)
 	playing = codec_playing;
-	/*
-	Serial.print("playing = codec_playing: ");
-	Serial.println(millis());
-	*/
 
-#ifdef CODEC_DEBUG
-//	Serial.printf("RAM: %d\r\n",ram-freeRam());
-
-#endif
     return lastError;
 }
 
@@ -479,6 +472,25 @@ void AudioPlaySdWav::stop_for_next(void)
 	wavobjptr = NULL;
 }
 #endif
+
+// parseHeader - pre-parse WAV header to get sample rate before play()
+unsigned int AudioPlaySdWav::parseHeader(MutexFsBaseFile *file)
+{
+	uint8_t header_buf[128];
+	uint64_t saved_pos = file->curPosition();
+	file->seekSet(0);
+	int bytes_read = file->read(header_buf, sizeof(header_buf));
+	file->seekSet(saved_pos);
+	if (bytes_read < 44) return 0;
+	size_t ofs = parseFmtChunk(header_buf, bytes_read);
+	return (ofs > 0) ? samprate : 0;
+}
+
+// positionMillis (Override) - use runtime samprate instead of compile-time AUDIO_SAMPLE_RATE_EXACT
+unsigned AudioPlaySdWav::positionMillis(void)
+{
+	return (unsigned) ((uint64_t) samples_played * 1000 / samprate);
+}
 
 // lengthMillis (Override)
 unsigned AudioPlaySdWav::lengthMillis(void)

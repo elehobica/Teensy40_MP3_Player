@@ -48,6 +48,7 @@ Threads::Event codec_event;
 uint8_t last_volume = 65;
 size_t _fpos = 0;
 uint32_t _samples_played = 0;
+static unsigned int current_sample_rate = AUDIOCODECS_SAMPLE_RATE;
 
 void codec_thread()
 {
@@ -133,6 +134,25 @@ void audio_volume_down()
 
 void audio_play(MutexFsBaseFile *file)
 {
+    // Detect sample rate from WAV header; default to 44100 for other codecs
+    unsigned int target_sr = AUDIOCODECS_SAMPLE_RATE;
+    if (codec == &playWav) {
+        unsigned int wav_sr = playWav.parseHeader(file);
+        if (wav_sr > 0) {
+            target_sr = wav_sr;
+        }
+    }
+    // Reconfigure I2S/SPDIF clocks if sample rate changed
+    if (target_sr != current_sample_rate) {
+        audio_i2s_mute(true);
+        audio_spdif_mute(true);
+        AudioOutputI2S::setFrequency((float)target_sr);
+        AudioOutputSPDIF2::setFrequency((float)target_sr);
+        delay(1);
+        audio_spdif_mute(false);
+        audio_i2s_mute(false);
+        current_sample_rate = target_sr;
+    }
     codec->play(file, _fpos, _samples_played);
     _fpos = 0;
     _samples_played = 0;
