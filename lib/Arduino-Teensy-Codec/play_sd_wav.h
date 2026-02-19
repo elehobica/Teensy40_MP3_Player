@@ -58,6 +58,8 @@ public:
 	//int play(const uint8_t*p, const size_t size) {stop();if (!fopen(p,size))  return ERR_CODEC_FILE_NOT_FOUND; return play();}
 	unsigned lengthMillis(void);
 	unsigned positionMillis(void);
+	unsigned int sampleRate(void) { return samprate; }
+	unsigned int bitResolution(void) { return bitsPerSample; }
 	unsigned int parseHeader(MutexFsBaseFile *file);
 	size_t fposition(void) { return AudioCodec::fposition() - sd_left; }
 

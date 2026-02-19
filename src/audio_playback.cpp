@@ -49,6 +49,7 @@ uint8_t last_volume = 65;
 size_t _fpos = 0;
 uint32_t _samples_played = 0;
 static unsigned int current_sample_rate = AUDIOCODECS_SAMPLE_RATE;
+static const unsigned int SAMPLE_RATE_SWITCH_SILENCE_MS = 1000;
 
 void codec_thread()
 {
@@ -151,9 +152,12 @@ void audio_play(MutexFsBaseFile *file)
         delay(1);
         audio_spdif_mute(false);
         audio_i2s_mute(false);
+        // Feed silence during DAC fade-in to prevent head clipping
+        delay(SAMPLE_RATE_SWITCH_SILENCE_MS);
         current_sample_rate = target_sr;
     }
     codec->play(file, _fpos, _samples_played);
+    Serial.printf("[audio] %ubit / %uHz / %dch\r\n", codec->bitResolution(), codec->sampleRate(), codec->channels());
     _fpos = 0;
     _samples_played = 0;
 }

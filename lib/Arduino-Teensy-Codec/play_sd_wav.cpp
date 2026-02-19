@@ -251,8 +251,6 @@ int AudioPlaySdWav::play(size_t position, unsigned samples_played)
 		return lastError;
 	}
 
-	Serial.printf("[play_sd_wav] %dbit / %dHz / %dch\r\n", bitsPerSample, samprate, _channels);
-
 	_VectorsRam[IRQ_AUDIOCODEC + 16] = &decodeWav;
 	initSwi();
 

@@ -149,6 +149,8 @@ public:
 	unsigned getSamplesPlayed(void) {return samples_played;}
 	int channels(void) {return _channels;}
 	int bitRate(void) {return bitrate;}
+	virtual unsigned int sampleRate(void) { return AUDIOCODECS_SAMPLE_RATE; }
+	virtual unsigned int bitResolution(void) { return 16; }
 	void processorUsageMaxResetDecoder(void){__disable_irq();decode_cycles_max = decode_cycles_max_read = 0;__enable_irq();}
 	int freeRam(void);
 	virtual size_t fposition(void) {return CodecFile::fposition();}
