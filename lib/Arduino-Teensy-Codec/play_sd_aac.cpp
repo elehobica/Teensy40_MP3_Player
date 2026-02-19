@@ -489,7 +489,14 @@ void decodeAac_core(void)
 {
 	if (aacobjptr == NULL) return;
 	AudioPlaySdAac *o = aacobjptr;
-	int db = o->decoding_block;
+
+	// Capture decoding_block at state 0 and reuse for subsequent states
+	// to prevent race condition where ISR changes decoding_block between states
+	static int saved_db = 0;
+	if (o->decoding_state == 0) {
+		saved_db = o->decoding_block;
+	}
+	int db = saved_db;
 
 	int eof = false;
 	uint32_t cycles = ARM_DWT_CYCCNT;

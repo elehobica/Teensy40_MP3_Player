@@ -49,7 +49,7 @@ extern Threads::Event codec_event;
 
 #define WAV_SD_BUF_SIZE	(1152*4)
 #define WAV_BUF_SIZE	(WAV_SD_BUF_SIZE/2)
-#define DECODE_NUM_STATES 2									//How many steps in decode() ?
+#define DECODE_NUM_STATES 1									//SD read + decode in single step
 
 #define MIN_FREE_RAM (35+1)*1024 // 1KB Reserve
 
@@ -206,8 +206,8 @@ int AudioPlaySdWav::play(size_t position, unsigned samples_played)
 
 	wavobjptr = this;
 
-	buf[0] = (short *) malloc(WAV_BUF_SIZE * sizeof(int16_t));
-	buf[1] = (short *) malloc(WAV_BUF_SIZE * sizeof(int16_t));
+	buf[0] = (int32_t *) malloc(WAV_BUF_SIZE * sizeof(int32_t));
+	buf[1] = (int32_t *) malloc(WAV_BUF_SIZE * sizeof(int32_t));
 
 	if (!buf[0] || !buf[1])
 	{
@@ -225,7 +225,7 @@ int AudioPlaySdWav::play(size_t position, unsigned samples_played)
 	sd_left = fillReadBuffer(sd_buf, sd_buf, 0, WAV_SD_BUF_SIZE);
 	// parse 'fmt ' chunk
 	int skip = parseFmtChunk(sd_buf, WAV_SD_BUF_SIZE);
-	if (!skip || samprate != AUDIOCODECS_SAMPLE_RATE) {
+	if (!skip || samprate != AUDIOCODECS_SAMPLE_RATE || (bitsPerSample != 16 && bitsPerSample != 24)) {
 		Serial.println("incompatible WAV file.");
 		lastError = ERR_CODEC_FORMAT;
 		stop();
@@ -236,11 +236,6 @@ int AudioPlaySdWav::play(size_t position, unsigned samples_played)
 	data_size = *((uint32_t *) (sd_buf + skip + 4));
 	sd_p = sd_buf + skip + 8;
 	sd_left -= skip + 8;
-
-	/* // DEBUG
-	Serial.print("Data Chunk skip: ");
-	Serial.println(skip);
-	*/
 
 	//Fill buffer from the beginning with fresh data
 	sd_left = fillReadBuffer(sd_buf, sd_p, sd_left, WAV_SD_BUF_SIZE);
@@ -343,10 +338,10 @@ void AudioPlaySdWav::update(void)
 		}
 
 		{
-			short *src = buf[playing_block] + pl;
+			int32_t *src = buf[playing_block] + pl;
 			for (int i = 0; i < AUDIO_BLOCK_SAMPLES; i++) {
-				block_left->data[i]  = (int32_t)src[i * 2]     << 8;
-				block_right->data[i] = (int32_t)src[i * 2 + 1] << 8;
+				block_left->data[i]  = src[i * 2];
+				block_right->data[i] = src[i * 2 + 1];
 			}
 		}
 
@@ -360,9 +355,9 @@ void AudioPlaySdWav::update(void)
 	{
 		// if we're playing mono, no right-side block
 		{
-			short *src = buf[playing_block] + pl;
+			int32_t *src = buf[playing_block] + pl;
 			for (int i = 0; i < AUDIO_BLOCK_SAMPLES; i++) {
-				block_left->data[i] = (int32_t)src[i] << 8;
+				block_left->data[i] = src[i];
 			}
 		}
 
@@ -399,12 +394,7 @@ void decodeWav_core(void)
 	if (wavobjptr == NULL) return;
 	AudioPlaySdWav *o = wavobjptr;
 	int db = o->decoding_block;
-	//Serial.println("decodeWave_core");
 
-	/*
-	Serial.print("decodeWav called: ");
-	Serial.println(millis());
-	*/
 	int eof = false;
 	uint32_t cycles = ARM_DWT_CYCCNT;
 
@@ -412,75 +402,67 @@ void decodeWav_core(void)
 		return; //this block is playing, do NOT fill it
 	}
 
-	switch (o->decoding_state) {
+	// SD read + decode in single step to prevent race condition
+	// where ISR changes decoding_block between read and decode
+	{
+		o->sd_left = o->fillReadBuffer(o->sd_buf, o->sd_p, o->sd_left, WAV_SD_BUF_SIZE);
+		if (!o->sd_left) { eof = true; goto wavend; }
+		o->sd_p = o->sd_buf;
 
-	case 0:
-		{
-			o->sd_left = o->fillReadBuffer(o->sd_buf, o->sd_p, o->sd_left, WAV_SD_BUF_SIZE);
-			if (!o->sd_left) { eof = true; goto wavend; }
-			o->sd_p = o->sd_buf;
+		uint32_t cycles_rd = (ARM_DWT_CYCCNT - cycles);
+		if (cycles_rd > o->decode_cycles_max_read ) o->decode_cycles_max_read = cycles_rd;
+	}
 
-			uint32_t cycles_rd = (ARM_DWT_CYCCNT - cycles);
-			if (cycles_rd > o->decode_cycles_max_read )o-> decode_cycles_max_read = cycles_rd;
-			break;
-		}
-
-	case 1:
-		{
-			int decode_res = 0;
-			int i;
-			//Serial.println(o->sd_left);
-			for (i = 0; i < o->sd_left; i+=2) {
-				o->buf[db][i/2] = *((short *) &o->sd_p[i]);
-				if (i/2 >= WAV_BUF_SIZE) { break; }
+	{
+		int decode_res = 0;
+		int bytesPerSample = o->bitsPerSample / 8;
+		int i = 0;  // byte offset into sd_p
+		int j = 0;  // sample index into buf[db]
+		for (; i + bytesPerSample <= o->sd_left && j < WAV_BUF_SIZE; i += bytesPerSample, j++) {
+			if (bytesPerSample == 3) {
+				// 24-bit little-endian: sign-extend to int32_t
+				uint32_t raw = (uint32_t)o->sd_p[i] | ((uint32_t)o->sd_p[i+1] << 8) | ((uint32_t)o->sd_p[i+2] << 16);
+				o->buf[db][j] = (int32_t)(raw << 8) >> 8;
+			} else {
+				// 16-bit little-endian: shift left 8 to normalize to 24-bit
+				o->buf[db][j] = (int32_t)(*((int16_t *)&o->sd_p[i])) << 8;
 			}
-			o->sd_p += i;
-			o->sd_left -= i;
-			//Serial.println(i/2);
+		}
+		o->sd_p += i;
+		o->sd_left -= i;
 
-			switch(decode_res)
+		switch(decode_res)
+		{
+			case 0:
 			{
-				case 0:
-				{
-					o->err_cnt = 0;
-					o->decoded_length[db] = i/2;
-					break;
-				}
-
-				default :
-				{
-					if (o->err_cnt++ < 1) { // Ignore Error
-						o->decoded_length[db] = i/2;
-					} else {
-						Serial.print("ERROR: wav decode_res: ");
-						Serial.println(decode_res);
-						AudioPlaySdWav::lastError = decode_res;
-						eof = true;
-					}
-					break;
-				}
+				o->err_cnt = 0;
+				o->decoded_length[db] = j;
+				break;
 			}
 
-			cycles = (ARM_DWT_CYCCNT - cycles);
-			if (cycles > o->decode_cycles_max ) o->decode_cycles_max = cycles;
-			break;
+			default :
+			{
+				if (o->err_cnt++ < 1) { // Ignore Error
+					o->decoded_length[db] = j;
+				} else {
+					Serial.print("ERROR: wav decode_res: ");
+					Serial.println(decode_res);
+					AudioPlaySdWav::lastError = decode_res;
+					eof = true;
+				}
+				break;
+			}
 		}
-	}//switch
+
+		cycles = (ARM_DWT_CYCCNT - cycles);
+		if (cycles > o->decode_cycles_max ) o->decode_cycles_max = cycles;
+	}
 
 wavend:
 
-	o->decoding_state++;
-	if (o->decoding_state >= DECODE_NUM_STATES) o->decoding_state = 0;
-
 	if (eof) {
-		//o->stop_for_next();
 		o->stop();
 	}
-
-	/*
-	Serial.print("decodeWav wavend: ");
-	Serial.println(millis());
-	*/
 }
 
 #if 0

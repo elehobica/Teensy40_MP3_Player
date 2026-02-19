@@ -64,7 +64,7 @@ protected:
 	uint8_t			*sd_p;
 	int				sd_left;
 
-	short			*buf[2];
+	int32_t			*buf[2];
 	size_t			decoded_length[2];
 	size_t			decoding_block;
 	unsigned int	decoding_state; //state 0: read sd, state 1: decode
