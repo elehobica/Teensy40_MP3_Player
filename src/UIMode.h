@@ -146,6 +146,7 @@ public:
     void entry(UIMode *prevMode);
     void draw();
 protected:
+    audio_codec_enm_t current_codec_enm = CodecNone;
     audio_codec_enm_t getAudioCodec(MutexFsBaseFile *f);
     void readTag();
 };

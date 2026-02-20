@@ -512,8 +512,11 @@ UIMode* UIPlayMode::update()
         if (next_audio_codec_enm != CodecNone) {
             readTag();
             while (codec->isPlaying()) { /*delay(1);*/ } // minimize gap between tracks
-            audio_set_codec(next_audio_codec_enm);
+            current_codec_enm = next_audio_codec_enm;
+            audio_set_codec(current_codec_enm);
             audio_play(&file);
+            lcd->setBitResolution(codec->bitResolution());
+            lcd->setSampleFreq(codec->sampleRate());
             lcd->switchToPlay();
         } else {
             while (codec->isPlaying()) { delay(1); }
@@ -523,7 +526,7 @@ UIMode* UIPlayMode::update()
         }
     }
     lcd->setVolume(audio_get_volume());
-    lcd->setBitRate(codec->bitRate());
+    lcd->setBitRate((current_codec_enm == CodecMp3 || current_codec_enm == CodecAac) ? codec->bitRate() : 0);
     lcd->setPlayTime(codec->positionMillis()/1000, codec->lengthMillis()/1000, codec->isPaused());
     lcd->setBatteryVoltage(vars->bat_mv);
     idle_count++;
@@ -635,9 +638,13 @@ void UIPlayMode::entry(UIMode *prevMode)
     MutexFsBaseFile file;
     UIMode::entry(prevMode);
     if (prevMode->getUIModeEnm() != ConfigMode) {
-        audio_set_codec(getAudioCodec(&file));
+        current_codec_enm = getAudioCodec(&file);
+        audio_set_codec(current_codec_enm);
         readTag();
         audio_play(&file);
+        AudioCodec *codec = audio_get_codec();
+        lcd->setBitResolution(codec->bitResolution());
+        lcd->setSampleFreq(codec->sampleRate());
     }
     lcd->switchToPlay();
 }
