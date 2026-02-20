@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 * Display codec icon
 ### Changed
 ### Fixed
+* Fix track number display for WAV case
 
 ## [v0.9.0] - 2026-02-17
 ### Added

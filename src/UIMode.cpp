@@ -594,7 +594,17 @@ void UIPlayMode::readTag()
         uint16_t track = atoi(str);
         sprintf(str, "%d / %d", track, vars->num_tracks);
     } else {
-        sprintf(str, "%d / %d", vars->idx_play, vars->num_tracks);
+        // Count audio-only track number (skip non-audio files)
+        uint16_t audio_track = 0;
+        for (uint16_t i = 1; i <= vars->idx_play; i++) {
+            if (file_menu_match_ext(i, "mp3", 3) || file_menu_match_ext(i, "MP3", 3) ||
+                file_menu_match_ext(i, "wav", 3) || file_menu_match_ext(i, "WAV", 3) ||
+                file_menu_match_ext(i, "m4a", 3) || file_menu_match_ext(i, "M4A", 3) ||
+                file_menu_match_ext(i, "flac", 4) || file_menu_match_ext(i, "FLAC", 4)) {
+                audio_track++;
+            }
+        }
+        sprintf(str, "%d / %d", audio_track, vars->num_tracks);
     }
     lcd->setTrack(str);
     if (tag.getUTF8Title(str, sizeof(str))) {

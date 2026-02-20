@@ -502,7 +502,7 @@ int TagRead::getUTF8Track(char* str, size_t size)
     if (GetMP4BoxUTF8("trkn", str, size)) { return 1; }
     if (GetID32UTF8("TRK", "TRCK", str, size)) { return 1; }
     if (GetFlacTagUTF8("tracknumber", 11, str, size)) { return 1; }
-    if (strlen(id3v1->title) && size >= 4) { // check titlte because track is unsigned char
+    if (strlen(id3v1->title) && id3v1->tracknum > 0 && size >= 4) { // check title because track is unsigned char (0 means no track)
         sprintf(str, "%d", id3v1->tracknum);
         return 1;
     }
