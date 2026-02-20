@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 * Support sampling frequencies other than 44.1KHz for WAV
 * Display icon to indicate bit resolution and sampling frequency
 * Display codec icon
+* Support ID3 tag for WAV
 ### Changed
 ### Fixed
 * Fix track number display for WAV case
