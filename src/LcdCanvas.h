@@ -10,6 +10,7 @@
 #define __LCDCANVAS_H_INCLUDED__
 
 #include <LcdElementBox.h>
+#include "audio_playback.h"
 
 // LCD type is selected by build_flags in platformio.ini
 #if !defined(USE_ST7735_128x160) && !defined(USE_ST7789_240x240_WOCS) && !defined(USE_ILI9341_240x320)
@@ -72,6 +73,10 @@
 #define ICON16x16_96_0KHZ	&Icon16[32*17]
 #define ICON16x16_176_4KHZ	&Icon16[32*18]
 #define ICON16x16_192_0KHZ	&Icon16[32*19]
+#define ICON16x16_MP3		&Icon16[32*20]
+#define ICON16x16_AAC		&Icon16[32*21]
+#define ICON16x16_WAV		&Icon16[32*22]
+#define ICON16x16_FLAC		&Icon16[32*23]
 
 //=================================
 // Definition of BatteryIconBox class < IconBox
@@ -105,6 +110,7 @@ public:
 	void setBitRate(uint16_t value);
 	void setBitResolution(uint16_t value);
 	void setSampleFreq(uint32_t sampFreq);
+	void setCodec(audio_codec_enm_t codec_enm);
 	void setVolume(uint8_t value);
 	void setPlayTime(uint32_t posionSec, uint32_t lengthSec, bool blink = false);
 	void setTrack(const char *str);
@@ -128,7 +134,8 @@ protected:
 	const int play_cycle = 400;
 	const int play_change = 350;
 	uint8_t bitSampIcon[32] = {};
-	IconBox bitSamp = IconBox(width()-32, 16*0, (const uint8_t *)NULL, LCD_GRAY);
+	IconBox bitSamp = IconBox(width()-48, 16*0, (const uint8_t *)NULL, LCD_GRAY);
+	IconBox codecIcon = IconBox(width()-32, 16*0, (const uint8_t *)NULL, LCD_GRAY);
 	#ifdef USE_ST7735_128x160
 	IconScrollTextBox listItem[10] = {
 		IconScrollTextBox(16*0, 16*0, width(), LCD_GRAY, LCD_BLACK, CUSTOM_FONT, CUSTOM_FONT_OFS_Y, FONT_HEIGHT),
@@ -144,7 +151,7 @@ protected:
 	};
 	BatteryIconBox battery = BatteryIconBox(width()-16, 16*0, LCD_GRAY);
 	IconTextBox volume = IconTextBox(16*0, 16*0, ICON16x16_VOLUME, LCD_GRAY);
-	TextBox bitRate = TextBox(width()/2, 16*0, LcdElementBox::AlignCenter, LCD_GRAY);
+	TextBox bitRate = TextBox(width()-48, 16*0, LcdElementBox::AlignRight, LCD_GRAY);
 	NFTextBox playTime = NFTextBox(width(), height()-16, width(), LcdElementBox::AlignRight, LCD_GRAY, LCD_BLACK, CUSTOM_FONT, CUSTOM_FONT_OFS_Y, FONT_HEIGHT);
 	IconScrollTextBox title = IconScrollTextBox(16*0, 16*3, ICON16x16_TITLE, width(), LCD_WHITE, LCD_BLACK, CUSTOM_FONT, CUSTOM_FONT_OFS_Y, FONT_HEIGHT);
 	IconScrollTextBox artist = IconScrollTextBox(16*0, 16*4, ICON16x16_ARTIST, width(), LCD_WHITE, LCD_BLACK, CUSTOM_FONT, CUSTOM_FONT_OFS_Y, FONT_HEIGHT);
@@ -156,7 +163,7 @@ protected:
 	LcdElementBox *groupListView[10] = {
 		&listItem[0], &listItem[1], &listItem[2], &listItem[3], &listItem[4], &listItem[5], &listItem[6], &listItem[7], &listItem[8], &listItem[9]
 	};
-	LcdElementBox *groupPlay[6] = {&battery, &volume, &bitRate, &bitSamp, &playTime, &track}; // Common for Play mode 0 and 1
+	LcdElementBox *groupPlay[7] = {&battery, &volume, &bitRate, &bitSamp, &codecIcon, &playTime, &track}; // Common for Play mode 0 and 1
 	LcdElementBox *groupPlay0[4] = {&title, &artist, &album, &year}; // Play mode 0 only
 	LcdElementBox *groupPlay1[2] = {&albumArt, &msg}; // Play mode 1 only
 	LcdElementBox *groupPowerOff[1] = {&msg};
@@ -196,7 +203,7 @@ protected:
 		&listItem[10], &listItem[11], &listItem[12], &listItem[13], &listItem[14]
 	};
 	LcdElementBox *groupPlay[1] = {&msg}; // Common for Play mode 0 and 1
-	LcdElementBox *groupPlay0[11] = {&battery, &volume, &bitRate, &bitSamp, &playTime, &track, &title, &artist, &album, &year, &albumArtSmall}; // Play mode 0 only
+	LcdElementBox *groupPlay0[12] = {&battery, &volume, &bitRate, &bitSamp, &codecIcon, &playTime, &track, &title, &artist, &album, &year, &albumArtSmall}; // Play mode 0 only
 	LcdElementBox *groupPlay1[1] = {&albumArt}; // Play mode 1 only
 	LcdElementBox *groupPowerOff[1] = {&msg};
 	#endif // USE_ST7789_240x240_WOCS
@@ -238,7 +245,7 @@ protected:
 		&listItem[0],  &listItem[1],  &listItem[2],  &listItem[3],  &listItem[4],  &listItem[5],  &listItem[6],  &listItem[7],  &listItem[8],  &listItem[9],
 		&listItem[10], &listItem[11], &listItem[12], &listItem[13], &listItem[14], &listItem[15], &listItem[16], &listItem[17], &listItem[18], &listItem[19]
 	};
-	LcdElementBox *groupPlay[12] = {&battery, &volume, &bitRate, &bitSamp, &playTime, &track, &title, &artist, &album, &year, &albumArt, &msg}; // Common for Play mode 0 and 1
+	LcdElementBox *groupPlay[13] = {&battery, &volume, &bitRate, &bitSamp, &codecIcon, &playTime, &track, &title, &artist, &album, &year, &albumArt, &msg}; // Common for Play mode 0 and 1
 	LcdElementBox *groupPlay0[0] = {}; // Play mode 0 only
 	LcdElementBox *groupPlay1[0] = {}; // Play mode 1 only
 	LcdElementBox *groupPowerOff[1] = {&msg};

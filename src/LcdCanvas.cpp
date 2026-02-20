@@ -225,6 +225,19 @@ void LcdCanvas::setSampleFreq(uint32_t sampFreq)
     bitSamp.setIcon(bitSampIcon);
 }
 
+void LcdCanvas::setCodec(audio_codec_enm_t codec_enm)
+{
+    const uint8_t *icon;
+    switch (codec_enm) {
+        case CodecMp3:  icon = ICON16x16_MP3;  break;
+        case CodecAac:  icon = ICON16x16_AAC;  break;
+        case CodecWav:  icon = ICON16x16_WAV;  break;
+        case CodecFlac: icon = ICON16x16_FLAC; break;
+        default:        icon = (const uint8_t *)NULL; break;
+    }
+    codecIcon.setIcon(icon);
+}
+
 void LcdCanvas::setVolume(uint8_t value)
 {
     volume.setInt((int) value);

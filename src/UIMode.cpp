@@ -517,6 +517,7 @@ UIMode* UIPlayMode::update()
             audio_play(&file);
             lcd->setBitResolution(codec->bitResolution());
             lcd->setSampleFreq(codec->sampleRate());
+            lcd->setCodec(current_codec_enm);
             lcd->switchToPlay();
         } else {
             while (codec->isPlaying()) { delay(1); }
@@ -645,6 +646,7 @@ void UIPlayMode::entry(UIMode *prevMode)
         AudioCodec *codec = audio_get_codec();
         lcd->setBitResolution(codec->bitResolution());
         lcd->setSampleFreq(codec->sampleRate());
+        lcd->setCodec(current_codec_enm);
     }
     lcd->switchToPlay();
 }

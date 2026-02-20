@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 * Support 24bit resolution for WAV
 * Support sampling frequencies other than 44.1KHz for WAV
 * Display icon to indicate bit resolution and sampling frequency
+* Display codec icon
 ### Changed
 ### Fixed
 
