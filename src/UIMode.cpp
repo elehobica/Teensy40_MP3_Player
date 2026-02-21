@@ -555,31 +555,28 @@ audio_codec_enm_t UIPlayMode::getAudioCodec(MutexFsBaseFile *f)
     char str[256];
 
     while (vars->idx_play + ofs < file_menu_get_num()) {
-        file_menu_get_obj(vars->idx_play + ofs, f);
-        f->getName(str, sizeof(str));
-        char* ext_pos = strrchr(str, '.');
-        if (ext_pos) {
-            if (strncmp(ext_pos, ".mp3", 4) == 0 || strncmp(ext_pos, ".MP3", 4) == 0) {
-                audio_codec_enm = CodecMp3;
-                flg = true;
-                break;
-            } else if (strncmp(ext_pos, ".wav", 4) == 0 || strncmp(ext_pos, ".WAV", 4) == 0) {
-                audio_codec_enm = CodecWav;
-                flg = true;
-                break;
-            } else if (strncmp(ext_pos, ".m4a", 4) == 0 || strncmp(ext_pos, ".M4A", 4) == 0) {
-                audio_codec_enm = CodecAac;
-                flg = true;
-                break;
-            } else if (strncmp(ext_pos, ".flac", 5) == 0 || strncmp(ext_pos, ".FLAC", 5) == 0) {
-                audio_codec_enm = CodecFlac;
-                flg = true;
-                break;
-            }
+        uint16_t idx = vars->idx_play + ofs;
+        if (file_menu_match_ext(idx, "mp3", 3) || file_menu_match_ext(idx, "MP3", 3)) {
+            audio_codec_enm = CodecMp3;
+            flg = true;
+            break;
+        } else if (file_menu_match_ext(idx, "wav", 3) || file_menu_match_ext(idx, "WAV", 3)) {
+            audio_codec_enm = CodecWav;
+            flg = true;
+            break;
+        } else if (file_menu_match_ext(idx, "m4a", 3) || file_menu_match_ext(idx, "M4A", 3)) {
+            audio_codec_enm = CodecAac;
+            flg = true;
+            break;
+        } else if (file_menu_match_ext(idx, "flac", 4) || file_menu_match_ext(idx, "FLAC", 4)) {
+            audio_codec_enm = CodecFlac;
+            flg = true;
+            break;
         }
         ofs++;
     }
     if (flg) {
+        file_menu_get_obj(vars->idx_play + ofs, f);
         file_menu_get_fname_UTF16(vars->idx_play + ofs, (char16_t *) str, sizeof(str)/2);
         Serial.println(utf16_to_utf8((const char16_t *) str).c_str());
         vars->idx_play += ofs;
