@@ -64,8 +64,7 @@ short		AudioCodec::lastError;
 static AudioPlaySdMp3 	*mp3objptr;
 
 static bool isValidSampleRate(unsigned int sr) {
-	return (sr == 44100 || sr == 48000 || sr == 88200 ||
-			sr == 96000 || sr == 176400 || sr == 192000);
+	return (sr == 44100 || sr == 48000);
 }
 
 void decodeMp3(void);

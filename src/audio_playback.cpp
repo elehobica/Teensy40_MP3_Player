@@ -143,6 +143,9 @@ void audio_play(MutexFsBaseFile *file)
     } else if (codec == &playWav) {
         unsigned int wav_sr = playWav.parseHeader(file);
         if (wav_sr > 0) target_sr = wav_sr;
+    } else if (codec == &playAac) {
+        unsigned int aac_sr = playAac.parseHeader(file);
+        if (aac_sr > 0) target_sr = aac_sr;
     } else if (codec == &playFlac) {
         unsigned int flac_sr = playFlac.parseHeader(file);
         if (flac_sr > 0) target_sr = flac_sr;

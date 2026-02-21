@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 * Support Hi-Res audio up to 24bit 192KHz
   * Support 24bit resolution for WAV and FLAC
   * Support sampling frequencies up to 192KHz for WAV and FLAC
-* Support sampling frequencies up to 48Hz for MP3
+* Support sampling frequencies up to 48Hz for MP3 and AAC
 * Display icon to indicate bit resolution and sampling frequency
 * Display codec icon
 * Support ID3 tag for WAV
