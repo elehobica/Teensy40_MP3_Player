@@ -9,7 +9,7 @@ jobs:
       image: elehobica/teensy40-docker:1.0.0
     strategy:
       matrix:
-        env: [ST7735, ST7789, ILI9341]
+        env: [ST7735_128x160, ST7789_240x240, ILI9341_240x320]
     steps:
       - uses: actions/checkout@v4
       - name: Build (${{ matrix.env }})
@@ -19,7 +19,7 @@ jobs:
       - name: Upload firmware
         uses: actions/upload-artifact@v4
         with:
-          name: firmware-${{ matrix.env }}
+          name: firmware-${{ matrix.env }}.zip
           path: .pio/build/${{ matrix.env }}/firmware-${{ matrix.env }}.hex
 
   release-tag-condition:
@@ -44,4 +44,4 @@ jobs:
     uses: ./.github/workflows/upload-release-asset.yml
     with:
       source_run_id: ${{ github.run_id }}
-      artifacts_dirs: "firmware-ST7735 firmware-ST7789 firmware-ILI9341"
+      artifacts_dirs: "firmware-ST7735_128x160.zip firmware-ST7789_240x240.zip firmware-ILI9341_240x320.zip"

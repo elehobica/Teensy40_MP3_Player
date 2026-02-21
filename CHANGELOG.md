@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 * Change icon of audio files in FileView
 * Improve file sorting reference by utilizing dirIndex
+* Rename artifact hex names with LCD resolution information
 ### Fixed
 * Fix track number display for WAV case
 * Fix FileView icon to apply sorted order
