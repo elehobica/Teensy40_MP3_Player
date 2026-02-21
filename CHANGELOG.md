@@ -7,8 +7,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased]
 ### Added
 * Support S/PDIF output (I2S + S/PDIF, I2S and S/PDIF selection)
-* Support 24bit resolution for WAV
-* Support sampling frequencies other than 44.1KHz for WAV
+* Support Hi-Res audio
+  * Support 24bit resolution for WAV
+  * Support sampling frequencies other than 44.1KHz for WAV
 * Display icon to indicate bit resolution and sampling frequency
 * Display codec icon
 * Support ID3 tag for WAV

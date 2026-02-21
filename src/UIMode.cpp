@@ -134,10 +134,7 @@ void UIFileViewMode::listIdxItems()
             const uint8_t *icon;
             if (file_menu_is_dir(idx)) {
                 icon = ICON16x16_FOLDER;
-            } else if (file_menu_match_ext(idx, "mp3", 3) || file_menu_match_ext(idx, "MP3", 3) ||
-                       file_menu_match_ext(idx, "wav", 3) || file_menu_match_ext(idx, "WAV", 3) ||
-                       file_menu_match_ext(idx, "m4a", 3) || file_menu_match_ext(idx, "M4A", 3) ||
-                       file_menu_match_ext(idx, "flac", 4) || file_menu_match_ext(idx, "FLAC", 4)) {
+            } else if (file_menu_is_audio(idx)) {
                 icon = ICON16x16_TITLE;
             } else {
                 icon = ICON16x16_FILE;
@@ -150,22 +147,12 @@ void UIFileViewMode::listIdxItems()
 bool UIFileViewMode::isAudioFile()
 {
     uint16_t idx = vars->idx_head + vars->idx_column;
-    return (
-        file_menu_match_ext(idx, "mp3", 3) ||  file_menu_match_ext(idx, "MP3", 3) ||  
-        file_menu_match_ext(idx, "wav", 3) ||  file_menu_match_ext(idx, "WAV", 3) ||  
-        file_menu_match_ext(idx, "m4a", 3) ||  file_menu_match_ext(idx, "M4A", 3) ||  
-        file_menu_match_ext(idx, "flac", 4) ||  file_menu_match_ext(idx, "FLAC", 4)
-    );
+    return file_menu_is_audio(idx);
 }
 
 uint16_t UIFileViewMode::getNumAudioFiles()
 {
-    uint16_t num_tracks = 0;
-    num_tracks += file_menu_get_ext_num("mp3", 3) + file_menu_get_ext_num("MP3", 3);
-    num_tracks += file_menu_get_ext_num("wav", 3) + file_menu_get_ext_num("WAV", 3);
-    num_tracks += file_menu_get_ext_num("m4a", 3) + file_menu_get_ext_num("M4A", 3);
-    num_tracks += file_menu_get_ext_num("flac", 4) + file_menu_get_ext_num("FLAC", 4);
-    return num_tracks;
+    return file_menu_get_audio_num();
 }
 
 void UIFileViewMode::chdir()
@@ -556,19 +543,19 @@ audio_codec_enm_t UIPlayMode::getAudioCodec(MutexFsBaseFile *f)
 
     while (vars->idx_play + ofs < file_menu_get_num()) {
         uint16_t idx = vars->idx_play + ofs;
-        if (file_menu_match_ext(idx, "mp3", 3) || file_menu_match_ext(idx, "MP3", 3)) {
+        if (file_menu_match_ext(idx, "mp3")) {
             audio_codec_enm = CodecMp3;
             flg = true;
             break;
-        } else if (file_menu_match_ext(idx, "wav", 3) || file_menu_match_ext(idx, "WAV", 3)) {
+        } else if (file_menu_match_ext(idx, "wav")) {
             audio_codec_enm = CodecWav;
             flg = true;
             break;
-        } else if (file_menu_match_ext(idx, "m4a", 3) || file_menu_match_ext(idx, "M4A", 3)) {
+        } else if (file_menu_match_ext(idx, "m4a")) {
             audio_codec_enm = CodecAac;
             flg = true;
             break;
-        } else if (file_menu_match_ext(idx, "flac", 4) || file_menu_match_ext(idx, "FLAC", 4)) {
+        } else if (file_menu_match_ext(idx, "flac")) {
             audio_codec_enm = CodecFlac;
             flg = true;
             break;
@@ -607,10 +594,7 @@ void UIPlayMode::readTag()
         // Count audio-only track number (skip non-audio files)
         uint16_t audio_track = 0;
         for (uint16_t i = 1; i <= vars->idx_play; i++) {
-            if (file_menu_match_ext(i, "mp3", 3) || file_menu_match_ext(i, "MP3", 3) ||
-                file_menu_match_ext(i, "wav", 3) || file_menu_match_ext(i, "WAV", 3) ||
-                file_menu_match_ext(i, "m4a", 3) || file_menu_match_ext(i, "M4A", 3) ||
-                file_menu_match_ext(i, "flac", 4) || file_menu_match_ext(i, "FLAC", 4)) {
+            if (file_menu_is_audio(i)) {
                 audio_track++;
             }
         }
@@ -641,11 +625,10 @@ void UIPlayMode::readTag()
         while (idx < file_menu_get_num()) {
             MutexFsBaseFile f;
             file_menu_get_obj(idx, &f);
-            if (file_menu_match_ext(idx, "jpg", 3) || file_menu_match_ext(idx, "JPG", 3) || 
-                file_menu_match_ext(idx, "jpeg", 4) || file_menu_match_ext(idx, "JPEG", 4)) {
+            if (file_menu_match_ext(idx, "jpg") || file_menu_match_ext(idx, "jpeg")) {
                 lcd->addAlbumArtJpeg(idx, 0, f.fileSize());
                 img_cnt++;
-            } else if (file_menu_match_ext(idx, "png", 3) || file_menu_match_ext(idx, "PNG", 3)) {
+            } else if (file_menu_match_ext(idx, "png")) {
                 lcd->addAlbumArtPng(idx, 0, f.fileSize());
                 img_cnt++;
             }

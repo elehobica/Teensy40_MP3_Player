@@ -55,8 +55,24 @@ FRESULT file_menu_ch_dir(uint16_t order);
 void file_menu_close_dir(void);
 uint16_t file_menu_get_num(void);
 uint16_t file_menu_get_dir_num(void);
-int file_menu_match_ext(uint16_t order, const char *ext, size_t ext_size); // ext: "mp3", "wav" (ext does not include ".")
-uint16_t file_menu_get_ext_num(const char *ext, size_t ext_size); // ext: "mp3", "wav" (ext does not include ".")
+int file_menu_match_ext(uint16_t order, const char *ext, size_t ext_size); // case-insensitive, ext: "mp3", "wav" (ext does not include ".")
+uint16_t file_menu_get_ext_num(const char *ext, size_t ext_size); // case-insensitive, ext: "mp3", "wav" (ext does not include ".")
+
+// Template overloads for string literals (auto-derive ext_size)
+template <size_t N>
+inline int file_menu_match_ext(uint16_t order, const char (&ext)[N]) {
+    return file_menu_match_ext(order, ext, N - 1);
+}
+template <size_t N>
+inline uint16_t file_menu_get_ext_num(const char (&ext)[N]) {
+    return file_menu_get_ext_num(ext, N - 1);
+}
+// Supported audio file extensions (lowercase, uppercase covered)
+static constexpr const char* audio_ext[] = {"mp3", "wav", "m4a", "flac"};
+static constexpr size_t audio_ext_count = sizeof(audio_ext) / sizeof(audio_ext[0]);
+
+int file_menu_is_audio(uint16_t order);
+uint16_t file_menu_get_audio_num(void);
 void file_menu_full_sort(void);
 void file_menu_sort_entry(uint16_t scope_start, uint16_t scope_end_1);
 FRESULT file_menu_get_fname(uint16_t order, char *str, size_t size);
