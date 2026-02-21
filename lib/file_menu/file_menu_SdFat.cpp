@@ -54,9 +54,9 @@ static char _str[256];	// for debug print
 #endif // DEBUG_FILE_MENU
 
 static int target = TGT_DIRS | TGT_FILES; // TGT_DIRS, TGT_FILES
-static int16_t f_stat_cnt;
 static uint16_t max_entry_cnt;
 static uint16_t *entry_list;
+static uint32_t *dir_index_list; // dirIndex per entry (O(1) random access)
 static uint32_t *sorted_flg;
 static char (*fast_fname_list)[FFL_SZ];
 static uint32_t *is_file_flg; // 0: Dir, 1: File
@@ -109,27 +109,12 @@ static FRESULT idx_f_stat(uint16_t idx,  MutexFsBaseFile *fp)
 {
 	if (idx == 0) {
 		*fp = parent_dir[path_depth-1];
-        return FR_OK;
+		return FR_OK;
 	}
-	if (f_stat_cnt == 1 || f_stat_cnt > idx) {
-        dir.rewindDirectory();
-		f_stat_cnt = 1;
+	if (fp->open(&dir, dir_index_list[idx], O_RDONLY)) {
+		return FR_OK;
 	}
-	for (;;) {
-        fp->openNext(&dir);
-		if (fp->isHidden()) { fp->close(); continue; }
-		if (!(target & TGT_DIRS)) { // File Only
-			if (fp->isDir()) { fp->close(); continue; }
-		} else if (!(target & TGT_FILES)) { // Dir Only
-			if (!(fp->isDir())) { fp->close(); continue; }
-		}
-		if (f_stat_cnt++ >= idx) break;
-	}
-	if (fp) {
-        return FR_OK;
-	} else {
-        return FR_INVALID_PARAMETER;
-	}
+	return FR_INVALID_PARAMETER;
 }
 
 // Get file name by UTF8 for sorting multi-byte string
@@ -335,11 +320,12 @@ static uint16_t idx_get_size(int target)
 static void idx_sort_new(void)
 {
 	int i, k;
-    char name[FF_LFN_BUF+1];
+	char name[FF_LFN_BUF+1];
 	max_entry_cnt = idx_get_size(target);
 	entry_list = (uint16_t *) malloc(sizeof(uint16_t) * max_entry_cnt);
 	if (entry_list == NULL) Serial.println("malloc entry_list failed");
-	for (i = 0; i < max_entry_cnt; i++) entry_list[i] = i;
+	dir_index_list = (uint32_t *) malloc(sizeof(uint32_t) * max_entry_cnt);
+	if (dir_index_list == NULL) Serial.println("malloc dir_index_list failed");
 	sorted_flg = (uint32_t *) malloc(sizeof(uint32_t) * (max_entry_cnt+31)/32);
 	if (sorted_flg == NULL) Serial.println("malloc sorted_flg failed");
 	memset(sorted_flg, 0, sizeof(uint32_t) * (max_entry_cnt+31)/32);
@@ -348,9 +334,35 @@ static void idx_sort_new(void)
 	memset(is_file_flg, 0, sizeof(uint32_t) * (max_entry_cnt+31)/32);
 	fast_fname_list = (char (*)[FFL_SZ]) malloc(sizeof(char[FFL_SZ]) * max_entry_cnt);
 	if (fast_fname_list == NULL) Serial.println("malloc fast_fname_list failed");
-	for (i = 0; i < max_entry_cnt; i++) {
-		idx_f_stat_get_name(i, &file, name, sizeof(name));
+
+	// Entry 0: parent directory
+	entry_list[0] = 0;
+	dir_index_list[0] = 0; // sentinel (not used; idx 0 handled specially)
+	memset(fast_fname_list[0], 0, FFL_SZ);
+
+	// Fill from directory scan
+	dir.rewindDirectory();
+	i = 1;
+	for (;;) {
+		file.openNext(&dir);
+		if (!file) break;
+		if (file.isHidden()) { file.close(); continue; }
+		if (!(target & TGT_DIRS)) { // File Only
+			if (file.isDir()) { file.close(); continue; }
+		} else if (!(target & TGT_FILES)) { // Dir Only
+			if (!(file.isDir())) { file.close(); continue; }
+		}
+
+		entry_list[i] = i;
+		dir_index_list[i] = file.dirIndex();
 		if (!(file.isDir())) set_is_file(i);
+
+		// Get UTF-8 name for fast_fname_list
+		char16_t str_utf16[FF_LFN_BUF+1] = {};
+		file.getUTF16Name(str_utf16, FF_LFN_BUF);
+		strncpy(name, utf16_to_utf8((const char16_t *) str_utf16).c_str(), FF_LFN_BUF);
+		name[FF_LFN_BUF] = '\0';
+
 		if (strncmp(name, "The ", 4) == 0) {
 			for (k = 0; k < FFL_SZ; k++) {
 				fast_fname_list[i][k] = name[k+4];
@@ -365,14 +377,16 @@ static void idx_sort_new(void)
 		strncpy(temp_str, fast_fname_list[i], 4);
 		sprintf(_str, "fast_fname_list[%d] = %4s, is_file = %d", i, temp_str, get_is_file(i)); Serial.println(_str);
 		#endif // DEBUG_FILE_MENU_LVL2
+		i++;
 	}
 }
 
 static void idx_sort_delete(void)
 {
-    free(entry_list);
-    free(sorted_flg);
-    free(fast_fname_list);
+	free(entry_list);
+	free(dir_index_list);
+	free(sorted_flg);
+	free(fast_fname_list);
 	free(is_file_flg);
 }
 
@@ -544,7 +558,6 @@ uint16_t file_menu_get_audio_num(void)
 
 FRESULT file_menu_open_root_dir()
 {
-	f_stat_cnt = 1;
 	last_order = 0;
 	path_depth = 0;
 	{
@@ -578,7 +591,6 @@ uint8_t file_menu_get_fatType()
 
 FRESULT file_menu_ch_dir(uint16_t order)
 {
-	f_stat_cnt = 1;
 	last_order = 0;
 	if (order == 0) {
 		if (path_depth > 0) {
@@ -588,8 +600,7 @@ FRESULT file_menu_ch_dir(uint16_t order)
 		}
 	} else if (order < max_entry_cnt && path_depth < MAX_DEPTH_DIR - 1) {
 		MutexFsBaseFile new_dir;
-		idx_f_stat(entry_list[order], &file);
-		new_dir.open(&dir, file.dirIndex(), O_RDONLY);
+		new_dir.open(&dir, dir_index_list[entry_list[order]], O_RDONLY);
 		dir.rewindDirectory();
 		parent_dir[path_depth++] = dir;
 		idx_sort_delete();

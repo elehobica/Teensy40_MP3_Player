@@ -10,12 +10,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 * Support Hi-Res audio up to 24bit 192KHz
   * Support 24bit resolution for WAV and FLAC
   * Support sampling frequencies up to 192KHz for WAV and FLAC
-* Support sampling frequencies up to 48Hz for MP3 and AAC
+* Support 48KHz sampling frequency for MP3 and AAC
 * Display icon to indicate bit resolution and sampling frequency
 * Display codec icon
 * Support ID3 tag for WAV
 ### Changed
 * Change icon of audio files in FileView
+* Improve file sorting reference by utilizing dirIndex
 ### Fixed
 * Fix track number display for WAV case
 * Fix FileView icon to apply sorted order
