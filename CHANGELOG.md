@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 * Display codec icon
 * Support ID3 tag for WAV
 ### Changed
+* Change icon of audio files in FileView
 ### Fixed
 * Fix track number display for WAV case
 * Fix FileView icon to apply sorted order

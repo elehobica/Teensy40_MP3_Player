@@ -130,7 +130,18 @@ void UIFileViewMode::listIdxItems()
             // Get filename first: this triggers file_menu_sort_entry() inside,
             // ensuring entry_list is sorted before file_menu_is_dir() reads it
             file_menu_get_fname_UTF16(vars->idx_head+i, (char16_t *) str, sizeof(str)/2);
-            const uint8_t *icon = file_menu_is_dir(vars->idx_head+i) ? ICON16x16_FOLDER : ICON16x16_FILE;
+            uint16_t idx = vars->idx_head+i;
+            const uint8_t *icon;
+            if (file_menu_is_dir(idx)) {
+                icon = ICON16x16_FOLDER;
+            } else if (file_menu_match_ext(idx, "mp3", 3) || file_menu_match_ext(idx, "MP3", 3) ||
+                       file_menu_match_ext(idx, "wav", 3) || file_menu_match_ext(idx, "WAV", 3) ||
+                       file_menu_match_ext(idx, "m4a", 3) || file_menu_match_ext(idx, "M4A", 3) ||
+                       file_menu_match_ext(idx, "flac", 4) || file_menu_match_ext(idx, "FLAC", 4)) {
+                icon = ICON16x16_TITLE;
+            } else {
+                icon = ICON16x16_FILE;
+            }
             lcd->setListItem(i, utf16_to_utf8((const char16_t *) str).c_str(), icon, (i == vars->idx_column), utf8);
         }
     }
