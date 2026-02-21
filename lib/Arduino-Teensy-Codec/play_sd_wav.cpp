@@ -47,15 +47,20 @@
 
 extern Threads::Event codec_event;
 
-#define WAV_SD_BUF_SIZE	(1152*4)
+#define WAV_SD_BUF_SIZE	(1152*16)
 #define WAV_BUF_SIZE	(WAV_SD_BUF_SIZE/2)
-#define DECODE_NUM_STATES 2									//How many steps in decode() ?
+#define DECODE_NUM_STATES 1									//SD read + decode in single step
 
 #define MIN_FREE_RAM (35+1)*1024 // 1KB Reserve
 
 //#define CODEC_DEBUG
 
 static AudioPlaySdWav 	*wavobjptr;
+
+static bool isValidSampleRate(unsigned int sr) {
+	return (sr == 44100 || sr == 48000 || sr == 88200 ||
+	        sr == 96000 || sr == 176400 || sr == 192000);
+}
 
 void decodeWav(void);
 
@@ -71,7 +76,7 @@ size_t AudioPlaySdWav::parseFmtChunk(uint8_t *sd_buf, size_t sd_buf_size)
 			uint32_t *size = (uint32_t *) (sd_buf + ofs + 4);
 			if (memcmp(chunk_id, "fmt ", 4) == 0) {
 				_channels =     (unsigned short) (*((uint16_t *) (sd_buf + ofs + 4 + 4 + 2))); // channels
-				samprate =      (unsigned short) (*((uint32_t *) (sd_buf + ofs + 4 + 4 + 2 + 2))); // samplerate
+				samprate =      *((uint32_t *) (sd_buf + ofs + 4 + 4 + 2 + 2)); // samplerate
 				bitrate =       (unsigned short) (*((uint32_t *) (sd_buf + ofs + 4 + 4 + 2 + 2 + 4)) /* bytepersec */ * 8 / 1000); // Kbps
 				bitsPerSample = (unsigned short) (*((uint16_t *) (sd_buf + ofs + 4 + 4 + 2 + 2 + 4 + 4 + 2))); // bitswidth
 				break;
@@ -206,8 +211,8 @@ int AudioPlaySdWav::play(size_t position, unsigned samples_played)
 
 	wavobjptr = this;
 
-	buf[0] = (short *) malloc(WAV_BUF_SIZE * sizeof(int16_t));
-	buf[1] = (short *) malloc(WAV_BUF_SIZE * sizeof(int16_t));
+	buf[0] = (int32_t *) malloc(WAV_BUF_SIZE * sizeof(int32_t));
+	buf[1] = (int32_t *) malloc(WAV_BUF_SIZE * sizeof(int32_t));
 
 	if (!buf[0] || !buf[1])
 	{
@@ -225,7 +230,7 @@ int AudioPlaySdWav::play(size_t position, unsigned samples_played)
 	sd_left = fillReadBuffer(sd_buf, sd_buf, 0, WAV_SD_BUF_SIZE);
 	// parse 'fmt ' chunk
 	int skip = parseFmtChunk(sd_buf, WAV_SD_BUF_SIZE);
-	if (!skip || samprate != AUDIOCODECS_SAMPLE_RATE) {
+	if (!skip || !isValidSampleRate(samprate) || (bitsPerSample != 16 && bitsPerSample != 24)) {
 		Serial.println("incompatible WAV file.");
 		lastError = ERR_CODEC_FORMAT;
 		stop();
@@ -236,11 +241,6 @@ int AudioPlaySdWav::play(size_t position, unsigned samples_played)
 	data_size = *((uint32_t *) (sd_buf + skip + 4));
 	sd_p = sd_buf + skip + 8;
 	sd_left -= skip + 8;
-
-	/* // DEBUG
-	Serial.print("Data Chunk skip: ");
-	Serial.println(skip);
-	*/
 
 	//Fill buffer from the beginning with fresh data
 	sd_left = fillReadBuffer(sd_buf, sd_p, sd_left, WAV_SD_BUF_SIZE);
@@ -263,36 +263,22 @@ int AudioPlaySdWav::play(size_t position, unsigned samples_played)
 
 	sd_p = sd_buf;
 
-	for (size_t i=0; i< DECODE_NUM_STATES; i++) {
-		decodeWav_core();
-	}
-
 	// For Resume play with 'position'
 	if (position != 0 && position < fsize()) {
 		fseek(position);
 		this->samples_played += samples_played;
-		// Replace sd_buf data after sd_p with Frame Data in 'position'
-
-		// [Method 1]: just replace data after sd_p with Frame Data in 'position'
-		//fread(sd_p, sd_left);
-
-		// [Method 2]: set sd_p = sd_buf and fill sd_buf fully with Frame Data in 'position'
-		sd_left = fillReadBuffer(sd_buf, sd_p, 0, WAV_SD_BUF_SIZE);
+		sd_left = 0;  // force fresh read from new position
 		sd_p = sd_buf;
 	}
 
+	// Pre-fill both buffers before starting playback
+	decodeWav_core();          // fills buffer 0
 	decoding_block = 1;
+	decodeWav_core();          // fills buffer 1
 
+	// decoding_block stays at 1, so playing_block = 0 (play buffer 0 first)
 	playing = codec_playing;
-	/*
-	Serial.print("playing = codec_playing: ");
-	Serial.println(millis());
-	*/
 
-#ifdef CODEC_DEBUG
-//	Serial.printf("RAM: %d\r\n",ram-freeRam());
-
-#endif
     return lastError;
 }
 
@@ -342,7 +328,13 @@ void AudioPlaySdWav::update(void)
 			return;
 		}
 
-		memcpy_frominterleaved(&block_left->data[0], &block_right->data[0], buf[playing_block] + pl);
+		{
+			int32_t *src = buf[playing_block] + pl;
+			for (int i = 0; i < AUDIO_BLOCK_SAMPLES; i++) {
+				block_left->data[i]  = src[i * 2];
+				block_right->data[i] = src[i * 2 + 1];
+			}
+		}
 
 		pl += AUDIO_BLOCK_SAMPLES * 2;
 		transmit(block_left, 0);
@@ -353,8 +345,12 @@ void AudioPlaySdWav::update(void)
 	} else
 	{
 		// if we're playing mono, no right-side block
-		// let's do a (hopefully good optimized) simple memcpy
-		memcpy(block_left->data, buf[playing_block] + pl, AUDIO_BLOCK_SAMPLES * sizeof(short));
+		{
+			int32_t *src = buf[playing_block] + pl;
+			for (int i = 0; i < AUDIO_BLOCK_SAMPLES; i++) {
+				block_left->data[i] = src[i];
+			}
+		}
 
 		pl += AUDIO_BLOCK_SAMPLES;
 		transmit(block_left, 0);
@@ -389,12 +385,7 @@ void decodeWav_core(void)
 	if (wavobjptr == NULL) return;
 	AudioPlaySdWav *o = wavobjptr;
 	int db = o->decoding_block;
-	//Serial.println("decodeWave_core");
 
-	/*
-	Serial.print("decodeWav called: ");
-	Serial.println(millis());
-	*/
 	int eof = false;
 	uint32_t cycles = ARM_DWT_CYCCNT;
 
@@ -402,75 +393,67 @@ void decodeWav_core(void)
 		return; //this block is playing, do NOT fill it
 	}
 
-	switch (o->decoding_state) {
+	// SD read + decode in single step to prevent race condition
+	// where ISR changes decoding_block between read and decode
+	{
+		o->sd_left = o->fillReadBuffer(o->sd_buf, o->sd_p, o->sd_left, WAV_SD_BUF_SIZE);
+		if (!o->sd_left) { eof = true; goto wavend; }
+		o->sd_p = o->sd_buf;
 
-	case 0:
-		{
-			o->sd_left = o->fillReadBuffer(o->sd_buf, o->sd_p, o->sd_left, WAV_SD_BUF_SIZE);
-			if (!o->sd_left) { eof = true; goto wavend; }
-			o->sd_p = o->sd_buf;
+		uint32_t cycles_rd = (ARM_DWT_CYCCNT - cycles);
+		if (cycles_rd > o->decode_cycles_max_read ) o->decode_cycles_max_read = cycles_rd;
+	}
 
-			uint32_t cycles_rd = (ARM_DWT_CYCCNT - cycles);
-			if (cycles_rd > o->decode_cycles_max_read )o-> decode_cycles_max_read = cycles_rd;
-			break;
-		}
-
-	case 1:
-		{
-			int decode_res = 0;
-			int i;
-			//Serial.println(o->sd_left);
-			for (i = 0; i < o->sd_left; i+=2) {
-				o->buf[db][i/2] = *((short *) &o->sd_p[i]);
-				if (i/2 >= WAV_BUF_SIZE) { break; }
+	{
+		int decode_res = 0;
+		int bytesPerSample = o->bitsPerSample / 8;
+		int i = 0;  // byte offset into sd_p
+		int j = 0;  // sample index into buf[db]
+		for (; i + bytesPerSample <= o->sd_left && j < WAV_BUF_SIZE; i += bytesPerSample, j++) {
+			if (bytesPerSample == 3) {
+				// 24-bit little-endian: sign-extend to int32_t
+				uint32_t raw = (uint32_t)o->sd_p[i] | ((uint32_t)o->sd_p[i+1] << 8) | ((uint32_t)o->sd_p[i+2] << 16);
+				o->buf[db][j] = (int32_t)(raw << 8) >> 8;
+			} else {
+				// 16-bit little-endian: shift left 8 to normalize to 24-bit
+				o->buf[db][j] = (int32_t)(*((int16_t *)&o->sd_p[i])) << 8;
 			}
-			o->sd_p += i;
-			o->sd_left -= i;
-			//Serial.println(i/2);
+		}
+		o->sd_p += i;
+		o->sd_left -= i;
 
-			switch(decode_res)
+		switch(decode_res)
+		{
+			case 0:
 			{
-				case 0:
-				{
-					o->err_cnt = 0;
-					o->decoded_length[db] = i/2;
-					break;
-				}
-
-				default :
-				{
-					if (o->err_cnt++ < 1) { // Ignore Error
-						o->decoded_length[db] = i/2;
-					} else {
-						Serial.print("ERROR: wav decode_res: ");
-						Serial.println(decode_res);
-						AudioPlaySdWav::lastError = decode_res;
-						eof = true;
-					}
-					break;
-				}
+				o->err_cnt = 0;
+				o->decoded_length[db] = j;
+				break;
 			}
 
-			cycles = (ARM_DWT_CYCCNT - cycles);
-			if (cycles > o->decode_cycles_max ) o->decode_cycles_max = cycles;
-			break;
+			default :
+			{
+				if (o->err_cnt++ < 1) { // Ignore Error
+					o->decoded_length[db] = j;
+				} else {
+					Serial.print("ERROR: wav decode_res: ");
+					Serial.println(decode_res);
+					AudioPlaySdWav::lastError = decode_res;
+					eof = true;
+				}
+				break;
+			}
 		}
-	}//switch
+
+		cycles = (ARM_DWT_CYCCNT - cycles);
+		if (cycles > o->decode_cycles_max ) o->decode_cycles_max = cycles;
+	}
 
 wavend:
 
-	o->decoding_state++;
-	if (o->decoding_state >= DECODE_NUM_STATES) o->decoding_state = 0;
-
 	if (eof) {
-		//o->stop_for_next();
 		o->stop();
 	}
-
-	/*
-	Serial.print("decodeWav wavend: ");
-	Serial.println(millis());
-	*/
 }
 
 #if 0
@@ -487,6 +470,25 @@ void AudioPlaySdWav::stop_for_next(void)
 	wavobjptr = NULL;
 }
 #endif
+
+// parseHeader - pre-parse WAV header to get sample rate before play()
+unsigned int AudioPlaySdWav::parseHeader(MutexFsBaseFile *file)
+{
+	uint8_t header_buf[128];
+	uint64_t saved_pos = file->curPosition();
+	file->seekSet(0);
+	int bytes_read = file->read(header_buf, sizeof(header_buf));
+	file->seekSet(saved_pos);
+	if (bytes_read < 44) return 0;
+	size_t ofs = parseFmtChunk(header_buf, bytes_read);
+	return (ofs > 0) ? samprate : 0;
+}
+
+// positionMillis (Override) - use runtime samprate instead of compile-time AUDIO_SAMPLE_RATE_EXACT
+unsigned AudioPlaySdWav::positionMillis(void)
+{
+	return (unsigned) ((uint64_t) samples_played * 1000 / samprate);
+}
 
 // lengthMillis (Override)
 unsigned AudioPlaySdWav::lengthMillis(void)

@@ -81,6 +81,9 @@ int TagRead::loadFile(uint16_t file_idx)
     // If ID3 failed, try to read FLAC tag
     if (getFlacMetadata(&file)) { file.close(); return 1; }
 
+    // Try ID3v2 in WAV "id3 " chunk
+    if (getID3v2FromWavChunk(&file)) { file.close(); return 1; }
+
     // If all failed, try to read LIST chunk (for WAV file)
     if (getListChunk(&file)) { file.close(); return 1; }
 
@@ -100,21 +103,22 @@ int TagRead::GetID3HeadersFull(MutexFsBaseFile *infile, int testfail, id31** id3
     //=============
     // For ID3(v1)
     //=============
-    // seek to start of header
-    infile->seekSet(infile->size() - sizeof(id31)); // seekEnd doesn't work. if return value, seekSet fails anyhow
+    // seek to start of header (ID3v1 tag is always 128 bytes at the end of file)
+    const size_t ID3V1_TAG_SIZE = 128;
+    infile->seekSet(infile->size() - ID3V1_TAG_SIZE); // seekEnd doesn't work. if return value, seekSet fails anyhow
     /*
     if (result) {
         Serial.print("Error seeking to header");
         return -1;
     }
     */
-  
+
     // read in to buffer
-    input = (char *) malloc(sizeof(id31));
-    result = infile->read(input, sizeof(id31));
-    if (result != sizeof(id31)) {
+    input = (char *) malloc(ID3V1_TAG_SIZE);
+    result = infile->read(input, ID3V1_TAG_SIZE);
+    if (result != (int) ID3V1_TAG_SIZE) {
         char str[256];
-        sprintf(str, "Read fail: expected %d bytes but got %d", sizeof(id31), result);
+        sprintf(str, "Read fail: expected %d bytes but got %d", ID3V1_TAG_SIZE, result);
         Serial.println(str);
         return -1;
     }
@@ -159,20 +163,20 @@ int TagRead::GetID3HeadersFull(MutexFsBaseFile *infile, int testfail, id31** id3
     return fail;
 }
 
-id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
+id32* TagRead::ID32Detect(MutexFsBaseFile *infile, uint32_t pos)
 {
     unsigned char* buffer;
     int result;
     int i = 0;
     id32* id32header;
-    int filepos = 0;
+    int filepos = (int) pos;
     int size = 0;
     id32frame* lastframe = NULL;
     id322frame* lastframev2 = NULL;
     bool unsync = false;
 
     // seek to start
-    infile->seekSet(0);
+    infile->seekSet(pos);
     // read in first 10 bytes
     buffer = (unsigned char *) calloc(1, 11);
     id32header = (id32 *) calloc(1, sizeof(id32));
@@ -237,7 +241,7 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
         //Serial.println(str);
         //return NULL;
         // this code is modified from version 3, ideally we should reuse some
-        while (filepos-10 < (int) id32header->size) {
+        while (filepos-10 < (int) id32header->size + (int) pos) {
             // make space for new frame
             id322frame* frame = (id322frame *) calloc(1, sizeof(id322frame));
             frame->next = NULL;
@@ -285,7 +289,7 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
                 */
                 frame->data = (char *) calloc(1, frame_start_bytes); // for frame parsing
                 infile->readUnsync(frame->data, frame_start_bytes, unsync);
-                if (infile->seekCur(frame->size - frame_start_bytes)) {
+                if (infile->seekSet(frame->pos + frame->size)) {
                     result = frame->size;
                 } else {
                     result = 0;
@@ -312,7 +316,7 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
         }
     } else if (id32header->version[0] == 3) { // ID3v2.3
         // start reading frames
-        while (filepos-10 < (int) id32header->size) {
+        while (filepos-10 < (int) id32header->size + (int) pos) {
             // make space for new frame
             id32frame* frame = (id32frame *) calloc(1, sizeof(id32frame));
             frame->next = NULL;
@@ -331,6 +335,7 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
             }
             if((frame->ID[0] & 0xff) == 0xff) {
                 Serial.println("Size is wrong :(");
+                return NULL;
 
                 // fix size
                 /*
@@ -377,7 +382,7 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
                 */
                 frame->data = (char *) calloc(1, frame_start_bytes); // for frame parsing
                 infile->readUnsync(frame->data, frame_start_bytes, unsync);
-                if (infile->seekCur(frame->size - frame_start_bytes)) {
+                if (infile->seekSet(frame->pos + frame->size)) {
                     result = frame->size;
                 } else {
                     result = 0;
@@ -405,7 +410,7 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
         }
     } else if (id32header->version[0] == 4) { // ID3v2.4
         // start reading frames
-        while (filepos-10 < (int) id32header->size) {
+        while (filepos-10 < (int) id32header->size + (int) pos) {
             // make space for new frame
             id32frame* frame = (id32frame *) calloc(1, sizeof(id32frame));
             frame->next = NULL;
@@ -425,6 +430,7 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
             }
             if((frame->ID[0] & 0xff) == 0xff) {
                 Serial.println("Size is wrong :(");
+                return NULL;
 
                 // fix size
                 /*
@@ -465,8 +471,8 @@ id32* TagRead::ID32Detect(MutexFsBaseFile *infile)
                 frame->hasFullData = true;
             } else { // give up to get full contents due to size over
                 frame->data = (char *) calloc(1, frame_start_bytes); // for frame parsing
-                result = infile->readUnsync(frame->data, frame_start_bytes, unsync);
-                if (infile->seekCur(frame->size - result)) {
+                infile->readUnsync(frame->data, frame_start_bytes, unsync);
+                if (infile->seekSet(frame->pos + frame->size)) {
                     result = frame->size;
                 } else {
                     result = 0;
@@ -502,7 +508,7 @@ int TagRead::getUTF8Track(char* str, size_t size)
     if (GetMP4BoxUTF8("trkn", str, size)) { return 1; }
     if (GetID32UTF8("TRK", "TRCK", str, size)) { return 1; }
     if (GetFlacTagUTF8("tracknumber", 11, str, size)) { return 1; }
-    if (strlen(id3v1->title) && size >= 4) { // check titlte because track is unsigned char
+    if (strlen(id3v1->title) && id3v1->tracknum > 0 && size >= 4) { // check title because track is unsigned char (0 means no track)
         sprintf(str, "%d", id3v1->tracknum);
         return 1;
     }
@@ -916,7 +922,7 @@ void TagRead::ID32Print(id32* id32header)
 
 void TagRead::ID32Free(id32* id32header)
 {
-    if (id32header->version[0] == 3) {
+    if (id32header->version[0] == 3 || id32header->version[0] == 4) {
         id32frame* bonar=id32header->firstframe;
         while (bonar != NULL) {
             id32frame* next = bonar->next;
@@ -944,8 +950,16 @@ int TagRead::ID31Detect(char* header, id31 **id31header)
     test[3] = 0;
     // make sure TAG is present
     if (!strcmp("TAG", test)) {
-        // successrar
-        memcpy(*id31header, header, sizeof(id31));
+        // Copy ID3v1 fields from 128-byte on-disk format to expanded struct
+        memcpy((*id31header)->header,  header +   0,  3);
+        memcpy((*id31header)->title,   header +   3, 30);
+        memcpy((*id31header)->artist,  header +  33, 30);
+        memcpy((*id31header)->album,   header +  63, 30);
+        memcpy((*id31header)->year,    header +  93,  4);
+        memcpy((*id31header)->comment, header +  97, 28);
+        (*id31header)->zero     = header[125];
+        (*id31header)->tracknum = (unsigned char) header[126];
+        (*id31header)->genre    = (unsigned char) header[127];
         return 1;
     }
     // otherwise fail
@@ -991,6 +1005,34 @@ int TagRead::findNextChunk(MutexFsBaseFile *file, uint32_t end_pos, char chunk_i
     *pos += *size + 8;
     if (end_pos < *pos) { return 0; }
     return 1;
+}
+
+int TagRead::getID3v2FromWavChunk(MutexFsBaseFile *file)
+{
+    char str[12];
+    file->rewind();
+    file->read(str, 12);
+    if (str[ 0]=='R' && str[ 1]=='I' && str[ 2]=='F' && str[ 3]=='F' &&
+        str[ 8]=='W' && str[ 9]=='A' && str[10]=='V' && str[11]=='E')
+    {
+        uint32_t wav_end_pos;
+        memcpy(&wav_end_pos, &str[4], 4);
+        wav_end_pos += 8;
+        char chunk_id[4];
+        uint32_t pos = 12;
+        uint32_t size;
+        while (findNextChunk(file, wav_end_pos, chunk_id, &pos, &size)) {
+            if (memcmp(chunk_id, "id3 ", 4) == 0) {
+                uint32_t id3_body_pos = pos - size; // body starts after chunk_id(4) + size(4)
+                id32 *id32header = ID32Detect(file, id3_body_pos);
+                if (id32header) {
+                    id3v2 = id32header;
+                    return 1;
+                }
+            }
+        }
+    }
+    return 0;
 }
 
 int TagRead::getListChunk(MutexFsBaseFile *file)

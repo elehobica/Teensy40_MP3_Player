@@ -44,7 +44,8 @@
 
 #define DEBUG_PLAY_SD_FLAC
 #define FLAC_USE_SWI
-#define FLAC_BUFFERS(x)  ((x)*2)
+#define FLAC_BUFFERS_MIN 128
+#define FLAC_BUFFERS(x)  ((x)*2 < FLAC_BUFFERS_MIN ? FLAC_BUFFERS_MIN : (x)*2)
 
 class AudioPlaySdFlac : public AudioCodec
 {
@@ -55,6 +56,10 @@ public:
 	//int play(const char *filename) {stop();if (!fopen(filename)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
 	//int play(const size_t p, const size_t size) {stop();if (!fopen(p,size)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
 	//int play(const uint8_t*p, const size_t size) {stop();if (!fopen(p,size))  return ERR_CODEC_FILE_NOT_FOUND; return play();}
+	unsigned int sampleRate(void) { return samprate; }
+	unsigned int bitResolution(void) { return bitsPerSample; }
+	unsigned int parseHeader(MutexFsBaseFile *file);
+	unsigned positionMillis(void);
 	unsigned lengthMillis(void);
 	size_t fposition(void) { return AudioCodec::fposition() /*- sd_left*/; }
 
@@ -62,6 +67,8 @@ protected:
 
 	AudioBuffer *audiobuffer;
 	uint16_t	minbuffers = 0;
+	unsigned int	samprate;
+	unsigned short	bitsPerSample;
 	static FLAC__StreamDecoder	*hFLACDecoder;
 	static int run;
 

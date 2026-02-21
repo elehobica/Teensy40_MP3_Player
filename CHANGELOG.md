@@ -7,8 +7,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased]
 ### Added
 * Support S/PDIF output (I2S + S/PDIF, I2S and S/PDIF selection)
+* Support Hi-Res audio
+  * Support 24bit resolution for WAV and FLAC
+  * Support sampling frequencies other than 44.1KHz for WAV and FLAC
+* Display icon to indicate bit resolution and sampling frequency
+* Display codec icon
+* Support ID3 tag for WAV
 ### Changed
+* Change icon of audio files in FileView
 ### Fixed
+* Fix track number display for WAV case
+* Fix FileView icon to apply sorted order
 
 ## [v0.9.0] - 2026-02-17
 ### Added

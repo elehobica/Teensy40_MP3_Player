@@ -100,7 +100,7 @@ void AudioOutputSPDIF2::begin(void)
 void AudioOutputSPDIF2::isr(void)
 {
 	static uint16_t frame = 0;
-	const int16_t *src;
+	const int32_t *src;
 	int32_t *end, *dest;
 	audio_block_t *block;
 	uint32_t saddr, offset;
@@ -127,7 +127,7 @@ void AudioOutputSPDIF2::isr(void)
 		src = &block->data[offset];
 		do {
 
-			sample = *src++;
+			sample = (uint16_t)(*src++ >> 8); // int32_t (24bit) -> 16bit
 
 			//Subframe Channel 1
 			hi  = spdif_bmclookup[(uint8_t)(sample >> 8)];
@@ -179,7 +179,7 @@ void AudioOutputSPDIF2::isr(void)
 		src = &block->data[offset];
 
 		do {
-			sample = *src++;
+			sample = (uint16_t)(*src++ >> 8); // int32_t (24bit) -> 16bit
 
 			//Subframe Channel 2
 			hi  = spdif_bmclookup[(uint8_t)(sample >> 8)];
@@ -221,6 +221,17 @@ void AudioOutputSPDIF2::isr(void)
 void AudioOutputSPDIF2::mute_PCM(const bool mute)
 {
 	vucp = mute?VUCP_INVALID:VUCP_VALID;
+}
+
+void AudioOutputSPDIF2::setFrequency(float fs)
+{
+	// PLL4 is already configured by AudioOutputI2S::setFrequency()
+	// Only update SAI2 clock dividers
+	int n1 = 4; //SAI prescaler 4 => (n1*n2) = multiple of 4
+	int n2 = 1 + (24000000 * 27) / ((int)fs * 256 * n1);
+	CCM_CS2CDR = (CCM_CS2CDR & ~(CCM_CS2CDR_SAI2_CLK_PRED_MASK | CCM_CS2CDR_SAI2_CLK_PODF_MASK))
+		   | CCM_CS2CDR_SAI2_CLK_PRED(n1-1)
+		   | CCM_CS2CDR_SAI2_CLK_PODF(n2-1);
 }
 
 void AudioOutputSPDIF2::update(void)

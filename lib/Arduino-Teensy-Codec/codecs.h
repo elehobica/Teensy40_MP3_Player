@@ -143,12 +143,14 @@ public:
 	bool isPlaying(void) {return playing > 0;}
 	bool isPaused(void) {return playing == codec_paused;}
 	//unsigned positionMillis(void) { return (AUDIO_SAMPLE_RATE_EXACT / 1000) * samples_played;}
-	unsigned positionMillis(void) {return (unsigned) ((uint64_t) samples_played * 1000 / AUDIO_SAMPLE_RATE_EXACT);}
+	virtual unsigned positionMillis(void) {return (unsigned) ((uint64_t) samples_played * 1000 / AUDIO_SAMPLE_RATE_EXACT);}
 	//unsigned lengthMillis(void) {return max(fsize() / (bitrate / 8 ) * 1000,  positionMillis());} //Ignores VBR
 	virtual unsigned lengthMillis(void) {return max(fsize() * 8 / bitrate,  positionMillis());} //Ignores VBR
 	unsigned getSamplesPlayed(void) {return samples_played;}
 	int channels(void) {return _channels;}
 	int bitRate(void) {return bitrate;}
+	virtual unsigned int sampleRate(void) { return AUDIOCODECS_SAMPLE_RATE; }
+	virtual unsigned int bitResolution(void) { return 16; }
 	void processorUsageMaxResetDecoder(void){__disable_irq();decode_cycles_max = decode_cycles_max_read = 0;__enable_irq();}
 	int freeRam(void);
 	virtual size_t fposition(void) {return CodecFile::fposition();}

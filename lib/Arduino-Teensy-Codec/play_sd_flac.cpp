@@ -52,14 +52,27 @@ int AudioPlaySdFlac::run = 0;
 
 AudioPlaySdFlac *flacobjptr;
 
+static bool isValidSampleRate(unsigned int sr) {
+	return (sr == 44100 || sr == 48000 || sr == 88200 ||
+	        sr == 96000 || sr == 176400 || sr == 192000);
+}
+
 void decodeFlac(void);
 
 void AudioPlaySdFlac::stop(void)
 {
 	NVIC_DISABLE_IRQ(IRQ_AUDIOCODEC);
-	
+
 	playing = codec_stopped;
 	run = 0;
+	flacobjptr = NULL;
+
+	// Wait for codec_thread to exit write_callback's wait loop
+	// and return from FLAC__stream_decoder_process_single()
+	for (int i = 0; i < 10; i++) {
+		threads.yield();
+		delay(5);
+	}
 
 	if (audiobuffer != NULL) {
 		delete audiobuffer;
@@ -72,7 +85,6 @@ void AudioPlaySdFlac::stop(void)
 		hFLACDecoder=NULL;
 	};
 	fclose();
-	flacobjptr = NULL;
 }
 
 #if 0
@@ -161,9 +173,9 @@ int AudioPlaySdFlac::play(const size_t p, const size_t size){
 int AudioPlaySdFlac::play(size_t position, unsigned samples_played)
 {
 	lastError = ERR_CODEC_NONE;
-	unsigned short samprate;
-	unsigned short bitsPerSample;
 	initVars();
+	samprate = AUDIOCODECS_SAMPLE_RATE;
+	bitsPerSample = 16;
 
 	hFLACDecoder = FLAC__stream_decoder_new();
 	if (!hFLACDecoder) return ERR_CODEC_OUT_OF_MEMORY;
@@ -203,7 +215,11 @@ int AudioPlaySdFlac::play(size_t position, unsigned samples_played)
 	initSwi();
 #endif
 
-	decodeFlac_core();
+	// Pre-fill buffer before starting playback (like WAV's double-buffer fill)
+	decodeFlac_core();  // Decode first frame (also allocates audiobuffer)
+	if (audiobuffer != NULL && audiobuffer->getBufsize() > 0 && audiobuffer->available() >= minbuffers) {
+		decodeFlac_core();  // Fill remaining buffer for small-block files
+	}
 
 	// For Resume play with 'position'
 	if (position != 0 && position < fsize()) {
@@ -216,7 +232,8 @@ int AudioPlaySdFlac::play(size_t position, unsigned samples_played)
 	bitsPerSample = FLAC__stream_decoder_get_bits_per_sample(hFLACDecoder);
 	bitrate = (unsigned short) ((unsigned long) samprate * bitsPerSample * _channels / 1000);
 
-	if (samprate != AUDIOCODECS_SAMPLE_RATE || _channels > 2) {
+	if (!isValidSampleRate(samprate) || _channels > 2 ||
+		(bitsPerSample != 16 && bitsPerSample != 24)) {
 		Serial.println("incompatible FLAC file.");
 		lastError = ERR_CODEC_FORMAT;
 		stop();
@@ -331,9 +348,10 @@ FLAC__bool eof_callback(const FLAC__StreamDecoder* decoder, void* client_data)
 
 void error_callback(const FLAC__StreamDecoder *decoder, FLAC__StreamDecoderErrorStatus status, void *client_data)
 {
-	//Serial.println(FLAC__StreamDecoderErrorStatusString[status]);
-	//((AudioPlaySdFlac*)client_data)->stop();
-	//Serial.print("ERROR ");
+#ifdef DEBUG_PLAY_SD_FLAC
+	Serial.print("[FLAC] error_callback: ");
+	Serial.println(FLAC__StreamDecoderErrorStatusString[status]);
+#endif
 }
 
 /**
@@ -362,85 +380,49 @@ FLAC__StreamDecoderWriteStatus write_callback(const FLAC__StreamDecoder *decoder
 		obj->minbuffers	= numbuffers;
 	}
 
-	if ( frame->header.sample_rate != AUDIOCODECS_SAMPLE_RATE ||
-		chan==0 || chan> 2 ||
-		blocksize < AUDIO_BLOCK_SAMPLES ||
-		obj->audiobuffer->available() < numbuffers
+	if (chan==0 || chan> 2 ||
+		blocksize < AUDIO_BLOCK_SAMPLES
 		)
 		return FLAC__STREAM_DECODER_WRITE_STATUS_ABORT;
 
-	//Copy all the data to the fifo. Decoded buffer is 32 bit, fifo is 16 bit
-	//int16_t *abufPtr = obj->audiobuffer->alloc(numbuffers);
-	//Serial.printf("Free:%d Req:%d\r\n", obj->audiobuffer->available(), numbuffers);
+	// Wait for ISR to consume enough buffer data instead of aborting
+	// (ABORT would discard the decoded frame, causing skipped audio)
+	while (obj->audiobuffer->available() < numbuffers) {
+		if (obj->playing == codec_stopped) {
+			return FLAC__STREAM_DECODER_WRITE_STATUS_ABORT;
+		}
+		threads.yield();
+	}
 
-
+	//Copy all the data to the fifo. All samples are normalized to 24-bit in int32_t.
 	const FLAC__int32 *sbuf;
 	const FLAC__int32 *k;
-	if (bps==16) //16 BITS / SAMPLE
+	int shift = 24 - bps; // 16bit: shift=8, 24bit: shift=0
+	int j = 0;
+	do
 	{
-		int j = 0;
+		int i = 0;
 		do
 		{
-			int i = 0;
-			do
-			{
-				sbuf = &buffer[i][j];
-				k = sbuf + AUDIO_BLOCK_SAMPLES;
-				int16_t *abufPtr = obj->audiobuffer->alloc();
+			sbuf = &buffer[i][j];
+			k = sbuf + AUDIO_BLOCK_SAMPLES;
+			int32_t *abufPtr = obj->audiobuffer->alloc();
+			if (shift >= 0) {
 				do
 				{
-					*abufPtr++ = (*sbuf++);
+					*abufPtr++ = (int32_t)(*sbuf++) << shift;
 				} while (sbuf < k);
-
-			} while (++i < chan);
-
-			j+=	AUDIO_BLOCK_SAMPLES;
-		} while (j < blocksize);
-	}
-	else if (bps < 16) //2..15 BITS /SAMPLE
-	{
-		int shift = 16-bps;
-		int j = 0;
-		do
-		{
-			int i = 0;
-			do
-			{
-				sbuf = &buffer[i][j];
-				k = sbuf + AUDIO_BLOCK_SAMPLES;
-				int16_t *abufPtr = obj->audiobuffer->alloc();
+			} else {
+				int rshift = -shift;
 				do
 				{
-					*abufPtr++ = (*sbuf++)<<shift;
+					*abufPtr++ = (int32_t)(*sbuf++) >> rshift;
 				} while (sbuf < k);
+			}
+		} while (++i < chan);
 
-			} while (++i < chan);
-
-			j+=	AUDIO_BLOCK_SAMPLES;
-		} while (j < blocksize);
-	}
-	else  //17..32 BITS /SAMPLE
-	{
-		int shift = bps-16;
-		int j = 0;
-		do
-		{
-			int i = 0;
-			do
-			{
-				sbuf = &buffer[i][j];
-				k = sbuf + AUDIO_BLOCK_SAMPLES;
-				int16_t *abufPtr = obj->audiobuffer->alloc();
-				do
-				{
-					*abufPtr++ = (*sbuf++)>>shift;
-				} while (sbuf < k);
-
-			} while (++i < chan);
-
-			j+=	AUDIO_BLOCK_SAMPLES;
-		} while (j < blocksize);
-	}
+		j+=	AUDIO_BLOCK_SAMPLES;
+	} while (j < blocksize);
 
 	return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
 }
@@ -469,8 +451,8 @@ void AudioPlaySdFlac::update(void)
 				release(audioblockL);
 				return;
 			}
-			int16_t *abufptrL = audiobuffer->get();
-			int16_t *abufptrR = audiobuffer->get();
+			int32_t *abufptrL = audiobuffer->get();
+			int32_t *abufptrR = audiobuffer->get();
 			for (int j=0; j < AUDIO_BLOCK_SAMPLES; j++)
 			{
 				audioblockL->data[j] = *abufptrL++;
@@ -482,12 +464,13 @@ void AudioPlaySdFlac::update(void)
 			release(audioblockR);
 		} else
 		{
-			int16_t *abufptrL = audiobuffer->get();
+			int32_t *abufptrL = audiobuffer->get();
 			for (int j=0; j < AUDIO_BLOCK_SAMPLES; j++)
 			{
 				audioblockL->data[j] = *abufptrL++;
 			}
 			transmit(audioblockL, 0);
+			transmit(audioblockL, 1);
 			release(audioblockL);
 		}
 
@@ -587,11 +570,34 @@ void AudioPlaySdFlac::stop_for_next(void)
 }
 #endif
 
+unsigned AudioPlaySdFlac::positionMillis(void)
+{
+	return (samprate > 0) ? (unsigned)((uint64_t)samples_played * 1000 / samprate) : 0;
+}
+
 unsigned AudioPlaySdFlac::lengthMillis(void)
 {
-	if (hFLACDecoder != NULL)
-		//return (AUDIO_SAMPLE_RATE_EXACT / 1000) * FLAC__stream_decoder_get_total_samples(hFLACDecoder);
-		return ((uint64_t) FLAC__stream_decoder_get_total_samples(hFLACDecoder) * 1000 / AUDIO_SAMPLE_RATE_EXACT);
+	if (hFLACDecoder != NULL && samprate > 0)
+		return ((uint64_t) FLAC__stream_decoder_get_total_samples(hFLACDecoder) * 1000 / samprate);
 	else
 		return 0;
+}
+
+unsigned int AudioPlaySdFlac::parseHeader(MutexFsBaseFile *file)
+{
+	uint8_t buf[42];
+	uint64_t saved_pos = file->curPosition();
+	file->seekSet(0);
+	int bytes_read = file->read(buf, sizeof(buf));
+	file->seekSet(saved_pos);
+	if (bytes_read < 42) return 0;
+	// Check "fLaC" marker
+	if (buf[0]!='f' || buf[1]!='L' || buf[2]!='a' || buf[3]!='C') return 0;
+	// Check STREAMINFO block type (lower 7 bits should be 0)
+	if ((buf[4] & 0x7F) != 0) return 0;
+	// STREAMINFO data starts at buf[8]
+	uint8_t *si = buf + 8;
+	samprate = ((unsigned int)si[10] << 12) | ((unsigned int)si[11] << 4) | (si[12] >> 4);
+	bitsPerSample = ((si[12] & 1) << 4 | (si[13] >> 4)) + 1;
+	return samprate;
 }

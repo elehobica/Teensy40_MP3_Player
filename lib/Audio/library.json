@@ -30,5 +30,15 @@
   "examples": [
     "examples/*/*.ino",
     "examples/*/*/*.ino"
-  ]
+  ],
+  "build": {
+    "srcFilter": [
+      "+<AudioStream.cpp>",
+      "+<mixer.cpp>",
+      "+<output_i2s.cpp>",
+      "+<output_spdif2.cpp>",
+      "+<data_spdif.c>",
+      "+<utility/>"
+    ]
+  }
 }

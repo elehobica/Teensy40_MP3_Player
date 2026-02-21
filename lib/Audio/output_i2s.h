@@ -42,6 +42,7 @@ public:
 	static void volume_down(void);
 	static void set_volume(uint8_t value);
 	static uint8_t get_volume(void);
+	static void setFrequency(float fs);
 #if defined(__IMXRT1062__)
 	friend class AudioOutputI2SQuad;
 	friend class AudioInputI2SQuad;

@@ -511,10 +511,17 @@ int file_menu_match_ext(uint16_t order, const char *ext, size_t ext_size)
 	file_menu_get_fname(order, name, sizeof(name));
 	char* ext_pos = strrchr(name, '.');
 	if (ext_pos) {
-		if (strncmp(ext_pos+1, ext, ext_size) == 0) { return 1; }
+		if (strncasecmp(ext_pos+1, ext, ext_size) == 0) { return 1; }
 	}
 	return 0;
+}
 
+int file_menu_is_audio(uint16_t order)
+{
+	for (size_t i = 0; i < audio_ext_count; i++) {
+		if (file_menu_match_ext(order, audio_ext[i], strlen(audio_ext[i]))) { return 1; }
+	}
+	return 0;
 }
 
 uint16_t file_menu_get_ext_num(const char *ext, size_t ext_size)
@@ -522,13 +529,15 @@ uint16_t file_menu_get_ext_num(const char *ext, size_t ext_size)
 	uint16_t count = 0;
 	for (int i = 1; i < max_entry_cnt; i++) {
 		if (file_menu_match_ext(i, ext, ext_size)) { count++; }
-		/*
-		file_menu_get_fname(i, name, sizeof(name));
-		char* ext_pos = strrchr(name, '.');
-        if (ext_pos) {
-            if (strncmp(ext_pos+1, ext, ext_size) == 0) { count++; }
-        }
-		*/
+	}
+	return count;
+}
+
+uint16_t file_menu_get_audio_num(void)
+{
+	uint16_t count = 0;
+	for (int i = 1; i < max_entry_cnt; i++) {
+		if (file_menu_is_audio(i)) { count++; }
 	}
 	return count;
 }

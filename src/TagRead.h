@@ -17,9 +17,9 @@
 
 typedef struct _id31 {
     char header[3];
-    char title[30];
-    char artist[30];
-    char album[30];
+    char title[128];  // 30 for ID3v1
+    char artist[128]; // 30 for ID3v1
+    char album[128];  // 30 for ID3v1
     char year[4];
     char comment[28];
     char zero;
@@ -143,7 +143,7 @@ private:
     size_t getBESize4SyncSafe(unsigned char *buf);
 
     int GetID3HeadersFull(MutexFsBaseFile *infile, int testfail, id31** id31save, id32** id32save);
-    id32* ID32Detect(MutexFsBaseFile *infile);
+    id32* ID32Detect(MutexFsBaseFile *infile, uint32_t pos = 0);
     int GetID32UTF8(const char *id3v22, const char *id3v23, char *str, size_t size);
     int GetID3IDCount(const char *id3v22, const char *id3v23);
     void ID32Print(id32* id32header);
@@ -154,6 +154,7 @@ private:
     void ID31Print(id31* id31header);
     void ID31Free(id31* id31header);
 
+    int getID3v2FromWavChunk(MutexFsBaseFile *file);
     int getListChunk(MutexFsBaseFile *file);
     int findNextChunk(MutexFsBaseFile *file, uint32_t end_pos, char chunk_id[4], uint32_t *pos, uint32_t *size);
 

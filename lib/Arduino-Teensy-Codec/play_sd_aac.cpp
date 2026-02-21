@@ -428,7 +428,13 @@ void AudioPlaySdAac::update(void)
 			return;
 		}
 
-		memcpy_frominterleaved(&block_left->data[0], &block_right->data[0], buf[playing_block] + pl);
+		{
+			short *src = buf[playing_block] + pl;
+			for (int i = 0; i < AUDIO_BLOCK_SAMPLES; i++) {
+				block_left->data[i]  = (int32_t)src[i * 2]     << 8;
+				block_right->data[i] = (int32_t)src[i * 2 + 1] << 8;
+			}
+		}
 
 		pl += AUDIO_BLOCK_SAMPLES * 2 ;
 		transmit(block_left, 0);
@@ -439,8 +445,12 @@ void AudioPlaySdAac::update(void)
 	} else
 	{
 		// if we're playing mono, no right-side block
-		// let's do a (hopefully good optimized) simple memcpy
-		memcpy(block_left->data, buf[playing_block] + pl, AUDIO_BLOCK_SAMPLES * sizeof(short));
+		{
+			short *src = buf[playing_block] + pl;
+			for (int i = 0; i < AUDIO_BLOCK_SAMPLES; i++) {
+				block_left->data[i] = (int32_t)src[i] << 8;
+			}
+		}
 
 		pl += AUDIO_BLOCK_SAMPLES;
 		transmit(block_left, 0);
@@ -479,7 +489,14 @@ void decodeAac_core(void)
 {
 	if (aacobjptr == NULL) return;
 	AudioPlaySdAac *o = aacobjptr;
-	int db = o->decoding_block;
+
+	// Capture decoding_block at state 0 and reuse for subsequent states
+	// to prevent race condition where ISR changes decoding_block between states
+	static int saved_db = 0;
+	if (o->decoding_state == 0) {
+		saved_db = o->decoding_block;
+	}
+	int db = saved_db;
 
 	int eof = false;
 	uint32_t cycles = ARM_DWT_CYCCNT;

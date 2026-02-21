@@ -46,7 +46,7 @@ public:
 	~AudioBuffer(){ if (data) free(data); init(); }
 	void allocMem(size_t size){
 		__disable_irq();
-		data = (int16_t*) malloc(size *	AUDIO_BLOCK_SAMPLES * sizeof(int16_t));
+		data = (int32_t*) malloc(size *	AUDIO_BLOCK_SAMPLES * sizeof(int32_t));
 		if (data) bufsize=freespace=size; else bufsize=freespace=0;
 		read=write=0;
 		__enable_irq();
@@ -54,9 +54,9 @@ public:
 	size_t available(){ return freespace; }
 	size_t used(){ return bufsize-freespace; }
 	size_t getBufsize(void) {return bufsize;}
-	int16_t *alloc(void)
+	int32_t *alloc(void)
 	{
-		int16_t *ret = NULL;
+		int32_t *ret = NULL;
 		__disable_irq();
 		if (freespace > 0)
 		{
@@ -68,9 +68,9 @@ public:
 		__enable_irq();
 		return ret;
 	}
-	int16_t *get(void)
+	int32_t *get(void)
 	{
-		int16_t *ret = NULL;
+		int32_t *ret = NULL;
 		__disable_irq();
 		if (freespace < bufsize) {
 			freespace++;
@@ -83,7 +83,7 @@ public:
 	}
 protected:
 	void init(void) {bufsize=freespace=read=write=0;data=NULL;}
-	int16_t *data;
+	int32_t *data;
 	size_t bufsize, freespace, read, write;
 
 };

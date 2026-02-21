@@ -124,11 +124,21 @@ void UIFileViewMode::listIdxItems()
             lcd->setListItem(i, ""); // delete
             continue;
         }
-        const uint8_t *icon = file_menu_is_dir(vars->idx_head+i) ? ICON16x16_FOLDER : ICON16x16_FILE;
         if (vars->idx_head+i == 0) {
-            lcd->setListItem(i, "..", icon, (i == vars->idx_column));
+            lcd->setListItem(i, "..", ICON16x16_FOLDER, (i == vars->idx_column));
         } else {
+            // Get filename first: this triggers file_menu_sort_entry() inside,
+            // ensuring entry_list is sorted before file_menu_is_dir() reads it
             file_menu_get_fname_UTF16(vars->idx_head+i, (char16_t *) str, sizeof(str)/2);
+            uint16_t idx = vars->idx_head+i;
+            const uint8_t *icon;
+            if (file_menu_is_dir(idx)) {
+                icon = ICON16x16_FOLDER;
+            } else if (file_menu_is_audio(idx)) {
+                icon = ICON16x16_TITLE;
+            } else {
+                icon = ICON16x16_FILE;
+            }
             lcd->setListItem(i, utf16_to_utf8((const char16_t *) str).c_str(), icon, (i == vars->idx_column), utf8);
         }
     }
@@ -137,22 +147,12 @@ void UIFileViewMode::listIdxItems()
 bool UIFileViewMode::isAudioFile()
 {
     uint16_t idx = vars->idx_head + vars->idx_column;
-    return (
-        file_menu_match_ext(idx, "mp3", 3) ||  file_menu_match_ext(idx, "MP3", 3) ||  
-        file_menu_match_ext(idx, "wav", 3) ||  file_menu_match_ext(idx, "WAV", 3) ||  
-        file_menu_match_ext(idx, "m4a", 3) ||  file_menu_match_ext(idx, "M4A", 3) ||  
-        file_menu_match_ext(idx, "flac", 4) ||  file_menu_match_ext(idx, "FLAC", 4)
-    );
+    return file_menu_is_audio(idx);
 }
 
 uint16_t UIFileViewMode::getNumAudioFiles()
 {
-    uint16_t num_tracks = 0;
-    num_tracks += file_menu_get_ext_num("mp3", 3) + file_menu_get_ext_num("MP3", 3);
-    num_tracks += file_menu_get_ext_num("wav", 3) + file_menu_get_ext_num("WAV", 3);
-    num_tracks += file_menu_get_ext_num("m4a", 3) + file_menu_get_ext_num("M4A", 3);
-    num_tracks += file_menu_get_ext_num("flac", 4) + file_menu_get_ext_num("FLAC", 4);
-    return num_tracks;
+    return file_menu_get_audio_num();
 }
 
 void UIFileViewMode::chdir()
@@ -512,8 +512,12 @@ UIMode* UIPlayMode::update()
         if (next_audio_codec_enm != CodecNone) {
             readTag();
             while (codec->isPlaying()) { /*delay(1);*/ } // minimize gap between tracks
-            audio_set_codec(next_audio_codec_enm);
+            current_codec_enm = next_audio_codec_enm;
+            audio_set_codec(current_codec_enm);
             audio_play(&file);
+            lcd->setBitResolution(codec->bitResolution());
+            lcd->setSampleFreq(codec->sampleRate());
+            lcd->setCodec(current_codec_enm);
             lcd->switchToPlay();
         } else {
             while (codec->isPlaying()) { delay(1); }
@@ -523,7 +527,7 @@ UIMode* UIPlayMode::update()
         }
     }
     lcd->setVolume(audio_get_volume());
-    lcd->setBitRate(codec->bitRate());
+    lcd->setBitRate((current_codec_enm == CodecMp3 || current_codec_enm == CodecAac) ? codec->bitRate() : 0);
     lcd->setPlayTime(codec->positionMillis()/1000, codec->lengthMillis()/1000, codec->isPaused());
     lcd->setBatteryVoltage(vars->bat_mv);
     idle_count++;
@@ -538,31 +542,28 @@ audio_codec_enm_t UIPlayMode::getAudioCodec(MutexFsBaseFile *f)
     char str[256];
 
     while (vars->idx_play + ofs < file_menu_get_num()) {
-        file_menu_get_obj(vars->idx_play + ofs, f);
-        f->getName(str, sizeof(str));
-        char* ext_pos = strrchr(str, '.');
-        if (ext_pos) {
-            if (strncmp(ext_pos, ".mp3", 4) == 0 || strncmp(ext_pos, ".MP3", 4) == 0) {
-                audio_codec_enm = CodecMp3;
-                flg = true;
-                break;
-            } else if (strncmp(ext_pos, ".wav", 4) == 0 || strncmp(ext_pos, ".WAV", 4) == 0) {
-                audio_codec_enm = CodecWav;
-                flg = true;
-                break;
-            } else if (strncmp(ext_pos, ".m4a", 4) == 0 || strncmp(ext_pos, ".M4A", 4) == 0) {
-                audio_codec_enm = CodecAac;
-                flg = true;
-                break;
-            } else if (strncmp(ext_pos, ".flac", 5) == 0 || strncmp(ext_pos, ".FLAC", 5) == 0) {
-                audio_codec_enm = CodecFlac;
-                flg = true;
-                break;
-            }
+        uint16_t idx = vars->idx_play + ofs;
+        if (file_menu_match_ext(idx, "mp3")) {
+            audio_codec_enm = CodecMp3;
+            flg = true;
+            break;
+        } else if (file_menu_match_ext(idx, "wav")) {
+            audio_codec_enm = CodecWav;
+            flg = true;
+            break;
+        } else if (file_menu_match_ext(idx, "m4a")) {
+            audio_codec_enm = CodecAac;
+            flg = true;
+            break;
+        } else if (file_menu_match_ext(idx, "flac")) {
+            audio_codec_enm = CodecFlac;
+            flg = true;
+            break;
         }
         ofs++;
     }
     if (flg) {
+        file_menu_get_obj(vars->idx_play + ofs, f);
         file_menu_get_fname_UTF16(vars->idx_play + ofs, (char16_t *) str, sizeof(str)/2);
         Serial.println(utf16_to_utf8((const char16_t *) str).c_str());
         vars->idx_play += ofs;
@@ -590,7 +591,14 @@ void UIPlayMode::readTag()
         uint16_t track = atoi(str);
         sprintf(str, "%d / %d", track, vars->num_tracks);
     } else {
-        sprintf(str, "%d / %d", vars->idx_play, vars->num_tracks);
+        // Count audio-only track number (skip non-audio files)
+        uint16_t audio_track = 0;
+        for (uint16_t i = 1; i <= vars->idx_play; i++) {
+            if (file_menu_is_audio(i)) {
+                audio_track++;
+            }
+        }
+        sprintf(str, "%d / %d", audio_track, vars->num_tracks);
     }
     lcd->setTrack(str);
     if (tag.getUTF8Title(str, sizeof(str))) {
@@ -617,11 +625,10 @@ void UIPlayMode::readTag()
         while (idx < file_menu_get_num()) {
             MutexFsBaseFile f;
             file_menu_get_obj(idx, &f);
-            if (file_menu_match_ext(idx, "jpg", 3) || file_menu_match_ext(idx, "JPG", 3) || 
-                file_menu_match_ext(idx, "jpeg", 4) || file_menu_match_ext(idx, "JPEG", 4)) {
+            if (file_menu_match_ext(idx, "jpg") || file_menu_match_ext(idx, "jpeg")) {
                 lcd->addAlbumArtJpeg(idx, 0, f.fileSize());
                 img_cnt++;
-            } else if (file_menu_match_ext(idx, "png", 3) || file_menu_match_ext(idx, "PNG", 3)) {
+            } else if (file_menu_match_ext(idx, "png")) {
                 lcd->addAlbumArtPng(idx, 0, f.fileSize());
                 img_cnt++;
             }
@@ -635,9 +642,14 @@ void UIPlayMode::entry(UIMode *prevMode)
     MutexFsBaseFile file;
     UIMode::entry(prevMode);
     if (prevMode->getUIModeEnm() != ConfigMode) {
-        audio_set_codec(getAudioCodec(&file));
+        current_codec_enm = getAudioCodec(&file);
+        audio_set_codec(current_codec_enm);
         readTag();
         audio_play(&file);
+        AudioCodec *codec = audio_get_codec();
+        lcd->setBitResolution(codec->bitResolution());
+        lcd->setSampleFreq(codec->sampleRate());
+        lcd->setCodec(current_codec_enm);
     }
     lcd->switchToPlay();
 }

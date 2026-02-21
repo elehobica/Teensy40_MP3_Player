@@ -48,6 +48,8 @@ Threads::Event codec_event;
 uint8_t last_volume = 65;
 size_t _fpos = 0;
 uint32_t _samples_played = 0;
+static unsigned int current_sample_rate = AUDIOCODECS_SAMPLE_RATE;
+static const unsigned int SAMPLE_RATE_SWITCH_SILENCE_MS = 1000;
 
 void codec_thread()
 {
@@ -67,7 +69,7 @@ void codec_thread()
         decodeMp3_core();
         decodeWav_core();
         decodeAac_core_x2();
-        decodeFlac_core_half();
+        decodeFlac_core();
     }
 }
 
@@ -133,7 +135,34 @@ void audio_volume_down()
 
 void audio_play(MutexFsBaseFile *file)
 {
+    // Detect sample rate from WAV/FLAC header; default to 44100 for other codecs
+    unsigned int target_sr = AUDIOCODECS_SAMPLE_RATE;
+    if (codec == &playWav) {
+        unsigned int wav_sr = playWav.parseHeader(file);
+        if (wav_sr > 0) {
+            target_sr = wav_sr;
+        }
+    } else if (codec == &playFlac) {
+        unsigned int flac_sr = playFlac.parseHeader(file);
+        if (flac_sr > 0) {
+            target_sr = flac_sr;
+        }
+    }
+    // Reconfigure I2S/SPDIF clocks if sample rate changed
+    if (target_sr != current_sample_rate) {
+        audio_i2s_mute(true);
+        audio_spdif_mute(true);
+        AudioOutputI2S::setFrequency((float)target_sr);
+        AudioOutputSPDIF2::setFrequency((float)target_sr);
+        delay(1);
+        audio_spdif_mute(false);
+        audio_i2s_mute(false);
+        // Feed silence during DAC fade-in to prevent head clipping
+        delay(SAMPLE_RATE_SWITCH_SILENCE_MS);
+        current_sample_rate = target_sr;
+    }
     codec->play(file, _fpos, _samples_played);
+    Serial.printf("[audio] %ubit / %uHz / %dch\r\n", codec->bitResolution(), codec->sampleRate(), codec->channels());
     _fpos = 0;
     _samples_played = 0;
 }

@@ -193,7 +193,49 @@ void LcdCanvas::setListItem(int column, const char *str, const uint8_t *icon, bo
 
 void LcdCanvas::setBitRate(uint16_t value)
 {
-    bitRate.setFormatText("%dKbps", (int) value);
+    if (value > 0) {
+        bitRate.setFormatText("%dKbps", (int) value);
+    } else {
+        bitRate.setText("");
+    }
+}
+
+void LcdCanvas::setBitResolution(uint16_t value)
+{
+    switch(value) {
+        case 16: memcpy(&bitSampIcon[0], ICON16x16_16BIT, 16); break;
+        case 24: memcpy(&bitSampIcon[0], ICON16x16_24BIT, 16); break;
+        case 32: memcpy(&bitSampIcon[0], ICON16x16_32BIT, 16); break;
+        default: memset(&bitSampIcon[0], 0, 16); break;
+    }
+    bitSamp.setIcon(bitSampIcon);
+}
+
+void LcdCanvas::setSampleFreq(uint32_t sampFreq)
+{
+    switch(sampFreq) {
+        case 44100:  memcpy(&bitSampIcon[16], ICON16x16_44_1KHZ  + 16, 16); break;
+        case 48000:  memcpy(&bitSampIcon[16], ICON16x16_48_0KHZ  + 16, 16); break;
+        case 88200:  memcpy(&bitSampIcon[16], ICON16x16_88_2KHZ  + 16, 16); break;
+        case 96000:  memcpy(&bitSampIcon[16], ICON16x16_96_0KHZ  + 16, 16); break;
+        case 176400: memcpy(&bitSampIcon[16], ICON16x16_176_4KHZ + 16, 16); break;
+        case 192000: memcpy(&bitSampIcon[16], ICON16x16_192_0KHZ + 16, 16); break;
+        default: memset(&bitSampIcon[16], 0, 16); break;
+    }
+    bitSamp.setIcon(bitSampIcon);
+}
+
+void LcdCanvas::setCodec(audio_codec_enm_t codec_enm)
+{
+    const uint8_t *icon;
+    switch (codec_enm) {
+        case CodecMp3:  icon = ICON16x16_MP3;  break;
+        case CodecAac:  icon = ICON16x16_AAC;  break;
+        case CodecWav:  icon = ICON16x16_WAV;  break;
+        case CodecFlac: icon = ICON16x16_FLAC; break;
+        default:        icon = (const uint8_t *)NULL; break;
+    }
+    codecIcon.setIcon(icon);
 }
 
 void LcdCanvas::setVolume(uint8_t value)
