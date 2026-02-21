@@ -69,7 +69,7 @@ void codec_thread()
         decodeMp3_core();
         decodeWav_core();
         decodeAac_core_x2();
-        decodeFlac_core_half();
+        decodeFlac_core();
     }
 }
 

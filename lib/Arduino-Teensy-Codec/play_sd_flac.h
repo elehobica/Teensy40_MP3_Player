@@ -44,7 +44,8 @@
 
 #define DEBUG_PLAY_SD_FLAC
 #define FLAC_USE_SWI
-#define FLAC_BUFFERS(x)  ((x)*2)
+#define FLAC_BUFFERS_MIN 128
+#define FLAC_BUFFERS(x)  ((x)*2 < FLAC_BUFFERS_MIN ? FLAC_BUFFERS_MIN : (x)*2)
 
 class AudioPlaySdFlac : public AudioCodec
 {
