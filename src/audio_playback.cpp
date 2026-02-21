@@ -135,12 +135,17 @@ void audio_volume_down()
 
 void audio_play(MutexFsBaseFile *file)
 {
-    // Detect sample rate from WAV header; default to 44100 for other codecs
+    // Detect sample rate from WAV/FLAC header; default to 44100 for other codecs
     unsigned int target_sr = AUDIOCODECS_SAMPLE_RATE;
     if (codec == &playWav) {
         unsigned int wav_sr = playWav.parseHeader(file);
         if (wav_sr > 0) {
             target_sr = wav_sr;
+        }
+    } else if (codec == &playFlac) {
+        unsigned int flac_sr = playFlac.parseHeader(file);
+        if (flac_sr > 0) {
+            target_sr = flac_sr;
         }
     }
     // Reconfigure I2S/SPDIF clocks if sample rate changed
