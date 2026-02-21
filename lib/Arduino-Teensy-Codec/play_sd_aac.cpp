@@ -58,6 +58,31 @@ extern Threads::Event codec_event;
 
 static AudioPlaySdAac 	*aacobjptr;
 
+static bool isValidSampleRate(unsigned int sr) {
+	return (sr == 44100 || sr == 48000);
+}
+
+// Find an MP4 atom by name within [start, end) range in the given file.
+// Returns the atom's data start position (after 8-byte header), or 0 if not found.
+// If atom_end is non-NULL, sets it to the end position of the found atom.
+static uint64_t findAtomIn(MutexFsBaseFile *file, const char *name, uint64_t start, uint64_t end, uint64_t *atom_end)
+{
+	uint8_t hdr[8];
+	uint64_t pos = start;
+	while (pos + 8 <= end) {
+		file->seekSet(pos);
+		if (file->read(hdr, 8) < 8) return 0;
+		uint32_t size = (uint32_t)hdr[0] << 24 | (uint32_t)hdr[1] << 16 | (uint32_t)hdr[2] << 8 | hdr[3];
+		if (size < 8) return 0;
+		if (memcmp(hdr + 4, name, 4) == 0) {
+			if (atom_end) *atom_end = pos + size;
+			return pos + 8;
+		}
+		pos += size;
+	}
+	return 0;
+}
+
 void decodeAac(void);
 
 void AudioPlaySdAac::stop(void)
@@ -71,6 +96,52 @@ void AudioPlaySdAac::stop(void)
 	if (hAACDecoder) {AACFreeDecoder(hAACDecoder);hAACDecoder=NULL;};
 	fclose();
 	aacobjptr = NULL;
+}
+
+unsigned int AudioPlaySdAac::parseHeader(MutexFsBaseFile *file)
+{
+	uint64_t saved_pos = file->curPosition();
+	uint64_t file_size = file->fileSize();
+	uint64_t end;
+
+	// Verify ftyp atom exists (confirms MP4/M4A format)
+	if (!findAtomIn(file, "ftyp", 0, file_size, NULL)) {
+		file->seekSet(saved_pos);
+		return 0;
+	}
+
+	// Navigate: moov -> trak -> mdia -> mdhd
+	uint64_t moov = findAtomIn(file, "moov", 0, file_size, &end);
+	if (!moov) { file->seekSet(saved_pos); return 0; }
+
+	uint64_t trak = findAtomIn(file, "trak", moov, end, &end);
+	if (!trak) { file->seekSet(saved_pos); return 0; }
+
+	uint64_t mdia = findAtomIn(file, "mdia", trak, end, &end);
+	if (!mdia) { file->seekSet(saved_pos); return 0; }
+
+	uint64_t mdhd = findAtomIn(file, "mdhd", mdia, end, NULL);
+	if (!mdhd) { file->seekSet(saved_pos); return 0; }
+
+	// mdhd data layout: version(1) + flags(3) + ...
+	// Version 0: creation(4) + modification(4) + timescale(4) → timescale at offset 12
+	// Version 1: creation(8) + modification(8) + timescale(4) → timescale at offset 20
+	uint8_t buf[24];
+	file->seekSet(mdhd);
+	if (file->read(buf, 24) < 24) { file->seekSet(saved_pos); return 0; }
+
+	uint32_t timescale;
+	if (buf[0] == 0) {
+		timescale = (uint32_t)buf[12] << 24 | (uint32_t)buf[13] << 16 |
+					(uint32_t)buf[14] << 8 | buf[15];
+	} else {
+		timescale = (uint32_t)buf[20] << 24 | (uint32_t)buf[21] << 16 |
+					(uint32_t)buf[22] << 8 | buf[23];
+	}
+
+	file->seekSet(saved_pos);
+	samprate = timescale;
+	return samprate;
 }
 
 #if 0
@@ -144,7 +215,7 @@ int AudioPlaySdAac::standby_play(MutexFsBaseFile *file)
 
 	for (int i=0; i< DECODE_NUM_STATES; i++) decodeAac_core();
 
-	if((aacFrameInfo.sampRateOut != AUDIOCODECS_SAMPLE_RATE ) || (aacFrameInfo.nChans > 2)) {
+	if(!isValidSampleRate(aacFrameInfo.sampRateOut) || (aacFrameInfo.nChans > 2)) {
 		//Serial.println("incompatible AAC file.");
 		lastError = ERR_CODEC_FORMAT;
 		stop();
@@ -283,6 +354,7 @@ int AudioPlaySdAac::play(size_t position, unsigned samples_played)
 {
 	lastError = ERR_CODEC_NONE;
 	initVars();
+	samprate = AUDIOCODECS_SAMPLE_RATE;
 	sd_buf = allocBuffer(AAC_SD_BUF_SIZE);
 	if (!sd_buf) return ERR_CODEC_OUT_OF_MEMORY;
 
@@ -365,7 +437,8 @@ int AudioPlaySdAac::play(size_t position, unsigned samples_played)
 		sd_p = sd_buf;
 	}
 
-	if((aacFrameInfo.sampRateOut != AUDIOCODECS_SAMPLE_RATE ) || (aacFrameInfo.nChans > 2)) {
+	samprate = aacFrameInfo.sampRateOut;
+	if(!isValidSampleRate(samprate) || (aacFrameInfo.nChans > 2)) {
 		Serial.println("incompatible AAC file.");
 		lastError = ERR_CODEC_FORMAT;
 		stop();
@@ -375,7 +448,7 @@ int AudioPlaySdAac::play(size_t position, unsigned samples_played)
 	decoding_block = 1;
 
 	playing = codec_playing;
-	
+
 #ifdef CODEC_DEBUG
 //	Serial.printf("RAM: %d\r\n",ram-freeRam());
 #endif
@@ -591,6 +664,12 @@ void AudioPlaySdAac::stop_for_next(void)
 	aacobjptr = NULL;
 }
 #endif
+
+// positionMillis (Override) - use runtime samprate instead of compile-time AUDIO_SAMPLE_RATE_EXACT
+unsigned AudioPlaySdAac::positionMillis(void)
+{
+	return (samprate > 0) ? (unsigned)((uint64_t)samples_played * 1000 / samprate) : 0;
+}
 
 // lengthMillis (Override)
 unsigned AudioPlaySdAac::lengthMillis(void)

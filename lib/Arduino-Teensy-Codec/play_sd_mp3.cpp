@@ -63,6 +63,10 @@ short		AudioCodec::lastError;
 
 static AudioPlaySdMp3 	*mp3objptr;
 
+static bool isValidSampleRate(unsigned int sr) {
+	return (sr == 44100 || sr == 48000);
+}
+
 void decodeMp3(void);
 
 void AudioPlaySdMp3::stop(void)
@@ -94,9 +98,63 @@ float AudioPlaySdMp3::processorUsageMaxSD(void){
 
 void AudioPlaySdMp3::initVars(void)
 {
+	samprate = AUDIOCODECS_SAMPLE_RATE;
 	bitrate_sum = 0;
 	frames_played = 0;
 	AudioCodec::initVars();
+}
+
+unsigned int AudioPlaySdMp3::parseHeader(MutexFsBaseFile *file)
+{
+	uint8_t buf[10];
+	uint64_t saved_pos = file->curPosition();
+	file->seekSet(0);
+
+	// Skip ID3v2 tag(s)
+	size_t offset = 0;
+	while (1) {
+		file->seekSet(offset);
+		if (file->read(buf, 10) < 10) { file->seekSet(saved_pos); return 0; }
+		int skip = skipID3(buf);
+		if (skip == 0) break;
+		offset += skip + 10;
+	}
+
+	// Read enough data to find sync word and parse frame header
+	uint8_t framebuf[512];
+	file->seekSet(offset);
+	int bytes_read = file->read(framebuf, sizeof(framebuf));
+	file->seekSet(saved_pos);
+	if (bytes_read < 4) return 0;
+
+	// Find MP3 sync word
+	int sync = MP3FindSyncWord(framebuf, bytes_read);
+	if (sync < 0 || sync + 4 > bytes_read) return 0;
+
+	// Parse the 4-byte frame header
+	uint8_t *hdr = framebuf + sync;
+	// Byte 1 bits 4-3: MPEG version (11=V1, 10=V2, 00=V2.5)
+	int ver_bits = (hdr[1] >> 3) & 0x03;
+	// Byte 2 bits 3-2: sample rate index
+	int sr_idx = (hdr[2] >> 2) & 0x03;
+	if (sr_idx > 2) return 0; // reserved
+
+	static const unsigned int sr_table[3][3] = {
+		{44100, 48000, 32000},  // MPEG1
+		{22050, 24000, 16000},  // MPEG2
+		{11025, 12000,  8000},  // MPEG2.5
+	};
+
+	int ver;
+	switch (ver_bits) {
+		case 3: ver = 0; break; // MPEG1
+		case 2: ver = 1; break; // MPEG2
+		case 0: ver = 2; break; // MPEG2.5
+		default: return 0;      // reserved
+	}
+
+	samprate = sr_table[ver][sr_idx];
+	return samprate;
 }
 
 int AudioPlaySdMp3::play(size_t position, unsigned samples_played)
@@ -201,7 +259,8 @@ int AudioPlaySdMp3::play(size_t position, unsigned samples_played)
 		sd_p = sd_buf;
 	}
 
-	if((mp3FrameInfo.samprate != AUDIOCODECS_SAMPLE_RATE ) || (mp3FrameInfo.bitsPerSample != 16) || (mp3FrameInfo.nChans > 2)) {
+	samprate = mp3FrameInfo.samprate;
+	if(!isValidSampleRate(samprate) || (mp3FrameInfo.bitsPerSample != 16) || (mp3FrameInfo.nChans > 2)) {
 		char str[256];
 		sprintf(str, "incompatible MP3 file. samprate: %d, bitsPerSample: %d, nChans: %d", mp3FrameInfo.samprate, mp3FrameInfo.bitsPerSample, mp3FrameInfo.nChans);
 		Serial.println(str);
@@ -433,12 +492,18 @@ mp3end:
 	*/
 }
 
+// positionMillis (Override) - use runtime samprate instead of compile-time AUDIO_SAMPLE_RATE_EXACT
+unsigned AudioPlaySdMp3::positionMillis(void)
+{
+	return (samprate > 0) ? (unsigned)((uint64_t)samples_played * 1000 / samprate) : 0;
+}
+
 // lengthMillis (Override)
 unsigned AudioPlaySdMp3::lengthMillis(void)
 {
 	if (mp3FrameInfo.numFrames) { // w/ Xing header case (VBR)
 		// numFrames - 1: Sub a frame where Xing Header exists
-		return (unsigned) ((uint64_t) (mp3FrameInfo.numFrames - 1) * mp3FrameInfo.nChans * 576 * 1000 / AUDIO_SAMPLE_RATE_EXACT);
+		return (unsigned) ((uint64_t) (mp3FrameInfo.numFrames - 1) * mp3FrameInfo.nChans * 576 * 1000 / samprate);
 	}
 	if (frames_played == 0 || bitrate == 0) { return positionMillis(); }
 	unsigned short bitrate_ave = bitrate_sum / frames_played; // Kbps

@@ -60,6 +60,9 @@ public:
 	//int play(const char *filename) {stop();if (!fopen(filename)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
 	//int play(const size_t p, const size_t size) {stop();if (!fopen(p,size)) return ERR_CODEC_FILE_NOT_FOUND; return play();}
 	//int play(const uint8_t*p, const size_t size) {stop();if (!fopen(p,size))  return ERR_CODEC_FILE_NOT_FOUND; return play();}
+	unsigned int sampleRate(void) { return samprate; }
+	unsigned int parseHeader(MutexFsBaseFile *file);
+	unsigned positionMillis(void);
 	unsigned lengthMillis(void);
 	size_t fposition(void) { return AudioCodec::fposition() - sd_left; }
 
@@ -73,6 +76,8 @@ protected:
 	size_t			decoded_length[2];
 	size_t			decoding_block;
 	unsigned int	decoding_state; //state 0: read sd, state 1: decode
+
+	unsigned int	samprate;
 
 	bool isRAW;		//true AAC(streamable)
 	uintptr_t		play_pos;
