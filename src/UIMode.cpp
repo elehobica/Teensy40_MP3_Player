@@ -124,11 +124,13 @@ void UIFileViewMode::listIdxItems()
             lcd->setListItem(i, ""); // delete
             continue;
         }
-        const uint8_t *icon = file_menu_is_dir(vars->idx_head+i) ? ICON16x16_FOLDER : ICON16x16_FILE;
         if (vars->idx_head+i == 0) {
-            lcd->setListItem(i, "..", icon, (i == vars->idx_column));
+            lcd->setListItem(i, "..", ICON16x16_FOLDER, (i == vars->idx_column));
         } else {
+            // Get filename first: this triggers file_menu_sort_entry() inside,
+            // ensuring entry_list is sorted before file_menu_is_dir() reads it
             file_menu_get_fname_UTF16(vars->idx_head+i, (char16_t *) str, sizeof(str)/2);
+            const uint8_t *icon = file_menu_is_dir(vars->idx_head+i) ? ICON16x16_FOLDER : ICON16x16_FILE;
             lcd->setListItem(i, utf16_to_utf8((const char16_t *) str).c_str(), icon, (i == vars->idx_column), utf8);
         }
     }

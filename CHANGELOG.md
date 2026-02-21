@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 ### Fixed
 * Fix track number display for WAV case
+* Fix FileView icon to apply sorted order
 
 ## [v0.9.0] - 2026-02-17
 ### Added
