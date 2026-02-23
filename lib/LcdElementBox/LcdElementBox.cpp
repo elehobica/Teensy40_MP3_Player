@@ -14,6 +14,8 @@
 //=================================
 // Implementation of ImageBox class
 //=================================
+ImageBox::idle_callback_t ImageBox::idle_cb = NULL;
+
 ImageBox::ImageBox(int16_t pos_x, int16_t pos_y, uint16_t width, uint16_t height, uint16_t bgColor)
     : isUpdated(true), pos_x(pos_x), pos_y(pos_y), width(width), height(height), bgColor(bgColor),
         decode_ok(true), image(NULL), img_w(0), img_h(0), src_w(0), src_h(0), ratio256_w(256), ratio256_h(256),
@@ -207,6 +209,7 @@ bool ImageBox::loadJpegFile(uint16_t file_idx, uint64_t pos, size_t size, bool i
         (!keepAspectRatio && (src_w >= width*8 || src_h >= height*8))
     )) { // Use reduce decode for x8 larger image
         reduce = true;
+        if (idle_cb) idle_cb();
         JpegDec.abort();
         file_menu_get_obj(file_idx, &file);
         decoded = JpegDec.decodeSdFile(&file, pos, size, 1, is_unsync); // reduce == 1
@@ -306,6 +309,7 @@ void ImageBox::loadJpeg(bool reduce)
     int16_t mod_y_start = 0;
     int16_t plot_y_start = 0;
     while (JpegDec.read()) {
+        if (idle_cb) idle_cb();
         // MCU 2's Accumulation
         jpegMcu2sAccum(mcu_2s_accum_cnt, mcu_w, mcu_h, JpegDec.pImage);
         int idx = 0;
@@ -440,6 +444,7 @@ void ImageBox::loadJpeg(bool reduce)
 void cb_pngdec_draw_with_resize(void *cb_obj, uint32_t x, uint32_t y, uint16_t rgb565)
 {
     ImageBox *ib = (ImageBox *) cb_obj;
+    if (x == 0 && ImageBox::idle_cb) ImageBox::idle_cb();
 
     if (ib->image == NULL) { return; }
     if (ib->resizeFit) {

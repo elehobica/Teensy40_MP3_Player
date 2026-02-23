@@ -270,6 +270,7 @@ void setup()
 
     // Watchdog initialize (5 seconds timeout)
     watchdog_init(5000);
+    ImageBox::setIdleCallback(watchdog_feed);
 }
 
 void loop()
