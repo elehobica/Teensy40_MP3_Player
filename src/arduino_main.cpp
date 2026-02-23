@@ -270,7 +270,16 @@ void setup()
 
     // Watchdog initialize (5 seconds timeout)
     watchdog_init(5000);
-    ImageBox::setIdleCallback(watchdog_feed);
+    ImageBox::setIdleCallback([]() {
+        watchdog_feed();
+        // Throttle LCD refresh to ~200ms intervals during image decode
+        static unsigned long last_ms = 0;
+        unsigned long now = millis();
+        if (now - last_ms >= 200) {
+            lcd.refreshPlayTime();
+            last_ms = now;
+        }
+    });
 }
 
 void loop()

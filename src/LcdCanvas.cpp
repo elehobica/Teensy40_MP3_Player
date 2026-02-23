@@ -258,6 +258,15 @@ void LcdCanvas::setPlayTime(uint32_t positionSec, uint32_t lengthSec, bool blink
     playTime.setBlink(blink);
 }
 
+void LcdCanvas::refreshPlayTime()
+{
+    AudioCodec *codec = audio_get_codec();
+    if (codec && codec->isPlaying()) {
+        setPlayTime(codec->positionMillis() / 1000, codec->lengthMillis() / 1000, codec->isPaused());
+        playTime.draw(this);
+    }
+}
+
 void LcdCanvas::setTitle(const char *str, encoding_t encoding)
 {
     title.setText(str, encoding);
