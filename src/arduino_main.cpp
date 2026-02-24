@@ -126,6 +126,52 @@ void apply_audio_output_mode(int mode)
     }
 }
 
+// WDOG_CS_* macros are defined in imxrt.h (via Arduino.h)
+
+static void watchdog_init(uint32_t timeout_ms)
+{
+    CCM_CCGR5 |= CCM_CCGR5_WDOG3(3); // Enable WDOG3 clock gate
+
+    // Unlock WDOG3 - check CMD32EN to select correct unlock method
+    if (WDOG3_CS & WDOG_CS_CMD32EN) {
+        WDOG3_CNT = 0xD928C520; // 32-bit unlock
+    } else {
+        *(volatile uint16_t *)(IMXRT_WDOG3_ADDRESS + 0x004) = 0xC520; // 16-bit unlock
+        *(volatile uint16_t *)(IMXRT_WDOG3_ADDRESS + 0x004) = 0xD928;
+    }
+
+    // Wait for unlock to complete (~2 LPO cycles = ~62.5µs at 32kHz)
+    // Without this wait, TOVAL/CS writes are silently ignored
+    while (!(WDOG3_CS & WDOG_CS_ULK)) {}
+
+    // TOVAL is 16-bit (max 65535). LPO=32768Hz → max ~2s without prescaler.
+    // Use prescaler (÷256) for timeouts > 2s: effective clock = 128Hz, max ~512s.
+    uint16_t toval;
+    uint32_t cs = (uint32_t)(WDOG_CS_EN | WDOG_CS_CLK(1) | WDOG_CS_UPDATE | WDOG_CS_CMD32EN | WDOG_CS_FLG);
+    if (timeout_ms > 2000) {
+        cs |= WDOG_CS_PRES; // Enable ÷256 prescaler
+        toval = (uint16_t)((uint32_t)timeout_ms * 128 / 1000);
+    } else {
+        toval = (uint16_t)((uint32_t)timeout_ms * 32768 / 1000);
+    }
+
+    // Write config registers within 128 bus clock window after ULK
+    WDOG3_TOVAL = toval;
+    WDOG3_WIN = 0;
+    WDOG3_CS = cs;
+
+    // Verify configuration was applied (diagnostic)
+    Serial.print("[watchdog] CS=0x");
+    Serial.print(WDOG3_CS, HEX);
+    Serial.print(", TOVAL=");
+    Serial.println(WDOG3_TOVAL);
+}
+
+static void watchdog_feed(void)
+{
+    WDOG3_CNT = 0xB480A602; // 32-bit refresh (CMD32EN=1 after init)
+}
+
 // terminate() is called from UIPowerOffMode::entry()
 void terminate(ui_mode_enm_t resume_ui_mode)
 {
@@ -139,6 +185,7 @@ void terminate(ui_mode_enm_t resume_ui_mode)
     // Self Power Off
     digitalWrite(PIN_DCDC_SHDN_B, LOW);
     while (1) { // Endless Loop
+        watchdog_feed();
         yield(); // Arduino msg loop
         delay(100);
     }
@@ -220,10 +267,75 @@ void setup()
     // UI initialize
     ui_init(init_dest_ui_mode, dir_stack, &lcd);
     ui_reg_terminate_func(terminate);
+
+    // Watchdog initialize (5 seconds timeout)
+    watchdog_init(5000);
+    ImageBox::setIdleCallback([]() {
+        watchdog_feed();
+        // Throttle LCD refresh to ~200ms intervals during image decode
+        static unsigned long last_ms = 0;
+        unsigned long now = millis();
+        bool throttle_ok = (now - last_ms >= 200);
+        if (throttle_ok) {
+            lcd.refreshPlayTime();
+            last_ms = now;
+        }
+        // Check for pending button events during decode
+        if (has_pending_button_event()) {
+            button_action_t act = peek_button_action();
+            switch (act) {
+                case ButtonCenterSingle:
+                    audio_get_codec()->pause(!audio_get_codec()->isPaused());
+                    consume_button_event();
+                    break;
+                case ButtonPlusSingle:
+                case ButtonPlusLong:
+                    audio_volume_up();
+                    lcd.refreshVolume();
+                    consume_button_event();
+                    break;
+                case ButtonMinusSingle:
+                case ButtonMinusLong:
+                    audio_volume_down();
+                    lcd.refreshVolume();
+                    consume_button_event();
+                    break;
+                case ButtonCenterDouble:
+                case ButtonCenterTriple:
+                case ButtonCenterLong:
+                    ImageBox::requestAbort();
+                    break;
+                default:
+                    consume_button_event();
+                    break;
+            }
+        }
+    });
 }
 
 void loop()
 {
+    watchdog_feed();
+
+#ifdef DEBUG_WATCHDOG
+    static char freeze_buf[7] = {};
+    static uint8_t freeze_pos = 0;
+    while (Serial.available()) {
+        char c = Serial.read();
+        if (c == '\n' || c == '\r') {
+            freeze_buf[freeze_pos] = '\0';
+            if (strcmp(freeze_buf, "freeze") == 0) {
+                Serial.println("Freezing for watchdog test...");
+                Serial.flush();
+                while (1); // intentional hang
+            }
+            freeze_pos = 0;
+        } else if (freeze_pos < 6) {
+            freeze_buf[freeze_pos++] = c;
+        }
+    }
+#endif
+
     unsigned long time = millis();
 
     // UI process

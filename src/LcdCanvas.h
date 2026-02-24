@@ -128,6 +128,8 @@ public:
 	void drawListView();
 	void drawPlay();
 	void drawPowerOff();
+	void refreshPlayTime();
+	void refreshVolume();
 
 protected:
 	int play_count;

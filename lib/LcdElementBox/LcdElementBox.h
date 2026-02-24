@@ -47,6 +47,11 @@ public:
 class ImageBox : public LcdElementBox
 {
 public:
+	typedef void (*idle_callback_t)(void);
+	static void setIdleCallback(idle_callback_t cb);
+	static void requestAbort() { abort_requested = true; }
+	static bool isAbortRequested() { return abort_requested; }
+	static void clearAbort() { abort_requested = false; }
 	static const int MaxImgCnt = 4;
 	typedef enum _align_t {
 		origin = 0, // x=0, y=0
@@ -103,6 +108,8 @@ protected:
 	int image_count;
 	int image_idx;
 	image_t image_array[MaxImgCnt];
+	static idle_callback_t idle_cb;
+	static volatile bool abort_requested;
 	MutexFsBaseFile file;
 	void jpegMcu2sAccum(int count, uint16_t mcu_w, uint16_t mcu_h, uint16_t *pImage);
 	bool loadJpegBin(char *ptr, size_t size);
