@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 * Display icon to indicate bit resolution and sampling frequency
 * Display codec icon
 * Support ID3 tag for WAV
+* Add watchdog timer
+* Support display update and pause/stop during JPEG/PNG decode
 ### Changed
 * Change icon of audio files in FileView
 * Improve file sorting reference by utilizing dirIndex
