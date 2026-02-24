@@ -18,6 +18,7 @@ PNGDecoder::PNGDecoder()
 	cb_obj = NULL;
 	pngDecoder_draw_rgb565_callback = NULL;
 	file = NULL;
+	abort_check = nullptr;
 }
 
 PNGDecoder::~PNGDecoder()
@@ -33,6 +34,11 @@ void PNGDecoder::set_draw_callback(void *cb_obj, pngDecoder_draw_rgb565_callback
 {
 	this->cb_obj = cb_obj;
 	this->pngDecoder_draw_rgb565_callback = pngDecoder_draw_rgb565_callback;
+}
+
+void PNGDecoder::setAbortCheck(abort_check_t cb)
+{
+	abort_check = cb;
 }
 
 void PNGDecoder::abort()
@@ -156,6 +162,10 @@ int PNGDecoder::decode(uint8_t reduce)
 	}
 	pngle_set_reduce(pngle, reduce);
 	while (1) {
+		if (abort_check && abort_check()) {
+			abort();
+			return 0;
+		}
 		int len;
 		if (png_src_type == png_sd_file) {
 			len = file->readUnsync(buf + unfed, sizeof(buf) - unfed, is_unsync);

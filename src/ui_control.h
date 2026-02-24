@@ -31,4 +31,8 @@ void uiv_get_file_idx(uint16_t *idx_head, uint16_t *idx_column);
 void uiv_set_play_idx(uint16_t idx_play);
 void uiv_get_play_idx(uint16_t *idx_play);
 
+bool has_pending_button_event();
+button_action_t peek_button_action();
+void consume_button_event();
+
 #endif // __UI_CONTROL_H__

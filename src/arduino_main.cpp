@@ -275,9 +275,40 @@ void setup()
         // Throttle LCD refresh to ~200ms intervals during image decode
         static unsigned long last_ms = 0;
         unsigned long now = millis();
-        if (now - last_ms >= 200) {
+        bool throttle_ok = (now - last_ms >= 200);
+        if (throttle_ok) {
             lcd.refreshPlayTime();
             last_ms = now;
+        }
+        // Check for pending button events during decode
+        if (has_pending_button_event()) {
+            button_action_t act = peek_button_action();
+            switch (act) {
+                case ButtonCenterSingle:
+                    audio_get_codec()->pause(!audio_get_codec()->isPaused());
+                    consume_button_event();
+                    break;
+                case ButtonPlusSingle:
+                case ButtonPlusLong:
+                    audio_volume_up();
+                    lcd.refreshVolume();
+                    consume_button_event();
+                    break;
+                case ButtonMinusSingle:
+                case ButtonMinusLong:
+                    audio_volume_down();
+                    lcd.refreshVolume();
+                    consume_button_event();
+                    break;
+                case ButtonCenterDouble:
+                case ButtonCenterTriple:
+                case ButtonCenterLong:
+                    ImageBox::requestAbort();
+                    break;
+                default:
+                    consume_button_event();
+                    break;
+            }
         }
     });
 }

@@ -267,3 +267,18 @@ void uiv_get_play_idx(uint16_t *idx_play)
 {
     *idx_play = vars.idx_play;
 }
+
+bool has_pending_button_event()
+{
+    return button_event.getState();
+}
+
+button_action_t peek_button_action()
+{
+    return button_action;
+}
+
+void consume_button_event()
+{
+    button_event.clear();
+}

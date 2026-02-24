@@ -267,6 +267,12 @@ void LcdCanvas::refreshPlayTime()
     }
 }
 
+void LcdCanvas::refreshVolume()
+{
+    setVolume(audio_get_volume());
+    volume.draw(this);
+}
+
 void LcdCanvas::setTitle(const char *str, encoding_t encoding)
 {
     title.setText(str, encoding);
