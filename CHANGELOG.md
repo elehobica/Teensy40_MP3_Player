@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
+
+## [v0.9.1] - 2026-02-25
 ### Added
 * Support S/PDIF output (I2S + S/PDIF, I2S and S/PDIF selection)
 * Support Hi-Res audio up to 24bit 192KHz
