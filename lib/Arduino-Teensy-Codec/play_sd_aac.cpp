@@ -503,9 +503,15 @@ void AudioPlaySdAac::update(void)
 
 		{
 			short *src = buf[playing_block] + pl;
-			for (int i = 0; i < AUDIO_BLOCK_SAMPLES; i++) {
+			int valid_pairs = min(AUDIO_BLOCK_SAMPLES, decoded_length[playing_block] / 2);
+			int i;
+			for (i = 0; i < valid_pairs; i++) {
 				block_left->data[i]  = (int32_t)src[i * 2]     << 8;
 				block_right->data[i] = (int32_t)src[i * 2 + 1] << 8;
+			}
+			for (; i < AUDIO_BLOCK_SAMPLES; i++) {
+				block_left->data[i]  = 0;
+				block_right->data[i] = 0;
 			}
 		}
 
@@ -513,22 +519,27 @@ void AudioPlaySdAac::update(void)
 		transmit(block_left, 0);
 		transmit(block_right, 1);
 		release(block_right);
-		decoded_length[playing_block] -= AUDIO_BLOCK_SAMPLES * 2;
+		decoded_length[playing_block] -= min((int) decoded_length[playing_block], AUDIO_BLOCK_SAMPLES * 2);
 
 	} else
 	{
 		// if we're playing mono, no right-side block
 		{
 			short *src = buf[playing_block] + pl;
-			for (int i = 0; i < AUDIO_BLOCK_SAMPLES; i++) {
+			int valid_samples = min(AUDIO_BLOCK_SAMPLES, decoded_length[playing_block]);
+			int i;
+			for (i = 0; i < valid_samples; i++) {
 				block_left->data[i] = (int32_t)src[i] << 8;
+			}
+			for (; i < AUDIO_BLOCK_SAMPLES; i++) {
+				block_left->data[i] = 0;
 			}
 		}
 
 		pl += AUDIO_BLOCK_SAMPLES;
 		transmit(block_left, 0);
 		transmit(block_left, 1);
-		decoded_length[playing_block] -= AUDIO_BLOCK_SAMPLES;
+		decoded_length[playing_block] -= min((int) decoded_length[playing_block], AUDIO_BLOCK_SAMPLES);
 
 	}
 
