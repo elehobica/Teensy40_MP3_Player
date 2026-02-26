@@ -330,9 +330,16 @@ void AudioPlaySdWav::update(void)
 
 		{
 			int32_t *src = buf[playing_block] + pl;
-			for (int i = 0; i < AUDIO_BLOCK_SAMPLES; i++) {
+			int valid_pairs = min(AUDIO_BLOCK_SAMPLES, decoded_length[playing_block] / 2);
+			int i;
+			for (i = 0; i < valid_pairs; i++) {
 				block_left->data[i]  = src[i * 2];
 				block_right->data[i] = src[i * 2 + 1];
+			}
+			// Zero-fill remaining samples to avoid noise at end of file
+			for (; i < AUDIO_BLOCK_SAMPLES; i++) {
+				block_left->data[i]  = 0;
+				block_right->data[i] = 0;
 			}
 		}
 
@@ -340,22 +347,28 @@ void AudioPlaySdWav::update(void)
 		transmit(block_left, 0);
 		transmit(block_right, 1);
 		release(block_right);
-		decoded_length[playing_block] -= AUDIO_BLOCK_SAMPLES * 2;
+		decoded_length[playing_block] -= min((int) decoded_length[playing_block], AUDIO_BLOCK_SAMPLES * 2);
 
 	} else
 	{
 		// if we're playing mono, no right-side block
 		{
 			int32_t *src = buf[playing_block] + pl;
-			for (int i = 0; i < AUDIO_BLOCK_SAMPLES; i++) {
+			int valid_samples = min(AUDIO_BLOCK_SAMPLES, decoded_length[playing_block]);
+			int i;
+			for (i = 0; i < valid_samples; i++) {
 				block_left->data[i] = src[i];
+			}
+			// Zero-fill remaining samples to avoid noise at end of file
+			for (; i < AUDIO_BLOCK_SAMPLES; i++) {
+				block_left->data[i] = 0;
 			}
 		}
 
 		pl += AUDIO_BLOCK_SAMPLES;
 		transmit(block_left, 0);
 		transmit(block_left, 1);
-		decoded_length[playing_block] -= AUDIO_BLOCK_SAMPLES;
+		decoded_length[playing_block] -= min((int) decoded_length[playing_block], AUDIO_BLOCK_SAMPLES);
 
 	}
 
@@ -421,6 +434,9 @@ void decodeWav_core(void)
 		}
 		o->sd_p += i;
 		o->sd_left -= i;
+
+		// If no samples were decoded (orphan bytes < bytesPerSample remain), treat as EOF
+		if (j == 0) { eof = true; goto wavend; }
 
 		switch(decode_res)
 		{
