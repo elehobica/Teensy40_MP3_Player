@@ -215,16 +215,16 @@ int AudioPlaySdFlac::play(size_t position, unsigned samples_played)
 	initSwi();
 #endif
 
+	// For Resume play with 'position' - must seek BEFORE pre-fill
+	if (position != 0 && position < fsize()) {
+		FLAC__stream_decoder_seek_absolute(hFLACDecoder, samples_played);
+		this->samples_played += samples_played;
+	}
+
 	// Pre-fill buffer before starting playback (like WAV's double-buffer fill)
 	decodeFlac_core();  // Decode first frame (also allocates audiobuffer)
 	if (audiobuffer != NULL && audiobuffer->getBufsize() > 0 && audiobuffer->available() >= minbuffers) {
 		decodeFlac_core();  // Fill remaining buffer for small-block files
-	}
-
-	// For Resume play with 'position'
-	if (position != 0 && position < fsize()) {
-		FLAC__stream_decoder_seek_absolute(hFLACDecoder, samples_played);
-		this->samples_played += samples_played;
 	}
 
 	_channels = FLAC__stream_decoder_get_channels(hFLACDecoder);

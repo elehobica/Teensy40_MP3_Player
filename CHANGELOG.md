@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased]
 ### Fixed
 * Fix WAV playback freeze and noise at end of file
+* Fix resume playback mulfunction of FLAC
 
 ## [v0.9.1] - 2026-02-25
 ### Added
