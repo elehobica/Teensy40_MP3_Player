@@ -167,25 +167,21 @@ A8 also needs to be pulled-up by 2.2Kohm from 3.3V. See schematic for detail.
 * Long push Center button
 
 ## Prototype Example
-![Prototype Example](doc/photos/Teensy40_MP3_Player_prototype.jpg)
+
+<img src="doc/photos/Teensy40_MP3_Player_prototype.jpg" width="400" />
 
 * with ST7789_240x240_WOCS and ES9023
 
-[Scene1](doc/photos/Teensy40_MP3_Player_ST7789_240x240_WOCS_0.jpg)
-[Scene2](doc/photos/Teensy40_MP3_Player_ST7789_240x240_WOCS_1.jpg)
-[Scene3](doc/photos/Teensy40_MP3_Player_ST7789_240x240_WOCS_2.jpg)
+<img src="doc/photos/Teensy40_MP3_Player_ST7789_240x240_WOCS_0.jpg" height="100" /> <img src="doc/photos/Teensy40_MP3_Player_ST7789_240x240_WOCS_1.jpg" height="100" /> <img src="doc/photos/Teensy40_MP3_Player_ST7789_240x240_WOCS_2.jpg" height="100" />
 
 * with ILI9341_240x320 and ES9023
 
-[Scene4](doc/photos/Teensy40_MP3_Player_ILI9341_240x320_0.jpg)
-[Scene5](doc/photos/Teensy40_MP3_Player_ILI9341_240x320_1.jpg)
+<img src="doc/photos/Teensy40_MP3_Player_ILI9341_240x320_0.jpg" height="200" /> <img src="doc/photos/Teensy40_MP3_Player_ILI9341_240x320_1.jpg" height="200" />
 
 * with ST7735_128x160 and ES9023
 
-[Scene6](doc/photos/Teensy40_MP3_Player_ST7735_128x160_0.jpg)
-[Scene7](doc/photos/Teensy40_MP3_Player_ST7735_128x160_1.jpg)
-[Scene8](doc/photos/Teensy40_MP3_Player_ST7735_128x160_2.jpg)
+<img src="doc/photos/Teensy40_MP3_Player_ST7735_128x160_0.jpg" height="120" /> <img src="doc/photos/Teensy40_MP3_Player_ST7735_128x160_1.jpg" height="120" /> <img src="doc/photos/Teensy40_MP3_Player_ST7735_128x160_2.jpg" height="120" />
 
 * with ST7735_128x160 and PCM5102
 
-[Scene9](doc/photos/Teensy40_MP3_Player_ST7735_128x160_w_PCM5102A.jpg)
+<img src="doc/photos/Teensy40_MP3_Player_ST7735_128x160_w_PCM5102A.jpg" width="200" /> 
