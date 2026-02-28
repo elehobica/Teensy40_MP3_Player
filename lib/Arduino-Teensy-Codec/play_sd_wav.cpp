@@ -239,6 +239,7 @@ int AudioPlaySdWav::play(size_t position, unsigned samples_played)
 	// skip to 'data' chunk
 	skip = skipToDataChunk(sd_buf, WAV_SD_BUF_SIZE);
 	data_size = *((uint32_t *) (sd_buf + skip + 4));
+	data_remaining = data_size;
 	sd_p = sd_buf + skip + 8;
 	sd_left -= skip + 8;
 
@@ -420,6 +421,8 @@ void decodeWav_core(void)
 	{
 		int decode_res = 0;
 		int bytesPerSample = o->bitsPerSample / 8;
+		// Clamp sd_left to data chunk boundary to avoid decoding non-audio data
+		if ((size_t)o->sd_left > o->data_remaining) o->sd_left = o->data_remaining;
 		int i = 0;  // byte offset into sd_p
 		int j = 0;  // sample index into buf[db]
 		for (; i + bytesPerSample <= o->sd_left && j < WAV_BUF_SIZE; i += bytesPerSample, j++) {
@@ -434,6 +437,7 @@ void decodeWav_core(void)
 		}
 		o->sd_p += i;
 		o->sd_left -= i;
+		o->data_remaining -= i;
 
 		// If no samples were decoded (orphan bytes < bytesPerSample remain), treat as EOF
 		if (j == 0) { eof = true; goto wavend; }
@@ -471,21 +475,6 @@ wavend:
 		o->stop();
 	}
 }
-
-#if 0
-void AudioPlaySdWav::stop_for_next(void)
-{
-	//NVIC_DISABLE_IRQ(IRQ_AUDIOCODEC);
-	playing = codec_stopped;
-	/*
-	if (buf[1]) {free(buf[1]);buf[1] = NULL;}
-	if (buf[0]) {free(buf[0]);buf[0] = NULL;}
-	freeBuffer();
-	*/
-	fclose();
-	wavobjptr = NULL;
-}
-#endif
 
 // parseHeader - pre-parse WAV header to get sample rate before play()
 unsigned int AudioPlaySdWav::parseHeader(MutexFsBaseFile *file)

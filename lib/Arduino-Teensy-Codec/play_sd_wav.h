@@ -78,8 +78,8 @@ protected:
 	unsigned int	samprate;
 	unsigned short	bitsPerSample;
 	size_t			data_size;
+	size_t			data_remaining;
 
-	//void stop_for_next(void);
 	size_t parseFmtChunk(uint8_t *sd_buf, size_t sd_buf_size);
 	int play(size_t position = 0, unsigned samples_played = 0);
 	void update(void);
