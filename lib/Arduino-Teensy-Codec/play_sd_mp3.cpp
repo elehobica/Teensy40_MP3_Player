@@ -260,6 +260,7 @@ int AudioPlaySdMp3::play(size_t position, unsigned samples_played)
 	}
 
 	samprate = mp3FrameInfo.samprate;
+	_channels = mp3FrameInfo.nChans;
 	if(!isValidSampleRate(samprate) || (mp3FrameInfo.bitsPerSample != 16) || (mp3FrameInfo.nChans > 2)) {
 		char str[256];
 		sprintf(str, "incompatible MP3 file. samprate: %d, bitsPerSample: %d, nChans: %d", mp3FrameInfo.samprate, mp3FrameInfo.bitsPerSample, mp3FrameInfo.nChans);

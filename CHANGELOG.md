@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 * Fix WAV playback freeze and noise at end of file
 * Fix resume playback mulfunction of FLAC
+* Fix number of channels message for MP3 and AAC
 
 ## [v0.9.1] - 2026-02-25
 ### Added

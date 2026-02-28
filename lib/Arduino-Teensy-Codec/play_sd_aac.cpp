@@ -438,6 +438,7 @@ int AudioPlaySdAac::play(size_t position, unsigned samples_played)
 	}
 
 	samprate = aacFrameInfo.sampRateOut;
+	_channels = aacFrameInfo.nChans;
 	if(!isValidSampleRate(samprate) || (aacFrameInfo.nChans > 2)) {
 		Serial.println("incompatible AAC file.");
 		lastError = ERR_CODEC_FORMAT;
